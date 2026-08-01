@@ -63,6 +63,7 @@ accounts, two capabilities, no overlap.
 | --- | --- | --- | --- |
 | **Read** | `cortex_reader` | `SELECT` on all four tables | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
 | **Write** | `cortex_writer` | `INSERT`, `UPDATE`, `DELETE` on the four tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
+| **Demo write** | `cortex_demo` | `INSERT`, `UPDATE`, `DELETE` confined to demo session scopes, nothing else | anonymous browser → API Gateway → demo Lambda → SQL |
 
 Properties that follow, and that you should state explicitly:
 
@@ -72,8 +73,40 @@ Properties that follow, and that you should state explicitly:
   application code you wrote and could have got wrong.
 - The write surface is a small, typed, parameterised set of operations. No arbitrary
   SQL is reachable from any agent-controlled input.
-- The demo's public write path is a third, further-restricted principal with a
-  per-session row cap.
+
+### The demo principal and its blast radius
+
+The hosted demo MUST write as `cortex_demo`, a principal distinct from
+`cortex_writer`. This is not tidiness. The two planes have different threat models,
+and collapsing them would put an anonymous visitor behind the same principal that
+governs real repository memory.
+
+| | CLI write plane | Demo write plane |
+| --- | --- | --- |
+| Whose cluster | the user's own, provisioned by `cortex init` | yours, and it must survive until 2026-09-15 |
+| Who can reach it | the user's own agents, on their own machine | anyone on the internet, anonymously, with no account |
+| Who supplies the credential | the user, for their own repository | nobody: the credential is server side only and is never requested |
+| Worst realistic case | the user damages their own repository's memory | one throwaway sandbox scope is damaged |
+
+Invariants, in descending order of what a breach costs you:
+
+- `cortex_demo` MUST NOT be `cortex_writer`, and MUST NOT hold the reader plane's
+  grants. A demo visitor cannot become an agent, and an agent cannot become a visitor.
+- `cortex_demo` MUST NOT be able to affect any row whose `repo_id` is not a live demo
+  session scope. Real repository memory is not merely filtered out of the demo's
+  queries; it MUST be unreachable to the principal.
+- Demo session scopes are ephemeral and row-capped. See `03-MEMORY-MODEL.md` §7.
+- One demo session MUST NOT read or write another's. The vector index prefix already
+  gives this for recall; the write path MUST NOT reintroduce a way around it.
+
+`[OPEN]` How that confinement is enforced. A dedicated cluster for the demo gives
+isolation you do not have to reason about, but it is a second free-tier cluster to
+keep alive through judging, which doubles the surface of the longevity risk that is
+already the most likely way this submission fails after submission. Demo-scoped
+`repo_id`s in the one cluster keep a single thing alive and keep the architecture
+story honest — one cluster, as the whole thesis claims — but then the confinement
+rests on the write path rather than on the account boundary. The implementer should
+pick, state which, and write the test named in `03-MEMORY-MODEL.md` §8 either way.
 
 ## 4. Data flows
 
@@ -116,7 +149,10 @@ Three independent brakes on LIVE mode, all of which must be implemented:
 2. **A run counter in CockroachDB**, default 40 LIVE runs per day globally. On
    exhaustion the UI switches to REPLAY and says so plainly.
 3. **An AWS Budget alarm** with an action that disables the LIVE function above a
-   low-double-digit threshold.
+   low-double-digit threshold. Its action MUST target the LIVE reasoning function and
+   nothing else. A brake wired to disable the API, the SPA, the read path or the
+   cluster converts a cost control into a rules violation, because rule B4 requires
+   the project to stay available until 2026-09-15.
 
 Additionally: the smallest adequate model, a tight `max_tokens`, and embedding results
 cached by content hash so a repeated intent never pays twice.
@@ -125,6 +161,36 @@ The model credentials live only in the Lambda execution environment. They are ne
 sent to the browser, never present in the REPLAY path, and never required from a
 visitor. The demo remains free and unrestricted for judges, which is a rules
 requirement, while the exposure stays bounded.
+
+### Degradation ladder
+
+Rule B4 requires the working project to be available to judges free of charge and
+without restriction until 2026-09-15. An error page and a credential prompt fail that
+requirement equally, so **every limit this system can reach MUST resolve to a working
+page rather than to a failure.** Four limits are reachable. Each has a rung.
+
+| Rung | Limit reached | Behaviour | What is still true |
+| --- | --- | --- | --- |
+| 1 | LIVE reasoning quota exhausted | switch to REPLAY and state the reason on screen | database behaviour fully live |
+| 2 | Bedrock embeddings throttled or unavailable | deterministic local hash embedding, intent marked `degraded`, dedupe skipped for that intent | database behaviour fully live, dedupe degraded and labelled as such |
+| 3 | per-session row cap reached | session becomes read-only; its rows, counters and SQL log stay inspectable; a new session is one click | everything on screen is still real |
+| 4 | cluster or write path unavailable | serve the pre-recorded walkthrough from S3 and CloudFront behind an explicit banner | nothing is live, and the banner says so |
+
+Note that rung 2 is reachable in REPLAY as well as in LIVE. REPLAY caches reasoning,
+not embeddings, so the demo retains a Bedrock dependency even with LIVE disabled
+entirely. This is the rung most likely to fire unnoticed.
+
+Invariants:
+
+1. No rung MAY present an error page, a credential field, a login, or a payment gate.
+   This holds however the limit was reached and whoever reached it.
+2. No rung MAY misrepresent liveness. Rung 4 MUST state that database behaviour is not
+   live, for the same reason REPLAY carries its notice: rule A7 requires the project to
+   function as depicted, and a silent static fallback would depict a live system.
+3. Degradation affects only the capability that hit its limit. An exhausted LIVE quota
+   MUST NOT disable the read path; a full session MUST NOT take down the SPA.
+4. Every rung MUST be verified by forcing its limit, not by reasoning about it. The
+   done-when condition is in `08-BUILD-PLAN.md` §5.
 
 ## 6. Failure modes
 
@@ -138,7 +204,9 @@ these in the README with the mitigation next to it.
 | Bedrock throttled or unavailable | intent cannot be embedded | fall back to a deterministic local hash embedding, mark the intent `degraded`, skip dedupe for it rather than blocking the agent |
 | Changefeed stalled | consolidation lags, live view freezes | agents are unaffected because consolidation is off the critical path; UI shows a staleness badge driven by the last event timestamp |
 | Cluster unreachable | agents cannot claim | CLI fails closed: no claim means no action, never act without arbitration |
-| Demo cost cap hit | LIVE disabled | automatic fallback to REPLAY with an on-screen explanation |
+| Demo LIVE quota exhausted | LIVE disabled, REPLAY unaffected | ladder rung 1; the Budget alarm may disable the LIVE function and nothing else |
+| Demo session row cap reached | that session goes read-only | ladder rung 3; its state stays inspectable and a new session is one click |
+| Demo backend unavailable | no live data | ladder rung 4; pre-recorded walkthrough from CloudFront behind a banner stating it is not live |
 | Prompt-injected agent | attempts a destructive write | impossible: the agent's credentials permit no writes and the write API exposes no arbitrary SQL |
 
 Note the deliberate choice in row five. **Fail closed.** An agent that cannot reach

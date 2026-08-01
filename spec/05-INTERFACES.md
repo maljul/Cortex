@@ -152,7 +152,8 @@ work. Both directions belong in the B10 answer.
 
 ## 5. Demo HTTP API
 
-Only what the SPA needs. Public, anonymous, rate limited.
+Only what the SPA needs. Public, anonymous, rate limited. Served by the `cortex_demo`
+principal, whose confinement is specified in `04-ARCHITECTURE.md` §3.
 
 | Route | Purpose |
 | --- | --- |
@@ -166,10 +167,28 @@ Only what the SPA needs. Public, anonymous, rate limited.
 lets a sceptical judge see the literal statements behind the animation, which is the
 difference between a visualisation and a proof.
 
+Contracts on this surface, all of which follow from rule B4:
+
+- **No route MAY accept a credential in any field, under any name, on any path.** Not
+  a DSN, not an API key, not an AWS role ARN, not a "bring your own model" override.
+  A request carrying a credential-shaped field MUST be rejected rather than honoured.
+  The rule is absolute because the failure is: once the field exists, somebody pastes
+  a live key into a stranger's web form.
+- `POST /demo/run` MUST NOT fail when the LIVE quota is exhausted. It returns a
+  `replay` run together with the reason it is not `live`. Exhaustion is a normal
+  return value, exactly as a blocked claim is in §1.
+- The current mode, the reason for it, and the session's remaining row budget MUST be
+  readable by the SPA, so that the interface can render a degraded state truthfully
+  instead of discovering it through a failed request.
+- Every degradation rung in `04-ARCHITECTURE.md` §5 MUST be expressible through these
+  routes without an error status. A judge who arrives at a capped demo sees a working
+  page that explains itself.
+
 ## 6. Configuration
 
 ```
 CORTEX_DSN                 # write-plane connection string, server side only
+CORTEX_DEMO_DSN            # hosted demo only, cortex_demo principal, server side only
 CORTEX_MCP_ENDPOINT        # https://cockroachlabs.cloud/mcp
 CORTEX_REPO                # repo slug
 CORTEX_LEASE_TTL           # default 10m
@@ -181,3 +200,9 @@ BEDROCK_REASON_MODEL          # LIVE mode only
 
 No credential is ever read from, or written to, the repository. `cortex doctor`
 MUST fail loudly if a DSN appears in a tracked file.
+
+Every value above is server side. **None is ever sent to the browser, and none is
+ever accepted from it.** Bring-your-own-credentials is correct for the CLI, where a
+user provisions their own cluster for their own repository and supplies
+`CORTEX_DSN` themselves. It is never correct for the hosted demo, where the visitor
+is an anonymous judge who has been promised a working project with no setup.

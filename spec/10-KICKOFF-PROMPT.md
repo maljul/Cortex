@@ -74,8 +74,14 @@ CONSTRAINTS
   API. No agent-reachable path may accept arbitrary SQL.
 - Every write transaction is wrapped in the serialization-failure retry helper.
 - No credential is ever written to a tracked file or printed to stdout.
-- The public demo must work anonymously, with no key and no login, and must never
-  ask a visitor for credentials.
+- The public demo must work anonymously, with no account, key, cluster or card, and
+  must never ask a visitor for credentials. No credential input field may exist in
+  any build, in any form, including behind an advanced, settings or developer panel.
+  Not disabled, not hidden, not present. Bring-your-own-credentials is correct for
+  the CLI and never for the hosted demo.
+- The demo degrades, it never errors. Every limit it can reach resolves to a working
+  page that explains itself, per the ladder in 04-ARCHITECTURE.md section 5. An error
+  page shown to a judge is a failed rules requirement, not a bug report.
 
 OUTPUT REQUIREMENTS
 For each unit of work, produce:

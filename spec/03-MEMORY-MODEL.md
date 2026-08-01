@@ -314,8 +314,23 @@ the gap. Present it as what it is: a cheap, elegant read of recent history.
   enough to matter. Not needed for the hackathon; mention it in the README as the
   production path.
 - `findings`: never expires. Confidence decays instead, via the consolidation job.
-- Free-tier budget: the demo dataset MUST stay under a few hundred megabytes. Enforce
-  a per-session row cap in the demo write path and reclaim demo rows with TTL.
+- Free-tier budget: the demo dataset MUST stay under a few hundred megabytes.
+
+### Demo session scopes
+
+The hosted demo writes as `cortex_demo`, not as `cortex_writer`. See
+`04-ARCHITECTURE.md` §3 for why the principals are separate. In data terms:
+
+- Each demo session MUST receive its own `repo_id`, distinct from any real
+  repository's, so that isolation rests on the same index prefix that isolates
+  tenants rather than on a `WHERE` clause the demo path could forget.
+- Demo rows MUST carry a TTL and be reclaimed automatically. No manual cleanup
+  between now and 2026-09-15.
+- The demo write path MUST enforce a per-session row cap. Reaching it makes that
+  session read-only; it MUST NOT produce an error, and it MUST NOT affect any other
+  session. See the degradation ladder in `04-ARCHITECTURE.md` §5.
+- `cortex_demo` MUST NOT be able to write outside a live demo session scope. This is
+  an invariant, not a convention, and it has a test in §8.
 
 ## 8. What must be tested
 
@@ -329,3 +344,8 @@ Write these as the first tests, before any agent code exists.
 6. Dedupe fires on a paraphrase of an in-flight intent and returns its holder.
 7. A forced `40001` is retried and eventually commits.
 8. Recall scoped to repo A never returns rows belonging to repo B.
+9. The `cortex_demo` principal cannot write to a `repo_id` that is not a live demo
+   session scope, and cannot read or write another session's rows. Assert against the
+   real principal with its real grants; asserting against application code proves
+   nothing, because the point of the separate principal is that it holds when the
+   application code is wrong.

@@ -66,7 +66,24 @@ Fleet: 5 agents, started simultaneously, each pulling from the shared task list.
 
 ## 5. Determinism
 
-The benchmark MUST be reproducible from a clean clone by a judge. Non-determinism
+Two different things are often conflated here, and the distinction matters because
+judges scan for setup friction:
+
+- **Verifying the numbers requires no setup at all.** The committed results,
+  `environment.json`, the cassettes and the offline judge are all in the repository,
+  and the hosted demo shows the same mechanism running live. A judge can check the
+  claim without provisioning anything. This is what rule B4 is about.
+- **Re-running the benchmark requires a cluster**, because database behaviour is
+  genuinely live in both arms — that is the point of the harness. A judge who wants to
+  re-run it provisions their own free cluster with `cortex init`. That is the CLI
+  path, where bring-your-own-credentials is correct, and it is not a restriction on
+  the working project.
+
+State both in the README, in that order. Claiming the benchmark reproduces from a
+clean clone with nothing else is false, and a database-company judge will be the
+first to notice that the CORTEX arm cannot run without a database.
+
+The re-run MUST be reproducible from a clean clone plus a cluster. Non-determinism
 from model sampling would destroy that, so:
 
 - Model interactions are recorded to **cassettes** in `bench/cassettes/`, keyed by a
@@ -116,7 +133,9 @@ evidence.
 
 Non-negotiable, and each one strengthens rather than weakens the submission:
 
-1. Publish the exact command that reproduces the table.
+1. Publish the exact command that reproduces the table, and state its prerequisites
+   plainly: a free cluster of your own. Publish alongside it what a reader can check
+   with no prerequisites at all, which is everything except the re-run.
 2. Publish the environment: cluster tier, region, model ids, dates.
 3. Report variance across at least three runs, not a single best result.
 4. State the limitations section yourself: small synthetic corpus, replayed reasoning,

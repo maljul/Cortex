@@ -10,7 +10,8 @@ lock service could not do.*
 
 Design consequences:
 
-- No signup, no key, no configuration. One click to a running scenario.
+- No signup, no account, no key, no cluster, no card, no configuration. One click to a
+  running scenario. This is a rules requirement, not a courtesy: see `02` B4.
 - Nothing loads slowly. Pre-warm and pre-seed everything.
 - Every number on screen is real and comes from the database.
 - One button reveals the literal SQL. Sceptics are the audience worth designing for.
@@ -60,10 +61,29 @@ database behaviour is live`.
 **The video is recorded in LIVE mode.** The rules require the project to function as
 depicted. Never narrate replay footage as live inference.
 
-Guardrails are specified in `04-ARCHITECTURE.md` §5. When the LIVE quota is exhausted
-the UI must degrade to REPLAY with a plain explanation, never with an error, and never
-by asking the visitor for a key. Asking a judge for credentials would sit badly
-against the requirement that the project be available without restriction.
+Guardrails and the full degradation ladder are specified in `04-ARCHITECTURE.md` §5.
+The LIVE quota is only the first of four limits this demo can reach; the others are
+embeddings, the per-session row cap, and the backend itself. Each degrades to a
+working page with a plain explanation.
+
+**Two absolute rules, both downstream of rule B4.**
+
+The demo MUST NOT ever present an error page in place of a scenario. A judge who
+arrives at a capped demo and sees a stack trace has been told the project does not
+work, and no README sentence recovers that.
+
+The demo MUST NOT ever accept a credential from the browser. No key field, no
+advanced settings panel, no developer mode, no "use your own model" escape hatch —
+not disabled, not hidden, not present. The reasoning is not that a judge would refuse
+to supply one, though most would. It is that the field itself is the hazard: once it
+exists on a public page, somebody eventually pastes a live production key into it,
+and you own that. Bring-your-own-credentials is right for the CLI, where the user
+provisions their own cluster for their own repository. It is never right here.
+
+Rung 4 carries the same honesty obligation as REPLAY. If the walkthrough is
+pre-recorded because the backend is unreachable, the banner says so. A static
+fallback that silently depicts a live system would breach rule A7 far more seriously
+than replayed reasoning does.
 
 ## 5. Video script — 2:50
 
@@ -92,19 +112,25 @@ The description is a scored artifact in its own right. Order matters.
 
 1. **One-sentence thesis.** The durable-execution contrast line from `00-INDEX.md`.
 2. **The benchmark table.** Above the fold, before any prose about architecture.
-3. **What it is.** Three sentences. Shared arbitrated memory for agent fleets, not a
+3. **How to try it, in one line.** The demo URL, followed by: no account, no API key,
+   no cluster, no card, nothing to install. Judges scan for setup friction before they
+   read anything else, and a submission that looks like it needs provisioning gets
+   skipped for one that does not. Say in the same breath that the CLI is where you
+   bring your own cluster, so nobody mistakes the two.
+4. **What it is.** Three sentences. Shared arbitrated memory for agent fleets, not a
    framework, not an orchestrator.
-4. **The four memory tiers**, with the database primitive that implements each.
-5. **The one query a vector database cannot run.** Paste it.
-6. **Architecture diagram.**
-7. **CockroachDB tools and what the agent did with them.** Paste section C of
+5. **The four memory tiers**, with the database primitive that implements each.
+6. **The one query a vector database cannot run.** Paste it.
+7. **Architecture diagram.**
+8. **CockroachDB tools and what the agent did with them.** Paste section C of
    `02-COMPLIANCE-MATRIX.md` verbatim.
-8. **AWS services and how.** Paste section D.
-9. **Production readiness.** Privilege planes, failure modes table, guardrails.
-10. **Prior art and how this differs.** The table from the brief. Naming competitors
+9. **AWS services and how.** Paste section D.
+10. **Production readiness.** Privilege planes including the demo's separate confined
+    principal, failure modes table, guardrails, degradation ladder.
+11. **Prior art and how this differs.** The table from the brief. Naming competitors
     is a strength.
-11. **Limitations.** Written by you, honestly.
-12. **Feedback on the CockroachDB AI tools.** Detailed and specific. It is an optional
+12. **Limitations.** Written by you, honestly.
+13. **Feedback on the CockroachDB AI tools.** Detailed and specific. It is an optional
     field that almost nobody fills in properly, and it costs you fifteen minutes.
 
 ## 7. Repository README — first screen
@@ -121,11 +147,21 @@ shared, arbitrated memory for fleets of coding agents
 | duplicate_work_rate |  0.xx |      0.00 |
 | lost_writes         |     n |         0 |
 
-npx cortex init
+Try it:   <demo url>      no account, no key, no cluster, nothing to install
+Run it:   npx cortex init  provisions your own free cluster in one command
 
 Durable execution gives exactly-once within one workflow. It does not give mutual
 exclusion between agents that do not know each other exists.
 ```
 
 Nothing else above the fold. No badges, no table of contents, no architecture
-paragraph. GIF, numbers, install line, thesis.
+paragraph. GIF, numbers, the two entry points, thesis.
+
+The two lines are deliberately separated and deliberately labelled, because they
+serve different readers and the distinction is the one a judge is scanning for. A
+judge needs to know that trying this costs them nothing, and they need to know it
+before they read a single sentence of prose. A developer needs to know that running it
+on their own repository means their own cluster and their own credentials — which is
+correct, expected, and not a caveat to bury. Collapsing the two into one install line,
+as this screen previously did, reads as though the project requires provisioning
+before it can be seen at all.

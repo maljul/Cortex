@@ -40,9 +40,13 @@ In descending order of effect:
 
 1. A GIF above the fold showing the failure and the fix in under eight seconds.
 2. A benchmark table with a number that is surprising.
-3. A one-line install that genuinely works from an empty machine.
-4. A thesis sentence that reframes something the reader already believed.
-5. A named comparison to tools the reader respects, handled fairly.
+3. A hosted demo that needs no account, key or cluster, linked above the fold. The
+   cheapest possible first look; a visitor who must provision something to see
+   anything mostly does not.
+4. A one-line install that genuinely works from an empty machine, for the visitor who
+   has already decided and wants it on their own repository.
+5. A thesis sentence that reframes something the reader already believed.
+6. A named comparison to tools the reader respects, handled fairly.
 
 Not on the list: architecture diagrams, feature lists, badges, roadmaps. Those keep
 people who already decided; they do not decide anyone.
@@ -53,8 +57,10 @@ Do not launch before submitting. A public repository before the deadline invites
 copies, and 2,500 people are looking for ideas.
 
 - **Day 0** submission closes.
-- **Day 1** repository polished, benchmark reproducible from a clean clone by someone
-  who is not you. Test this on a borrowed machine.
+- **Day 1** repository polished, benchmark re-runnable from a clean clone by someone
+  who is not you. Test this on a borrowed machine. They will need their own free
+  cluster, which is expected and is not friction to apologise for — the zero-setup
+  path is the hosted demo, and the README must not blur the two.
 - **Day 2** Hacker News Show HN, morning US Eastern. Title states the mechanism, not
   the product: *Show HN: Coordination layer that stops parallel coding agents from
   duplicating work.* First comment is your own, containing the methodology and the

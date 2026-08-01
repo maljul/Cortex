@@ -69,7 +69,7 @@ arms. From this moment you have a submittable project even if everything else fa
 | --- | --- | --- |
 | 32–38h | infra as code, deploy to AWS, changefeed to WebSocket path live | hosted demo reachable anonymously |
 | 38–44h | demo SPA, three panels, naive toggle, show-SQL panel | the four beats read clearly to someone who has not seen it |
-| 44–47h | guardrails: reserved concurrency, run counter, budget alarm | LIVE mode degrades correctly when capped |
+| 44–47h | guardrails: reserved concurrency, run counter, budget alarm; all four degradation rungs | each rung forced deliberately and each produces a working page; each brake fired deliberately and the demo stayed reachable; no credential field anywhere in the UI; demo loads in a private window on a machine that never touched the project |
 | 47–52h | README, architecture diagram, licence, third-party disclosure | a clean clone reproduces the benchmark |
 | 52–58h | video recorded in LIVE mode, edited under 3:00 | uploaded, public, captioned |
 | 58–60h | Devpost description, B10 and B11 answers, feedback field | walk the checklist in `02` §F |
@@ -85,9 +85,12 @@ almost nothing; cutting from the bottom costs the submission.
 4. Glob expansion beyond a fixed depth
 5. Threshold sweep, publish a single value and say it was not tuned
 6. Heartbeat and lease extension, use a longer fixed lease
-7. Live mode entirely, ship replay only and record the video locally
+7. Live mode entirely, ship replay only and record the video locally. This does not
+   endanger rule B4: a replay-only demo is still a working project available free and
+   without restriction, because REPLAY runs fully live database behaviour. What would
+   endanger B4 is shipping LIVE without its degradation rung
 8. **Never cut:** the arbitration transaction, the benchmark, the naive toggle, the
-   README first screen, the video
+   README first screen, the video, and anonymous zero-setup access to the demo
 
 ## 7. Risk register
 
@@ -98,7 +101,8 @@ almost nothing; cutting from the bottom costs the submission.
 | Benchmark shows no difference | low | **high** | it means task overlap is too low; increase the overlapping-task share and say so in the methodology |
 | Demo cost runs away | low | medium | three independent brakes; verify each fires |
 | Agents behave inconsistently in the video | medium | medium | record in scripted-agent mode, which is also the trademark mitigation |
-| Free-tier cluster paused during judging | medium | **high** | weekly health check between 2026-08-19 and 2026-09-15 |
+| Free-tier cluster paused during judging | medium | **high** | weekly anonymous end-to-end check between 2026-08-19 and 2026-09-15, in a private window, not merely a console glance at cluster status |
+| A cost brake takes the whole demo down rather than just LIVE | medium | **high** | scope each brake to the LIVE reasoning function and fire each one deliberately before submitting; see `02` WATCH-6 |
 | Rules amended | low | high | re-fetch and diff on 2026-08-17 |
 | Scope creep into building an agent framework | **high** | high | the non-goals list in `01` §6 is the veto; re-read it whenever a new idea feels exciting |
 

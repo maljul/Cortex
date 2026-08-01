@@ -33,8 +33,8 @@ risk to monitor.
 | --- | --- | --- | --- |
 | B1 | Public repository with full source, README, dependencies, example config, setup and run instructions | Repo layout per `09-DISTRIBUTION.md` §1 | ACT |
 | B2 | Open-source licence **detectable and visible in the About section** | `LICENSE` file, MIT, plus licence set in repo settings so GitHub shows it in About | ACT |
-| B3 | URL to a functional demo app | CloudFront URL, zero setup required, no login | OK |
-| B4 | Working project available **free of charge and without any restriction** for testing until the judging period ends | Demo is public, anonymous, needs no key and no cluster. LIVE mode capped but never gated behind payment or credentials; when the daily cap is reached the UI falls back to REPLAY with an explicit notice | **FIX** — a BYOK-only demo was arguably a restriction. Resolved. |
+| B3 | URL to a functional demo app | CloudFront URL, zero setup required, no login. No credential input field exists anywhere in the UI, including behind any advanced or developer panel | OK |
+| B4 | Working project available **free of charge and without any restriction** for testing until the judging period ends | Demo is public and anonymous, needs no account, no key, no cluster and no card. It writes as `cortex_demo`, a server-side principal confined to TTL'd sandbox scopes (`04` §3), so no visitor ever supplies a credential. Every reachable limit resolves to a working page via the degradation ladder (`04` §5) rather than to an error or a prompt | **FIX** — a BYOK-only demo was arguably a restriction. Resolved by design; the residual risk is availability, not credentials — see WATCH-4 and WATCH-6 |
 | B5 | Text description of features and functionality | Devpost description drafted in `07` §6 | ACT |
 | B6 | Video under 3 minutes, public on YouTube or Vimeo | Script in `07` §5 | ACT |
 | B7 | Video must show the project functioning on its target platform | Terminal footage of the CLI running real agents | OK |
@@ -83,7 +83,7 @@ lets the read path work through the managed MCP server without bespoke client co
 | **Amazon CloudFront** | demo distribution |
 | **Amazon API Gateway** | HTTP API for the write path, WebSocket API for the live memory stream, and the ingress for the CockroachDB changefeed webhook sink |
 | **Amazon EventBridge** | asynchronous memory consolidation triggered by changefeed events, off the agent's critical path |
-| **Amazon CloudWatch + AWS Budgets** | observability, structured logs, and the hard cost ceiling on LIVE mode |
+| **Amazon CloudWatch + AWS Budgets** | observability, structured logs, and the hard cost ceiling on LIVE mode. The budget action is scoped to the LIVE reasoning function alone, so a cost brake can never take the demo off the air and breach B4 |
 
 Note the discipline: six services, each with one clear job. Do not add a seventh for
 appearance. Rule A3 cuts against sprinkling as much as it cuts against omitting.
@@ -104,9 +104,20 @@ crop and blur.
 and each has a fallback. Resolve all three in the first working hour; see
 `08-BUILD-PLAN.md` §2.
 
-**WATCH-4 — demo longevity.** The demo must remain live and free until 2026-09-15.
-Set a calendar reminder for weekly health checks and confirm the free-tier cluster is
-not paused or reclaimed for inactivity.
+**WATCH-4 — demo longevity.** The demo must remain live, anonymous and free until
+2026-09-15. This is now the *only* live part of the B4 story, since the credential
+question is closed by design. Weekly, from submission to the end of judging: open the
+demo URL in a private browser window on a machine that has never touched this project,
+and confirm a scenario runs end to end. Checking that the cluster is unpaused is not
+the same test and will not catch a broken deploy, an expired certificate, or a
+guardrail that fired and never reset.
+
+**WATCH-6 — guardrail blast radius.** The three brakes in `04-ARCHITECTURE.md` §5 exist
+to stop cost running away. Each is also a way to take the demo off the air, and a demo
+that is off the air fails B4 no matter how good the reason was. The Budget alarm's
+action must target the LIVE reasoning function alone; reserved concurrency must not be
+applied to the read or REPLAY paths; the run counter must degrade the mode, never the
+service. Verify by firing each brake deliberately, not by reading the configuration.
 
 **WATCH-5 — rules amendments.** Re-fetch the rules page on 2026-08-17 and diff it
 against this matrix.
@@ -117,6 +128,14 @@ against this matrix.
 - [ ] Repository public, MIT licence visible in the About section
 - [ ] README contains setup, run instructions, prior-work disclosure, third-party licences
 - [ ] Demo URL loads anonymously in a private browser window, with no key and no login
+- [ ] No credential input field exists anywhere in the demo UI, including behind any
+      advanced, settings or developer panel
+- [ ] All four degradation rungs exercised by forcing the limit, each producing a
+      working page rather than an error
+- [ ] Each of the three cost brakes fired deliberately, and the demo stayed reachable
+- [ ] README and Devpost description both state the zero-setup promise explicitly, and
+      both make clear that bring-your-own-credentials applies to the CLI only
+- [ ] Weekly anonymous reachability check scheduled through 2026-09-15
 - [ ] LIVE mode works and its daily cap degrades gracefully to REPLAY
 - [ ] Video under 3:00, public, English, shows terminal and memory layer, no third-party marks
 - [ ] Devpost description contains the benchmark table and the architecture diagram

@@ -49,6 +49,9 @@ Shared, arbitrated memory for fleets of coding agents. CockroachDB + AWS.
 - Agents hold read-only DB credentials. All writes go through the typed write API.
 - Every write transaction is wrapped in the 40001 retry helper.
 - No credential in a tracked file. No credential printed to stdout.
+- The hosted demo never accepts a credential from the browser. No key field, no
+  advanced panel, ever. BYO credentials is for the CLI only.
+- The demo degrades, it never errors. Every limit resolves to a working page.
 - Data-layer work is not done until tests pass against a REAL cluster. Mocks do not
   count for anything in the data layer.
 
@@ -122,6 +125,16 @@ Verification gate. Run in a fresh context. Refuse to pass on anything unverified
 4. Confirm no agent-reachable path accepts arbitrary SQL, a table name, or any other
    structural parameter.
 5. Grep tracked files for credentials, DSNs, and keys.
+6. Search the demo surface for any input that accepts a credential: key fields, DSN
+   fields, model overrides, advanced or developer panels, disabled or hidden inputs.
+   Report every candidate with a file and line. Any hit is a FAIL, including one that
+   is commented out or feature-flagged off.
+7. Confirm the demo write path uses the cortex_demo principal and cannot write outside
+   a demo session scope. Report the principal actually used at runtime, not the one
+   the configuration names.
+8. For each degradation rung in spec/04-ARCHITECTURE.md section 5, report whether it
+   has been forced and what it rendered. A rung that has only been reasoned about is
+   a FAIL.
 
 Output a table: check, PASS or FAIL, evidence. Do not summarise as passing if any
 row failed. Do not suggest fixes in this command; report only.
