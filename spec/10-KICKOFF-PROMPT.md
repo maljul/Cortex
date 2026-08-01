@@ -9,7 +9,7 @@ invariant**, never an implementation.
 
 ```
 ROLE
-You are implementing LEASEHOLD, a shared arbitrated memory layer for fleets of
+You are implementing CORTEX, a shared arbitrated memory layer for fleets of
 coding agents working on one repository, backed by CockroachDB and deployed on AWS.
 
 CONTEXT FILES

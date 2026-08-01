@@ -43,7 +43,7 @@ file later becomes the feedback you submit in the optional field.
 
 | Block | Work | Done when |
 | --- | --- | --- |
-| 2–5h | schema applied, migrations runnable from clean | `leasehold init` produces a working cluster twice in a row |
+| 2–5h | schema applied, migrations runnable from clean | `cortex init` produces a working cluster twice in a row |
 | 5–9h | retry helper, typed repository layer, no SQL outside it | forced `40001` retries and commits, covered by a test |
 | 9–14h | the arbitration transaction, all eight invariant tests from `03` §8 | all eight pass |
 | 14–16h | embeddings via Bedrock, content-hash cache | repeated intent does not re-embed |
@@ -55,9 +55,9 @@ loser prints the winner's identity. If this does not work, day two does not star
 
 | Block | Work | Done when |
 | --- | --- | --- |
-| 16–20h | LEASEHOLD MCP server, three write tools, stdio transport | a real coding agent attaches and successfully proposes |
+| 16–20h | CORTEX MCP server, three write tools, stdio transport | a real coding agent attaches and successfully proposes |
 | 20–23h | Agent Skill with recall SQL; read path through the managed MCP server verified end to end | agent recalls without any bespoke client |
-| 23–29h | benchmark harness: fixtures, task list, five-agent runner, cassettes | `leasehold bench` runs both arms deterministically |
+| 23–29h | benchmark harness: fixtures, task list, five-agent runner, cassettes | `cortex bench` runs both arms deterministically |
 | 29–32h | metrics, offline duplicate judge, results writer | `bench/results/` populated and committed |
 
 **End-of-day gate:** the summary table exists and shows a real difference between the
@@ -81,7 +81,7 @@ almost nothing; cutting from the bottom costs the submission.
 
 1. Time-travel panel
 2. OpenTelemetry export
-3. `leasehold run` process wrapper, keep `serve`
+3. `cortex run` process wrapper, keep `serve`
 4. Glob expansion beyond a fixed depth
 5. Threshold sweep, publish a single value and say it was not tuned
 6. Heartbeat and lease extension, use a longer fixed lease
@@ -109,7 +109,7 @@ adjacent feature. The submission is won by depth on one mechanism, not breadth.
 
 Each is genuinely open, with the trade-off stated in full rather than as a bare choice.
 
-**D1 — Runtime.** Node makes `npx leasehold` work with zero install, which measurably
+**D1 — Runtime.** Node makes `npx cortex` work with zero install, which measurably
 affects both judge friction and star conversion, but pushes the benchmark and
 embedding code into a less comfortable ecosystem. Python inverts both. A split
 runtime is defensible but doubles the toolchain on a three-day budget, and toolchain

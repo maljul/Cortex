@@ -13,7 +13,7 @@ risk to monitor.
 
 ## A. Project requirements
 
-| # | Rule clause | How LEASEHOLD satisfies it | Proof artifact | Status |
+| # | Rule clause | How CORTEX satisfies it | Proof artifact | Status |
 | --- | --- | --- | --- | --- |
 | A1 | Agentic application using CockroachDB as its persistent memory layer | Four memory tiers in one cluster; agents have no other store | `03-MEMORY-MODEL.md` | OK |
 | A2 | **Deployed on AWS** | Entire hosted surface on AWS: CloudFront + S3 front end, Lambda backend, API Gateway, EventBridge, CloudWatch. No third-party hosting anywhere | `04-ARCHITECTURE.md` §2 | **FIX** — earlier plan used Vercel. Removed. |
@@ -25,7 +25,7 @@ risk to monitor.
 | A8 | New projects only, created during the submission period (2026-06-30 to 2026-08-18) | Repository initialised after 2026-07-31; first commit dated | git history | OK |
 | A9 | Pre-existing code must be disclosed | README section "Prior work and dependencies" lists anything reused, including personal tooling | README | ACT |
 | A10 | Third-party SDK and data use must be licensed | Dependencies audited; `cockroachlabs/cockroachdb-skills` used per its licence | `THIRD-PARTY.md` | ACT |
-| A11 | Open-source software may be used provided the project **enhances and builds upon** it | LEASEHOLD extends the CockroachDB skills ecosystem with a new skill rather than repackaging it | `skills/leasehold-memory/SKILL.md` | OK |
+| A11 | Open-source software may be used provided the project **enhances and builds upon** it | CORTEX extends the CockroachDB skills ecosystem with a new skill rather than repackaging it | `skills/cortex-memory/SKILL.md` | OK |
 
 ## B. Submission requirements
 
@@ -62,14 +62,14 @@ recall is scoped to one codebase at the index level rather than by an applicatio
 filter. This is what makes the deduplication check cheap enough to run before every
 single agent action.
 
-**3. ccloud CLI** — `leasehold init` provisions the user's own free cluster, applies
+**3. ccloud CLI** — `cortex init` provisions the user's own free cluster, applies
 the schema, creates the two service accounts with distinct grants, and prints the
-managed-MCP config snippet. `leasehold doctor` reads cluster health and audit logs.
+managed-MCP config snippet. `cortex doctor` reads cluster health and audit logs.
 Onboarding goes from empty terminal to working memory in one command.
 
 **4. Agent Skills** — two directions. The agent consumes `cockroachlabs/cockroachdb-skills`
-for schema and query decisions. LEASEHOLD publishes its own skill,
-`leasehold-memory`, which carries the exact recall SQL templates and the rule for
+for schema and query decisions. CORTEX publishes its own skill,
+`cortex-memory`, which carries the exact recall SQL templates and the rule for
 when an agent must declare an intent before touching a resource. That skill is what
 lets the read path work through the managed MCP server without bespoke client code.
 

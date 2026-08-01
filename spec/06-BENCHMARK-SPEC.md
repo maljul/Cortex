@@ -19,7 +19,7 @@ clean win. Judges in a database company have seen manufactured benchmarks.
 
 ## 2. The two arms
 
-| | **NAIVE** | **LEASEHOLD** |
+| | **NAIVE** | **CORTEX** |
 | --- | --- | --- |
 | Shared state | JSON file on disk, last-write-wins | CockroachDB, SERIALIZABLE |
 | Semantic memory | separate local vector store | same cluster, same transaction |
@@ -89,7 +89,7 @@ it is not scripted to fail.
 bench/results/
   2026-08-15T14-02Z/
     naive.json
-    leasehold.json
+    cortex.json
     summary.md          # the table that goes in the README and the Devpost description
     threshold-sweep.md  # dedupe threshold precision/recall curve
     environment.json    # versions, cluster tier, region, model ids
@@ -98,7 +98,7 @@ bench/results/
 `summary.md` renders as:
 
 ```
-| metric                | naive | leasehold |
+| metric                | naive | cortex |
 |-----------------------|-------|-----------|
 | duplicate_work_rate   |  x.xx |      x.xx |
 | lost_writes           |     n |         n |

@@ -38,7 +38,7 @@ that gate runs.
 Add to the repository root. Short on purpose; long context files get skimmed.
 
 ```md
-# LEASEHOLD
+# CORTEX
 
 Shared, arbitrated memory for fleets of coding agents. CockroachDB + AWS.
 

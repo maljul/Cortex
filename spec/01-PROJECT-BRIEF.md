@@ -2,7 +2,7 @@
 
 ## 1. Product definition
 
-**LEASEHOLD** is a shared memory layer for fleets of coding agents working on the
+**CORTEX** is a shared memory layer for fleets of coding agents working on the
 same repository. It gives every agent in the fleet one durable brain: what has been
 learned about this codebase, what is being attempted right now, what was tried
 before and failed. Every write to that brain is arbitrated inside a single
@@ -31,7 +31,7 @@ share falling from 0.78 to 0.00 and useful throughput more than tripling when a
 shared substrate with advisory leases plus shared task state is introduced, and note
 that file-based trackers silently lose concurrent writes. Critically, the same work
 finds that **leases alone do not eliminate redundant rediscovery — leases plus shared
-state do.** That finding is the architectural thesis of LEASEHOLD.
+state do.** That finding is the architectural thesis of CORTEX.
 
 Source to cite in the README: arXiv 2606.19616, "Before the Pull Request: Mining
 Multi-Agent Coordination". `[VERIFY]` — re-read the paper before quoting any number
@@ -90,7 +90,7 @@ Agentic Memory Design. That ordering drives the entire narrative.
 
 ### The narrative risk you must actively manage
 
-A lease table reads as a lock service. If a judge parses LEASEHOLD as "distributed
+A lease table reads as a lock service. If a judge parses CORTEX as "distributed
 locks for agents", Agentic Memory Design scores low and every tie is lost. The
 counter-measure is a fixed **3:1 ratio of memory to arbitration** in every artifact.
 The demo, the video and the README all present four operations in this order:
@@ -108,7 +108,7 @@ The demo, the video and the README all present four operations in this order:
 Explicitly out of scope, and stated as such in the README so it reads as judgement
 rather than omission:
 
-- Building an agent or an agent framework. LEASEHOLD wraps agents the user already has.
+- Building an agent or an agent framework. CORTEX wraps agents the user already has.
 - Multi-region deployment. The free tier cannot demonstrate it honestly. Describe the
   `REGIONAL BY ROW` production path in one README paragraph and leave it there.
 - Authentication, billing, multi-user onboarding. One hardcoded tenant, but `repo_id`

@@ -1,5 +1,5 @@
 -- 001_init.sql
--- LEASEHOLD initial schema. Apply after 000_verify.sql passes.
+-- CORTEX initial schema. Apply after 000_verify.sql passes.
 -- Authoritative source: spec/03-MEMORY-MODEL.md section 2.
 -- If this file and the spec disagree, the spec wins and this file is a bug.
 
@@ -109,11 +109,11 @@ CREATE TABLE IF NOT EXISTS action_ledger (
 -- ---------------------------------------------------------------------
 
 -- GRANT SELECT ON TABLE repos, agents, claims, intents, findings, action_ledger
---   TO leasehold_reader;
+--   TO cortex_reader;
 
 -- GRANT SELECT, INSERT, UPDATE, DELETE
 --   ON TABLE repos, agents, claims, intents, findings, action_ledger
---   TO leasehold_writer;
+--   TO cortex_writer;
 
 -- Sanity check after granting. The reader must show SELECT only.
 -- SHOW GRANTS ON TABLE claims;

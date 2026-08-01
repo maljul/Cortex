@@ -1,7 +1,7 @@
 # 05 — Interfaces
 
 Four surfaces over one core library. They are not four products; they are four entry
-points to the same `@leasehold/core`.
+points to the same `@cortex/core`.
 
 ---
 
@@ -13,7 +13,7 @@ type Decision =
   | { decision: 'deduped';  ofIntentId: string; holder: string; outcome: Outcome | null }
   | { decision: 'blocked';  contested: Array<{ key: string; holder: string; intentId: string }> };
 
-interface Leasehold {
+interface Cortex {
   recall(repo: string, query: string, k?: number): Promise<Finding[]>;
   propose(repo: string, agentId: string, statement: string, keys: string[]): Promise<Decision>;
   close(repo: string, intentId: string, outcome: Outcome, idempotencyKey: string): Promise<void>;
@@ -35,14 +35,14 @@ Design rules the implementer MUST honour:
 ## 2. CLI
 
 ```
-npx leasehold <command>
+npx cortex <command>
 ```
 
 | Command | Purpose | Notes |
 | --- | --- | --- |
 | `init` | provision a free cluster with ccloud, apply schema, create both service accounts, print the managed-MCP config snippet | the onboarding moment; must work from an empty machine |
 | `link` | register the current repository, compute `repo_id` from the git remote | idempotent |
-| `serve` | run the local LEASEHOLD MCP server on stdio | what coding agents attach to |
+| `serve` | run the local CORTEX MCP server on stdio | what coding agents attach to |
 | `run -- <cmd>` | wrap an arbitrary agent process, injecting MCP config | for agents that support MCP config via environment |
 | `claim <keys...>` | acquire a claim manually | for humans working alongside agents |
 | `recall <query>` | print what the fleet knows | also the fastest way to demo value in a terminal |
@@ -64,18 +64,18 @@ the embedding and benchmark code. A split (Node CLI, Python bench) is legitimate
 doubles the toolchain. The implementer should pick one runtime for everything and
 accept the weaker side, with a mild preference for Node because of `npx`.
 
-## 3. LEASEHOLD MCP server — the write plane
+## 3. CORTEX MCP server — the write plane
 
 Exposed over stdio locally, and over API Gateway for the hosted demo. **Write
 operations only.** Reads deliberately do not live here; they go through the
 CockroachDB Cloud Managed MCP Server so that the agent's read access is governed by
 Cloud RBAC and audit logging rather than by code you wrote.
 
-### `leasehold_propose`
+### `cortex_propose`
 
 ```json
 {
-  "name": "leasehold_propose",
+  "name": "cortex_propose",
   "description": "Declare an intent to modify a resource and request the exclusive right to do so. MUST be called before any file write, migration, or other side effect. Returns granted, deduped, or blocked.",
   "inputSchema": {
     "type": "object",
@@ -92,11 +92,11 @@ Cloud RBAC and audit logging rather than by code you wrote.
 }
 ```
 
-### `leasehold_close`
+### `cortex_close`
 
 ```json
 {
-  "name": "leasehold_close",
+  "name": "cortex_close",
   "description": "Record the outcome of an intent and release its claims. Call exactly once per granted intent, including when the work failed.",
   "inputSchema": {
     "type": "object",
@@ -115,7 +115,7 @@ Cloud RBAC and audit logging rather than by code you wrote.
 }
 ```
 
-### `leasehold_heartbeat`
+### `cortex_heartbeat`
 
 Extends the lease on a long-running intent. Without it, long tasks lose their claims
 mid-flight and a second agent legitimately acquires them.
@@ -130,7 +130,7 @@ an unmodified third-party agent behave correctly. Two rules:
 - Make the `statement` field description push toward canonical phrasing, because
   dedupe quality depends on paraphrase stability more than on the threshold.
 
-## 4. Agent Skill — `skills/leasehold-memory/SKILL.md`
+## 4. Agent Skill — `skills/cortex-memory/SKILL.md`
 
 Published in the repository, installable through the standard skills tooling. It is
 what lets an agent use the managed MCP read path without any bespoke client code.
@@ -169,15 +169,15 @@ difference between a visualisation and a proof.
 ## 6. Configuration
 
 ```
-LEASEHOLD_DSN                 # write-plane connection string, server side only
-LEASEHOLD_MCP_ENDPOINT        # https://cockroachlabs.cloud/mcp
-LEASEHOLD_REPO                # repo slug
-LEASEHOLD_LEASE_TTL           # default 10m
-LEASEHOLD_DEDUPE_THRESHOLD    # default 0.28
+CORTEX_DSN                 # write-plane connection string, server side only
+CORTEX_MCP_ENDPOINT        # https://cockroachlabs.cloud/mcp
+CORTEX_REPO                # repo slug
+CORTEX_LEASE_TTL           # default 10m
+CORTEX_DEDUPE_THRESHOLD    # default 0.28
 BEDROCK_REGION
 BEDROCK_EMBED_MODEL           # Titan Text Embeddings V2, 1024 dim
 BEDROCK_REASON_MODEL          # LIVE mode only
 ```
 
-No credential is ever read from, or written to, the repository. `leasehold doctor`
+No credential is ever read from, or written to, the repository. `cortex doctor`
 MUST fail loudly if a DSN appears in a tracked file.

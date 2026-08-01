@@ -13,7 +13,7 @@ coding agents  ──MCP(write)──►  API Gateway HTTP
       └──MCP(read)───────────────────────────────────────────────────►   ├ intents
          CockroachDB Cloud Managed MCP Server (read-only sa)              ├ findings
                                                                           └ action_ledger
-leasehold CLI ──ccloud CLI──► CockroachDB Cloud control plane                  │
+cortex CLI ──ccloud CLI──► CockroachDB Cloud control plane                  │
                                                                                │ changefeed
                                     API Gateway HTTP (webhook sink) ◄──────────┘
                                             │
@@ -61,8 +61,8 @@ accounts, two capabilities, no overlap.
 
 | Plane | Principal | Grants | Route |
 | --- | --- | --- | --- |
-| **Read** | `leasehold_reader` | `SELECT` on all four tables | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
-| **Write** | `leasehold_writer` | `INSERT`, `UPDATE`, `DELETE` on the four tables, nothing else | agents → LEASEHOLD MCP tools → Lambda → SQL |
+| **Read** | `cortex_reader` | `SELECT` on all four tables | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
+| **Write** | `cortex_writer` | `INSERT`, `UPDATE`, `DELETE` on the four tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
 
 Properties that follow, and that you should state explicitly:
 
@@ -81,12 +81,12 @@ Properties that follow, and that you should state explicitly:
 receives up to eight findings ordered by prior failure count → incorporates them into
 its plan. No write occurs.
 
-**Flow B — agent wants to act.** Agent calls `leasehold.propose` on the LEASEHOLD MCP
+**Flow B — agent wants to act.** Agent calls `cortex.propose` on the CORTEX MCP
 server → Lambda embeds the intent via Bedrock Titan → runs the single arbitration
 transaction → returns `granted`, `deduped` or `blocked` with the holder's identity and
 prior outcome.
 
-**Flow C — agent finishes.** Agent calls `leasehold.close` → Lambda commits outcome,
+**Flow C — agent finishes.** Agent calls `cortex.close` → Lambda commits outcome,
 ledger entry and claim release in one transaction.
 
 **Flow D — consolidation.** Changefeed on `intents` emits the transition to `done` →

@@ -9,7 +9,7 @@ submission as the finish line.
 ## 1. Repository layout
 
 ```
-leasehold/
+cortex/
   README.md                 first screen per 07 §7
   LICENSE                   MIT, set in repo settings so it shows in About
   THIRD-PARTY.md            dependency licences
@@ -24,7 +24,7 @@ leasehold/
     cli/                    npx entry point
     mcp/                    the write-plane MCP server
   skills/
-    leasehold-memory/SKILL.md
+    cortex-memory/SKILL.md
   bench/
     fixtures/  cassettes/  results/
   infra/                    IaC

@@ -28,7 +28,7 @@ A "show SQL" toggle replaces the pretty view with the executed statements.
 
 **Right — the meter.** Live counters: duplicate work avoided, tokens saved,
 serialization retries handled, claim p50 in milliseconds. Plus the mode switch:
-`LEASEHOLD` versus `NAIVE`.
+`CORTEX` versus `NAIVE`.
 
 The naive toggle is the demo's spine. Same scenario, same cassettes, visibly
 different outcome. Contrast persuades; description does not.
@@ -75,7 +75,7 @@ twenty seconds. Front-load the proof.
 | 0:00–0:12 | terminal, five agents launching on one repo | "Five coding agents. One repository. Watch what happens to their work." |
 | 0:12–0:30 | NAIVE mode running, duplicate counter climbing, a write vanishing | "This is the normal stack: a shared task file and a vector store. Seventy-eight percent of this work is about to be thrown away, and one write is about to be lost silently." |
 | 0:30–0:45 | benchmark table, full screen | "Same agents, same tasks, same cached reasoning. The only difference is where the memory lives." |
-| 0:45–1:15 | LEASEHOLD mode, beat 1 then beat 2 | "Agent one recalls that this refactor was reverted two weeks ago. Agent four discovers that its task is already in flight and stands down before spending a token." |
+| 0:45–1:15 | CORTEX mode, beat 1 then beat 2 | "Agent one recalls that this refactor was reverted two weeks ago. Agent four discovers that its task is already in flight and stands down before spending a token." |
 | 1:15–1:40 | beat 3, split screen with rows arriving | "Two agents reach for the same file in the same instant. Deduplication and the right to act commit in one SERIALIZABLE transaction, on one snapshot. A separate vector store and lock service cannot do that, because they have no common commit point." |
 | 1:40–1:55 | the recall SQL on screen | "One query joining semantic similarity to structural outcome history. This is the query a vector database cannot run." |
 | 1:55–2:15 | beat 4, consolidation arriving over the change stream | "A closed task becomes durable knowledge, off the critical path, driven by CockroachDB's change feed." |
@@ -112,16 +112,16 @@ The description is a scored artifact in its own right. Order matters.
 The first screen decides both judging and stars.
 
 ```
-LEASEHOLD
+CORTEX
 shared, arbitrated memory for fleets of coding agents
 
 [ GIF: two agents reaching for one file, one standing down, counter incrementing ]
 
-| metric              | naive | leasehold |
+| metric              | naive | cortex |
 | duplicate_work_rate |  0.xx |      0.00 |
 | lost_writes         |     n |         0 |
 
-npx leasehold init
+npx cortex init
 
 Durable execution gives exactly-once within one workflow. It does not give mutual
 exclusion between agents that do not know each other exists.

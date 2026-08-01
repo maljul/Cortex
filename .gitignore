@@ -1,4 +1,4 @@
-# Secrets — never commit. LEASEHOLD_DSN lives here.
+# Secrets — never commit. CORTEX_DSN lives here.
 .env
 .env.*
 !.env.example

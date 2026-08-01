@@ -1,6 +1,6 @@
-# LEASEHOLD — Specification Package
+# CORTEX — Specification Package
 
-**Project:** LEASEHOLD — shared, arbitrated memory for fleets of coding agents
+**Project:** CORTEX — shared, arbitrated memory for fleets of coding agents
 **Target:** CockroachDB × AWS Hackathon — Build with Agentic Memory
 **Submission deadline:** 2026-08-18, 17:00 EDT (23:00 CEST)
 **Judging period ends:** 2026-09-15 — the demo must stay live and free until then
@@ -57,7 +57,7 @@ internal-only ones (`01`, `08`, `09`) in Polish.
 ## The one-sentence version
 
 > Durable execution gives exactly-once **within** a single workflow. It does not give
-> mutual exclusion **between** agents that do not know each other exists. LEASEHOLD
+> mutual exclusion **between** agents that do not know each other exists. CORTEX
 > moves both memory and arbitration into one CockroachDB cluster: an agent does not
 > receive the right to act from an orchestrator, it wins that right in a SERIALIZABLE
 > transaction against the same rows that hold its semantic memory.
