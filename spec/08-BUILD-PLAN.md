@@ -45,7 +45,7 @@ file later becomes the feedback you submit in the optional field.
 | --- | --- | --- |
 | 2–5h | schema applied, migrations runnable from clean | `cortex init` produces a working cluster twice in a row |
 | 5–9h | retry helper, typed repository layer, no SQL outside it | forced `40001` retries and commits, covered by a test |
-| 9–14h | the arbitration transaction, all eight invariant tests from `03` §8 | all eight pass |
+| 9–14h | the arbitration transaction, invariant tests 1–8 from `03` §8 | all eight pass; test 9 belongs with the demo work on day three, since it needs the `cortex_demo` principal to exist |
 | 14–16h | embeddings via Bedrock, content-hash cache | repeated intent does not re-embed |
 
 **End-of-day gate:** two processes in two terminals contend for one key, one wins, the
