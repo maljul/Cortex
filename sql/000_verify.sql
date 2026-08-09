@@ -14,7 +14,11 @@ CREATE TABLE _v1 (
   id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   scope UUID NOT NULL,
   e     VECTOR(4),
-  VECTOR INDEX (scope, e)
+  -- Must match the operator the query uses below. The default is vector_l2_ops,
+  -- which serves <-> but NOT <=>; with the default this check full-scans while
+  -- still returning correct rows, which is the failure mode this block exists to
+  -- catch. The schema orders by <=> throughout, so the index is cosine.
+  VECTOR INDEX (scope, e vector_cosine_ops)
 );
 
 INSERT INTO _v1 (scope, e) VALUES

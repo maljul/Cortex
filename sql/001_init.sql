@@ -63,7 +63,12 @@ CREATE TABLE IF NOT EXISTS intents (
   tokens_spent  INT8 NOT NULL DEFAULT 0,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   closed_at     TIMESTAMPTZ NULL,
-  VECTOR INDEX intents_semantic (repo_id, embedding),
+  -- vector_cosine_ops, not the default vector_l2_ops: every recall, dedupe and
+  -- consolidation query in spec/03-MEMORY-MODEL.md orders by <=>, and an L2 index
+  -- cannot serve a cosine ordering. Verified on the cluster — with the default
+  -- opclass the planner silently falls back to FULL SCAN. See V1 in
+  -- docs/verification-log.md.
+  VECTOR INDEX intents_semantic (repo_id, embedding vector_cosine_ops),
   INDEX intents_by_status (repo_id, status, created_at DESC),
   CHECK (status IN ('proposed', 'in_flight', 'done', 'abandoned', 'deduped'))
 );
@@ -83,7 +88,7 @@ CREATE TABLE IF NOT EXISTS findings (
   corroborations    INT8 NOT NULL DEFAULT 1,
   contradictions    INT8 NOT NULL DEFAULT 0,
   last_confirmed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  VECTOR INDEX findings_semantic (repo_id, embedding),
+  VECTOR INDEX findings_semantic (repo_id, embedding vector_cosine_ops),
   CHECK (confidence >= 0.0 AND confidence <= 1.0)
 );
 
