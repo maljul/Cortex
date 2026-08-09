@@ -43,6 +43,29 @@ async function lookup(slug: string): Promise<string | undefined> {
 }
 
 /**
+ * Resolves a slug to its `repo_id`, or fails if the repository is unknown.
+ *
+ * The counterpart to `resolveRepoId` for surfaces that must not register anything.
+ * A close, a heartbeat or a release can never legitimately be the first thing a
+ * repository ever sees, so an unrecognised slug there is a typo — and registering
+ * it would mint an empty tenant and then report "no such intent in this repo",
+ * which sends the caller looking for the wrong bug entirely.
+ */
+export async function requireRepoId(rawSlug: string): Promise<string> {
+  const slug = canonicalSlug(rawSlug);
+  const known = await lookup(slug);
+
+  if (known === undefined) {
+    throw new RepoIdentityError(
+      `unknown repo ${JSON.stringify(slug)}. A repository is registered by its first ` +
+        'cortex_propose; nothing can be closed in one that has never proposed.',
+    );
+  }
+
+  return known;
+}
+
+/**
  * Resolves a slug to its `repo_id`, registering the repository on first sight.
  *
  * Idempotent, and safe to call concurrently: `repos.slug` is UNIQUE, so a fleet

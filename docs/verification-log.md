@@ -684,9 +684,16 @@ that is always red is a row nobody reads.
 
 The evidence line is **deliberately paraphrased rather than pasted**, against this
 file's own "paste actual output" rule. Pasting it would commit the credential-shaped
-literal into a tracked file, which is the thing the check exists to prevent — and the
-gate proved the point by blocking the first attempt at this very commit. Reproduce it
-with `git show 89d259f -- scripts/gate-mechanical.sh | grep CREDENTIAL_CI`.
+literal into a tracked file, which is the thing the check exists to prevent.
+Reproduce it with `git show 89d259f -- scripts/gate-mechanical.sh | grep CREDENTIAL_CI`.
+
+**The gate blocked this fix twice while it was being written, both times correctly.**
+First when the paragraph you are reading quoted the literal; then when the comment
+explaining the fix quoted it in the script. The second one had already been committed
+before `--report` was re-run, so that commit was amended to remove it — it had not
+been pushed. Neither block was worked around by widening the exclusion, which stays
+anchored to the assignment. A check that catches its own author twice inside twenty
+minutes is the argument for having moved these rows out of a prompt.
 
 The exclusion list now anchors on the assignment itself (`^\+?CREDENTIAL_C[IS]=`),
 which excuses the definition and nothing else. Negative control, run against the new
@@ -700,3 +707,76 @@ repaired is `--report` mode, which was blocking nobody, and the fix is in its ow
 commit so it can be reverted without touching U8. What it did *not* do is unblock a
 commit of mine — the hook that blocks commits scans the staged diff, and that row was
 already passing.
+
+---
+
+## V8 — `cortex_close` closes exactly once, over stdio, no MCP SDK on the client
+**2026-08-09 · U9 · PASS**
+
+Same raw newline-delimited JSON-RPC client as V7. One intent granted, then closed,
+then the identical call redelivered, then a genuine second close under a fresh
+idempotency key, then a heartbeat. Unedited output apart from the trailing slug line:
+
+```
+--- agent-1 -> cortex_propose ---
+isError: absent
+{
+  "decision": "granted",
+  "intentId": "ed3b2b0e-c9a8-4844-90e2-d57a7a6fb78f",
+  "keys": [
+    "file:src/auth/login.ts",
+    "file:src/auth/session.ts"
+  ],
+  "expiresAt": "2026-08-09T17:54:35.042Z"
+}
+
+--- agent-1 -> cortex_close ---
+isError: absent
+{
+  "applied": true,
+  "intentId": "ed3b2b0e-c9a8-4844-90e2-d57a7a6fb78f",
+  "status": "done",
+  "releasedKeys": 2
+}
+
+--- agent-1 -> cortex_close (same call redelivered) ---
+isError: absent
+{
+  "applied": false,
+  "intentId": "ed3b2b0e-c9a8-4844-90e2-d57a7a6fb78f",
+  "status": "done",
+  "releasedKeys": 0
+}
+
+--- agent-1 -> cortex_close (new key, genuine second close) ---
+isError: true
+intent ed3b2b0e-c9a8-4844-90e2-d57a7a6fb78f is already done; close is called exactly
+once per intent
+```
+
+The three lines that carry the unit are `applied: true / releasedKeys: 2`, then
+`applied: false / releasedKeys: 0`, then the error. The middle one is the reason the
+`UNIQUE (repo_id, idempotency_key)` index exists: a redelivered call — the response
+was dropped, the agent sent it again — must not release a second time and must not
+look like a failure, or the agent concludes its work never landed. The third is a
+different thing wearing similar clothes: a new key means a caller that lost track of
+its own work, and that is an error. The database shows one ledger row after all
+three, so the failed close left nothing behind — `03` §4.3's ledger-insert-first
+ordering is what takes the row down with the rollback.
+
+The heartbeat reply, from the same run, after its wording was corrected — the first
+take read "is not implemented yet (not planned — …)", which contradicts itself:
+
+```
+--- agent-1 -> cortex_heartbeat ---
+isError: true
+cortex_heartbeat is not implemented: not planned — cut-list item 6 in 08 §6. Use a
+longer lease. The tool surface is live; this write path is not.
+```
+
+That is `08` §6 item 6 and the 2026-08-09 decision, said out loud on the wire rather
+than left as a silent no-op an agent would read as a successful extension.
+
+Demo rows deleted; `SELECT count(*) FROM repos` returns 0.
+
+**Suite after:** 96/96 against the cluster above, `npx tsc --noEmit` clean.

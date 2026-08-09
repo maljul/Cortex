@@ -191,7 +191,7 @@ environment: `scripts/serve-mcp.mts` never loaded `.env`, so `npm run serve` had
 DSN; and a module-scope `Embedder` would have read `BEDROCK_REGION` before the entry
 point loaded it. The embedder is now lazy, like `db/pool.ts`, for that reason.
 
-### U9 — `cortex_close` and `cortex_heartbeat` tools ⬜
+### U9 — `cortex_close` tool ✅ 2026-08-09
 **Done when:** a granted intent can be closed exactly once through the tool surface,
 and a long intent can extend its lease.
 **Specs:** `05` §3, `03` §4.3
@@ -204,6 +204,27 @@ a longer fixed lease and leave the tool advertised but returning not-implemented
 schema is settled in `05` §3 and served by U7, so this stays a scheduling decision and
 nothing downstream has to be reshaped if it is revisited. **U9 is therefore
 `cortex_close` only.** That is an hour off the critical path.
+**Evidence:** `src/mcp/server.ts` `handleClose`, `requireRepoId` in
+`src/memory/repos.ts`, `test/close-tool.test.ts` — 10 tests over a child process on
+pipes, closing intents that were granted through `cortex_propose` on the same wire
+rather than rows a test inserted for itself. 96/96 suite green, `tsc` clean. The
+propose → close → redeliver → second-close → heartbeat sequence is in the
+verification log, driven by a client with no MCP SDK.
+**Exactly once, the whole unit, has three distinct answers** and each is asserted:
+a redelivery under the same key returns `applied: false` and releases nothing; a
+second close under a *new* key is an error and leaves no ledger row, because `03`
+§4.3's ledger-insert-first ordering takes it down with the rollback; and a close
+against another tenant's intent fails without touching it.
+**One decision this unit had to take** (`docs/DECISIONS.md`): `cortex_close`
+*requires* its repo to exist where `cortex_propose` registers one. A close can never
+legitimately be the first thing a repository sees, so a typo'd slug that minted a
+tenant and then answered "no such intent here" would send the caller after the wrong
+bug. Mutating the handler back to the registering resolver fails that test.
+**Where the error line falls, and why:** a malformed argument throws before anything
+is attempted, so it is a protocol error; a well-formed call about a state the agent
+has wrong — already closed, unknown repo — comes back as `isError` with the
+explanation, which is what an agent can act on. Unlike `blocked` in U8, neither is a
+value an agent should proceed from.
 
 ### U10 — Agent Skill and the managed-MCP read path ⬜
 **Done when:** "agent recalls without any bespoke client." *(08 §4, 20–23h, verbatim)*

@@ -1,11 +1,13 @@
 /**
  * The CORTEX MCP server — the write plane. spec/05-INTERFACES.md §3.
  *
- * U7 advertised the three write tools; U8 gave `cortex_propose` a handler.
- * `cortex_close` (U9) and `cortex_heartbeat` (on `08` §6's cut list) still answer
- * not-implemented, because each of them has to run inside a single transaction in
- * `src/memory/`, and a handler wired up here ahead of that transaction is precisely
+ * U7 advertised the three write tools, U8 gave `cortex_propose` a handler and U9
+ * gave one to `cortex_close`. Each runs inside a single transaction in
+ * `src/memory/`; a handler that reached the database from here instead is precisely
  * how invariant 1 gets broken quietly.
+ *
+ * `cortex_heartbeat` stays advertised and unimplemented on purpose — `08` §6
+ * cut-list item 6, decided up front, with a longer fixed lease in its place.
  *
  * Two things this file must never grow:
  *
@@ -26,20 +28,25 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
+import { close, CloseError, type CloseResultKind } from '../memory/close.js';
 import { Embedder } from '../embed/titan.js';
 import { expandKeys, ResourceKeyError } from '../memory/keys.js';
 import { propose, type ProposeResult } from '../memory/propose.js';
-import { resolveRepoId } from '../memory/repos.js';
+import { RepoIdentityError, requireRepoId, resolveRepoId } from '../memory/repos.js';
 import { CORTEX_TOOLS, findTool, type ToolDefinition } from './tools.js';
 import { rejectUndeclaredArguments, validateArguments } from './validate.js';
 
 /** This server surface's own version, not the package's. */
 const SERVER_VERSION = '0.1.0';
 
-/** Which unit implements each tool, so a caller is told what is missing, not just that something is. */
+/**
+ * Why a tool has no handler. Only heartbeat has none, and it never will:
+ * `08` §6 cut-list item 6, decided up front rather than under time pressure
+ * (docs/DECISIONS.md, 2026-08-09). It stays advertised so `05` §3's schema is
+ * settled if the decision is ever revisited.
+ */
 const IMPLEMENTED_BY: Record<string, string> = {
-  cortex_close: 'U9',
-  cortex_heartbeat: 'U9, and on the cut list in 08 §6',
+  cortex_heartbeat: 'not planned — cut-list item 6 in 08 §6. Use a longer lease',
 };
 
 /**
@@ -136,6 +143,35 @@ async function handlePropose(args: Record<string, unknown>): Promise<Record<stri
 }
 
 /**
+ * `cortex_close` — `05` §3, over the CLOSE transaction in `03` §4.3.
+ *
+ * The repo is *required* to exist rather than registered on sight, unlike propose.
+ * See `requireRepoId`: a close is never the first thing a repository sees.
+ */
+async function handleClose(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const repoId = await requireRepoId(args['repo'] as string);
+
+  const result = await close({
+    repoId,
+    intentId: args['intent_id'] as string,
+    result: args['result'] as CloseResultKind,
+    idempotencyKey: args['idempotency_key'] as string,
+    ...(args['files_changed'] === undefined
+      ? {}
+      : { filesChanged: args['files_changed'] as string[] }),
+    ...(args['notes'] === undefined ? {} : { notes: args['notes'] as string }),
+    ...(args['tokens_spent'] === undefined
+      ? {}
+      : { tokensSpent: args['tokens_spent'] as number }),
+  });
+
+  // `applied: false` is a success, not a failure. It is what a redelivered call
+  // gets, and an agent told that its close errored either closes again or concludes
+  // its work never landed — `03` §4.3's whole point is that neither has to happen.
+  return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+}
+
+/**
  * One embedder for the process, so U5's content-hash cache spans calls.
  *
  * Process-wide rather than per-server: the cache is the unit's whole point, and a
@@ -175,13 +211,44 @@ export function createServer(): Server {
       return await handlePropose(validateArguments(tool, request.params.arguments));
     }
 
-    // No handler yet, but the surface still closes: a structural argument is refused
-    // before anything discovers there is nothing behind it (invariant 7).
+    if (tool.name === 'cortex_close') {
+      return await refused(() => handleClose(validateArguments(tool, request.params.arguments)));
+    }
+
+    // No handler, and heartbeat will never get one. The surface still closes: a
+    // structural argument is refused before anything discovers there is nothing
+    // behind it (invariant 7).
     rejectUndeclaredArguments(tool, request.params.arguments);
     return notImplemented(tool);
   });
 
   return server;
+}
+
+/**
+ * Turns a well-formed call the world disagrees with into a tool error the agent can
+ * read, rather than a protocol error.
+ *
+ * The line between the two is drawn at the arguments. A missing field, a value
+ * outside the published enum or an unparseable resource key never had a chance of
+ * being right, and those throw `McpError` from the validator — a caller bug, before
+ * anything was attempted. A close of an intent that is already closed, or against a
+ * repository that does not exist, is a *correct* call about a state the agent has
+ * wrong; it comes back as `isError` with the explanation, which is the thing an
+ * agent can actually act on. Anything else is infrastructure and propagates, per
+ * `05` §1: exceptions are reserved for infrastructure failure.
+ */
+async function refused(
+  run: () => Promise<Record<string, unknown>>,
+): Promise<Record<string, unknown>> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof CloseError || error instanceof RepoIdentityError) {
+      return { isError: true, content: [{ type: 'text' as const, text: error.message }] };
+    }
+    throw error;
+  }
 }
 
 function notImplemented(tool: ToolDefinition): Record<string, unknown> {
@@ -190,7 +257,7 @@ function notImplemented(tool: ToolDefinition): Record<string, unknown> {
     content: [
       {
         type: 'text' as const,
-        text: `${tool.name} is not implemented yet (${IMPLEMENTED_BY[tool.name]}). The tool surface is live; the write path is not.`,
+        text: `${tool.name} is not implemented: ${IMPLEMENTED_BY[tool.name]}. The tool surface is live; this write path is not.`,
       },
     ],
   };

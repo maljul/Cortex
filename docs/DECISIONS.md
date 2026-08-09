@@ -81,3 +81,22 @@ that does know the repository root loses nothing.
 `resource_keys` description names `glob:<pattern>` — and it is recorded in
 `docs/SPEC-DELTA.md` rather than fixed by editing the description, because the
 description is prompt surface pinned verbatim against the spec by a test.
+
+## 2026-08-09 — `cortex_close` requires its repository; only `cortex_propose` registers one
+
+`src/memory/repos.ts` exposes two resolvers rather than one. `resolveRepoId`
+registers a repository on first sight and belongs to propose, which genuinely is the
+first thing a new repository does. `requireRepoId` refuses an unknown slug and is
+what close uses.
+
+The reasoning is about which error a caller gets. A close is never legitimately the
+first call a repository makes — there is nothing to close until something has been
+proposed — so an unrecognised slug at that surface is a typo, near-certainly in
+`CORTEX_REPO`. Registering it would succeed, mint an empty tenant, and then answer
+"no intent <uuid> in this repo", which is true, unhelpful, and points the caller at
+their intent id instead of at the one character they got wrong. It would also leave a
+junk row behind on every occurrence. Refusing says "unknown repo" and names the
+actual fault.
+
+The same rule will apply to `release`, and would have applied to `heartbeat` had it
+not been cut.

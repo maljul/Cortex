@@ -258,11 +258,12 @@ describe('a client over stdio', () => {
   });
 
   it('reports the tools it has not implemented, and does not decide for them', async () => {
-    // U8 implemented `cortex_propose`; `cortex_close` is U9 and `cortex_heartbeat`
-    // is on `08` §6's cut list. If either of those ever returns `granted`, `blocked`
-    // or `deduped` from here, arbitration has been implemented outside the single
-    // transaction in `src/memory/` — invariants 1, 3 and 4 all fail at that moment.
-    for (const name of ['cortex_close', 'cortex_heartbeat']) {
+    // U8 implemented `cortex_propose` and U9 `cortex_close`. `cortex_heartbeat` is
+    // deliberately never implemented — `08` §6 cut-list item 6, decided up front in
+    // docs/DECISIONS.md — and it stays advertised so the schema is settled if that
+    // is ever revisited. What it must never do is answer as though it extended a
+    // lease it did not: a silent no-op is worse than no heartbeat at all.
+    for (const name of ['cortex_heartbeat']) {
       const result = await client.callTool({ name, arguments: {} });
       expect(result.isError, `${name} reports an error`).toBe(true);
 
