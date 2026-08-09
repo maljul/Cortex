@@ -24,6 +24,25 @@ toolchain, not picking between two.
 a side effect of a build fix. Reasoning in `docs/DECISIONS.md`. The cost of leaving it
 is that a reader of §2 may think the question is live and re-open it.
 
+### `11` §2 and §6 — the six-command ship loop is now three commands
+
+§2 specifies `lh-next.md`, `lh-work.md`, `lh-gate.md` and `lh-log.md`, and §6 adds
+`lh-fix.md`, with §5's driver sequence written as
+`/lh-next → /lh-work → /lh-gate → /lh-log`. `.claude/commands/` now holds `go.md`,
+`check.md` and `ship.md`. `/go` absorbs next + work + log, `/check` absorbs gate + fix,
+`/ship` is the former `lh-ship.md` renamed.
+
+Nothing in §2's content was dropped — the four-item unit preamble, the transaction
+boundary statement, the DECISIONS.md `[OPEN]` step and the spec-error-goes-to-delta
+rule were folded into the surviving two commands, and `/check` gained rows for
+invariants 5 and 6 that no command previously had. The `lh-` prefix is dead naming from
+before the project became CORTEX.
+
+**Not edited in the spec, deliberately.** §5's `/clear` discipline — fresh context
+before working a unit and again before gating it — still holds and is the load-bearing
+part of §2; only the command names moved. A reader following §2 literally will look for
+files that are not there.
+
 ---
 
 ## Corrected in the spec already — do not re-open

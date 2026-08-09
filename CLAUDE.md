@@ -56,7 +56,7 @@ only checking did.
   guarantee.** Invoke it, or write TBD.
 - **Never write a placeholder number.** Write TBD.
 - **Verify against the real cluster.** A mock, an in-memory DB, or a local
-  single-node stand-in does not count and fails `/lh-gate`.
+  single-node stand-in does not count and fails `/check`.
 
 ## Invariants that must never regress
 

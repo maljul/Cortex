@@ -11,6 +11,13 @@ me — do not guess, do not pick a nearby unit, do not invent scope:
 When you stop, say in one paragraph what is ambiguous and what you'd need
 to proceed. A wrong unit costs more than a question.
 
+Before writing anything, state: the unit's done-when condition verbatim,
+the spec files it needs (max three), anything to verify live first, and the
+single biggest way it could silently break a section 8 invariant. If it
+touches src/memory/, name which of the four tiers it writes to — claims,
+intents, findings, action_ledger — and whether that write shares a
+transaction with any other.
+
 STEP 1 — RESEARCH BEFORE GUESSING.
 If the unit touches an API, SQL syntax, or SDK shape you are not certain
 of — CockroachDB vector syntax, Bedrock request shapes, the MCP SDK —
@@ -23,6 +30,10 @@ Name the invariants from spec/03-MEMORY-MODEL.md §8 this unit could break.
 Write those tests before the implementation; they must fail first. Then
 mutate your implementation once to confirm at least one assertion is
 load-bearing.
+
+If the unit touches the propose path, state where the transaction begins
+and ends, and confirm the dedupe SELECT and the claims INSERT use the same
+pg client before writing either.
 
 STEP 3 — IMPLEMENT.
 Smallest change that passes. Repo rules:
@@ -37,11 +48,20 @@ Smallest change that passes. Repo rules:
 
 STEP 4 — RECORD, THEN CONTINUE.
   - mark the unit done in docs/UNITS.md
-  - update the state block in CLAUDE.md, correcting stale lines IN PLACE
+  - update the state block in CLAUDE.md, correcting stale lines IN PLACE.
+    Never append a line contradicting one above it — verification-log.md
+    already carried a stale claim about the service account grants, and
+    that is the failure mode
   - paste real output into docs/verification-log.md for anything verified
-    live; append spec problems to docs/SPEC-DELTA.md
+    live, actual output, not summarised. This file becomes the submission's
+    feedback field
+  - append to docs/DECISIONS.md any [OPEN] item this unit closed, with the
+    reasoning in one paragraph
+  - append to docs/SPEC-DELTA.md anything in spec/ that now looks wrong.
+    A spec error is recorded, never reconciled silently in code
   - note anything worth screen-recording for the video
   - commit
+Nothing to add to a section means write nothing. Do not pad.
 Then go back to STEP 0 and work the next unit. Keep going until you hit an
 ambiguity, a failing test you cannot fix without weakening it, or three
 completed units — then stop and summarise.

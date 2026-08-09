@@ -2,7 +2,7 @@
 
 The decomposition `spec/11-SHIP-LOOP.md` §5 calls for. Its blocks are three to six
 hours, which is too coarse to survive one context — this file cuts them into units
-that fit in one, each with the four things `/lh-next` has to output.
+that fit in one, each with the four things `/go` STEP 0 has to output.
 
 **An agent working here does not choose its own scope.** It takes the first unit
 not marked done and works only that.

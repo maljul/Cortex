@@ -585,6 +585,10 @@ AssertionError: expected 'intent 1d0a78b5-...-1f75582aeee9 belongs to another re
 
 **Process note.** The leak was not a gate row, and `/check` is report-only against a
 fresh context, so nothing would have persisted it — it would have survived exactly as
-long as one conversation. `/lh-fix` takes pasted rows, which does not cover findings
-the rows did not name. Whatever a gate turns up gets fixed or written down in the same
-session; a finding held only in scrollback is not a finding.
+long as one conversation. The fix command of the day took pasted rows, which does not
+cover findings the rows did not name. Whatever a gate turns up gets fixed or written
+down in the same session; a finding held only in scrollback is not a finding.
+
+Closed the same day: `/check` now carries the rule itself, and rows for retry coverage
+and tenant isolation — the two invariants the gate had no row for, one of which is
+exactly what leaked above.
