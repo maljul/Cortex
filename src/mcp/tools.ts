@@ -82,16 +82,15 @@ const cortexClose: ToolDefinition = {
 };
 
 /**
- * DERIVED, NOT VERBATIM — and the only tool here that is.
+ * Verbatim from `05` §3, like the two above — but it was not always.
  *
- * `05` §3 gives `cortex_heartbeat` two sentences of prose and no JSON block, while
- * U7's done-when asks for three tools with §3 schemas. The gap is in the spec, not
- * in the reading of it. Rather than invent a shape, this takes §1's core-library
- * signature, which the spec does give: `heartbeat(repo, intentId, extendBy?)`.
+ * §3 originally gave this tool two sentences of prose and no JSON block. U7 derived
+ * the shape from §1's `heartbeat(repo, intentId, extendBy?)` and the block was then
+ * written into §3 from that derivation, so the spec and this file now say the same
+ * thing and a test holds them together.
  *
- * The description states the obligation rather than the mechanism, per §3's two
- * rules for description discipline. If §3 ever grows a block for this tool, that
- * block wins and `test/mcp.test.ts` fails until this is replaced by it.
+ * `08` §6 item 6 puts heartbeat and lease extension on the cut list: if time runs
+ * short, ship a longer fixed lease and leave this advertised but unimplemented.
  */
 const cortexHeartbeat: ToolDefinition = {
   name: 'cortex_heartbeat',

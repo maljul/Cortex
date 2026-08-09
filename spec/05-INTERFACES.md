@@ -120,6 +120,31 @@ Cloud RBAC and audit logging rather than by code you wrote.
 Extends the lease on a long-running intent. Without it, long tasks lose their claims
 mid-flight and a second agent legitimately acquires them.
 
+```json
+{
+  "name": "cortex_heartbeat",
+  "description": "Extend the lease on an intent you still hold. MUST be called before the lease expires on work that runs longer than one lease, or the claims are released and another agent may legitimately acquire them.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["repo", "intent_id"],
+    "properties": {
+      "repo":      { "type": "string" },
+      "intent_id": { "type": "string" },
+      "extend_by": { "type": "string",
+                     "description": "How much longer the work needs, as a duration such as \"10m\". Defaults to one full lease." }
+    }
+  }
+}
+```
+
+The field list is §1's `heartbeat(repo, intentId, extendBy?)` — this block was added
+after U7 found the schema missing here, and matches that signature rather than
+introducing a new one.
+
+**On the cut list.** `08` §6 item 6: if time runs short, do not implement lease
+extension. Ship a longer fixed lease instead and leave this tool advertised but
+unimplemented. The schema is settled so that decision stays a scheduling one.
+
 ### Tool description discipline
 
 The `description` fields are prompt surface, not documentation. They are what makes

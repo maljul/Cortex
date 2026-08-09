@@ -116,12 +116,13 @@ describe('tool definitions against spec/05-INTERFACES.md §3', () => {
     expect(CORTEX_TOOLS.map((tool) => tool.name)).toEqual(TOOL_NAMES);
   });
 
-  it('reproduces the propose and close blocks verbatim, description included', () => {
+  it('reproduces all three blocks verbatim, description included', () => {
     const published = schemasPublishedInSpec();
 
-    // §3 gives a JSON block for two of the three. If a third ever lands in the spec,
-    // this assertion fails and the heartbeat test below has to stop deriving.
-    expect([...published.keys()]).toEqual(['cortex_propose', 'cortex_close']);
+    // §3 published only propose and close until U7 found heartbeat missing and the
+    // block was written from §1's signature. All three are verbatim now; a fourth
+    // tool appearing in the spec fails here rather than going unserved.
+    expect([...published.keys()]).toEqual(TOOL_NAMES);
 
     for (const [name, block] of published) {
       const served = CORTEX_TOOLS.find((tool) => tool.name === name);
@@ -130,13 +131,19 @@ describe('tool definitions against spec/05-INTERFACES.md §3', () => {
     }
   });
 
-  it('derives heartbeat from the §1 signature, since §3 gives it no block', () => {
-    const heartbeat = CORTEX_TOOLS.find((tool) => tool.name === 'cortex_heartbeat');
-    expect(heartbeat).toBeDefined();
+  it('keeps §3 heartbeat agreeing with the §1 core-library signature', () => {
+    // The two sections are written independently and only this asserts they match.
+    // `05` §1: heartbeat(repo, intentId, extendBy?) — three fields, two required.
+    const heartbeat = schemasPublishedInSpec().get('cortex_heartbeat') as
+      | { inputSchema: { properties: Record<string, unknown>; required: string[] } }
+      | undefined;
+    expect(heartbeat, '§3 publishes a cortex_heartbeat block').toBeDefined();
 
-    // `05` §1: heartbeat(repo, intentId, extendBy?). Three fields, two required.
-    const properties = heartbeat!.inputSchema.properties;
-    expect(Object.keys(properties!).sort()).toEqual(['extend_by', 'intent_id', 'repo']);
+    expect(Object.keys(heartbeat!.inputSchema.properties).sort()).toEqual([
+      'extend_by',
+      'intent_id',
+      'repo',
+    ]);
     expect(heartbeat!.inputSchema.required).toEqual(['repo', 'intent_id']);
   });
 });
