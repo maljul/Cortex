@@ -334,32 +334,71 @@ Consequences:
 
 ## Bedrock model access
 
-Per-account and per-region, and a classic day-three surprise.
+Per-account and per-region, and a classic day-three surprise. Checked 2026-08-09
+by invoking, in `us-east-1`, on account `373468206278`.
 
-**The premise of this check has changed.** AWS retired the Model access page:
+**Result: SPLIT. Embeddings PASS, reasoning FAILS.** The critical path is clear;
+LIVE mode is not.
 
-> Serverless foundation models are now automatically enabled across all AWS
-> commercial regions when first invoked in your account [...] Note that for
-> Anthropic models, first-time users may need to submit use case details before
-> they can access the model.
+There is no page to read a granted/not-granted status off — AWS retired the Model
+access page and serverless models are enabled on first invocation. So access is
+**only observable by invoking**, which is the form this check now takes.
 
-So there is no page to read a granted/not-granted status off. Access is no longer
-something you confirm in advance — **it is only observable by invoking the model**,
-and the Anthropic use-case gate can still fire on that first invocation. The
-day-three surprise this check exists to prevent has not gone away; it has moved
-from a settings page to the first real call.
+### Embeddings — PASS
 
-- Region: `us-east-1`, matching the cluster's `aws-us-east-1`
-- Titan Text Embeddings V2: `amazon.titan-embed-text-v2:0` — **unverified**, and
-  verifiable only by invoking. Produces the 1024 dimensions `intents.embedding`
-  and `findings.embedding` are declared with.
-- Reasoning model: `anthropic.claude-sonnet-5` (Bedrock IDs carry the
-  `anthropic.` prefix) — **unverified**, same reason. Chosen over
-  `anthropic.claude-opus-5` per `spec/04-ARCHITECTURE.md` §5, which calls for the
-  smallest adequate model because LIVE reasoning is the only real cost variable.
+`amazon.titan-embed-text-v2:0`, invoked with `{"inputText":"hello"}`:
 
-**Action:** invoke both models once, in `us-east-1`, before day three, and paste
-the result here. A smoke call is now the only form this check can take.
+```
+{"embedding":[-0.0538589172065258,0.04496605694293976,0.027725033462047577,
+0.007151383440941572,0.040491316467523575,-0.03645389899611473, …],
+ "inputTextTokenCount":2}
+
+dimensions: 1024
+```
+
+1024 dimensions, matching the `VECTOR(1024)` declared on `intents.embedding` and
+`findings.embedding`. **Nothing on the propose/recall critical path is blocked.**
+
+### Reasoning — FAIL
+
+`anthropic.claude-sonnet-5`, the model `spec/05-INTERFACES.md` §6 names as
+`BEDROCK_REASON_MODEL`, is **not invocable on this account**. Identical error from
+the bare id and from both inference profiles:
+
+```
+An error occurred (AccessDeniedException) when calling the InvokeModel operation:
+anthropic.claude-sonnet-5 is not available for this account. You can explore other
+available models on Amazon Bedrock.
+```
+
+`us.anthropic.claude-opus-5` returns the same, so this is the whole v5 family, not
+one model.
+
+**It is not the Anthropic use-case gate.** That was the suspected cause, and it is
+ruled out — other Anthropic models on the same account invoke and reply normally:
+
+| Model id | Result |
+| --- | --- |
+| `us.anthropic.claude-haiku-4-5-20251001-v1:0` | OK — replied `ok` |
+| `us.anthropic.claude-sonnet-4-5-20250929-v1:0` | OK — replied `ok` |
+| `us.anthropic.claude-sonnet-5` | AccessDenied, not available for this account |
+| `us.anthropic.claude-opus-5` | AccessDenied, not available for this account |
+
+Both v5 ids appear in `list-foundation-models` output, so the catalogue listing a
+model is not evidence that the account may invoke it. Only invoking is.
+
+**Consequence.** LIVE reasoning is cut-list item 7 in `spec/08-BUILD-PLAN.md` §6,
+so this does not endanger the submission or rule B4 — a replay-only demo still runs
+fully live database behaviour. What it does endanger is the **video**, which
+`08-BUILD-PLAN.md` §5 says is recorded in LIVE mode at 52–58h. Discovering this on
+day three would have meant re-planning the video under time pressure.
+
+**Decision:** set `BEDROCK_REASON_MODEL` to
+`us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which works today. This still
+satisfies `spec/04-ARCHITECTURE.md` §5's "smallest adequate model" — and
+`us.anthropic.claude-haiku-4-5-20251001-v1:0` is the cheaper fallback if LIVE cost
+becomes the binding constraint. Requesting v5 entitlement is worth doing in
+parallel, but nothing may depend on it arriving.
 
 ---
 
@@ -371,11 +410,12 @@ All three principals exist on the cluster (`SHOW USERS`): `cortex_reader`,
 `cortex_writer`, `cortex_demo`, alongside `julian`, `admin`, `root`.
 
 - `cortex_reader` created, `SELECT` only, verified with `SHOW GRANTS`: **YES**
-- `cortex_writer` created, no `SELECT`-only overlap: **created, but see the
-  discrepancy below — it currently holds `SELECT` too**
+- `cortex_writer` created, holds `SELECT` in addition to the write verbs:
+  **YES, and this is correct** — see the resolution below
 - `cortex_demo` created, confined to demo session scopes: **created, deliberately
   ungranted**
-- Confinement mechanism chosen (separate cluster vs scoped `repo_id`s), and why: TBD
+- Confinement mechanism chosen (separate cluster vs scoped `repo_id`s), and why:
+  **still open** — `04-ARCHITECTURE.md` §3 `[OPEN]`, and V5 narrowed it
 
 `SHOW GRANTS ON TABLE claims`, filtered to the `cortex%` principals:
 
@@ -395,18 +435,21 @@ on. `cortex_demo` holds nothing — granting it table-level writes before the §
 table and break the second invariant, so its grant waits on that decision rather
 than being provisionally issued.
 
-**Discrepancy — `sql/001_init.sql` over-grants relative to the spec, twice.**
-The file's own header says the spec wins and the file is a bug when they
-disagree, so both are recorded here rather than silently reconciled:
+**Discrepancy between `sql/001_init.sql` and the spec — RESOLVED, in the spec's
+favour of the SQL.** Two apparent over-grants were examined; both turned out to be
+the spec understating what the write plane needs, so `04-ARCHITECTURE.md` §3 was
+corrected rather than the SQL:
 
-1. **`cortex_writer` has `SELECT`.** §3 specifies `INSERT`, `UPDATE`, `DELETE`
-   "and nothing else". The SQL grants `SELECT` as well. This is not obviously
-   wrong in practice — Flow B returns "the holder's identity and prior outcome",
-   which is a read — so either the SQL is over-granting or §3's "nothing else"
-   understates what the arbitration transaction needs.
-2. **The grants cover six tables, not four.** §3 says "all four tables"; the
-   schema has six. `repos` and `agents` are identity tables rather than memory
-   tiers, and the grants currently include them.
+1. **`cortex_writer` has `SELECT`.** §3 said `INSERT`, `UPDATE`, `DELETE` "and
+   nothing else". The write plane genuinely needs `SELECT`: Flow B returns the
+   holder's identity and prior outcome on a blocked claim, which is a read, and
+   `INSERT … RETURNING` requires the privilege regardless. §3 now says so, and
+   states that the security claim rests on `cortex_reader` holding no write verb —
+   which is the direction that is exactly enforced.
+2. **Six tables, not four.** §3 said "all four tables", counting memory tiers.
+   `repos` and `agents` are identity tables and both planes need them to resolve a
+   claim to its holder. §3 now says six.
 
-Both need a decision before this section can be called done, because this is the
-section §3 identifies as the one judges read for Product Readiness.
+What remains open here is only `cortex_demo`'s confinement mechanism. V5 above
+constrains it: it cannot rest on the vector index prefix, because a query missing
+its `repo_id` filter fails open.

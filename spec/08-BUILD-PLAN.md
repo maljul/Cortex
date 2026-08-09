@@ -24,17 +24,23 @@ Nothing else starts until these three resolve. Each has a fallback in
 `04-ARCHITECTURE.md` §8, so none can block you, but discovering a fallback on day
 three is expensive and on day one is free.
 
-- [ ] **V1** Enable `feature.vector_index.enabled`, create a `VECTOR INDEX` with a
+- [x] **V1** Enable `feature.vector_index.enabled`, create a `VECTOR INDEX` with a
       prefix column on the free tier, insert and query. Record whether it worked.
-- [ ] **V2** Create a changefeed with a webhook sink pointed at a throwaway endpoint.
+      PASS after an opclass fix. See also V5, which retested §2's isolation claim
+      and found it false.
+- [x] **V2** Create a changefeed with a webhook sink pointed at a throwaway endpoint.
       If unavailable, switch to the scheduler-polling fallback immediately and note it.
-- [ ] **V3** Run a historical query and establish how far back it reaches. Decide on
-      the spot whether the time-travel panel survives.
-- [ ] Confirm Bedrock model access is enabled in your region for both the embedding
+      PASS in full, delivery confirmed; fallback not needed.
+- [x] **V3** Run a historical query and establish how far back it reaches. Decide on
+      the spot whether the time-travel panel survives. PASS, 4500s; panel survives.
+- [x] Confirm Bedrock model access is enabled in your region for both the embedding
       model and the reasoning model. Model access is per-account and per-region and is
-      a classic day-three surprise.
-- [ ] Create the two service accounts with distinct grants. If this is awkward, learn
-      it now, because the privilege-plane story is a scored differentiator.
+      a classic day-three surprise. **SPLIT: embeddings PASS, the v5 reasoning models
+      are not entitled on this account.** Reason model reassigned to
+      `us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which invokes today.
+- [x] Create the two service accounts with distinct grants. If this is awkward, learn
+      it now, because the privilege-plane story is a scored differentiator. All three
+      principals exist; `cortex_demo` is deliberately ungranted pending the §3 `[OPEN]`.
 
 Write the outcome of each check into `docs/verification-log.md` and commit it. That
 file later becomes the feedback you submit in the optional field.

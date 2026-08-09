@@ -144,8 +144,11 @@ row failed. Do not suggest fixes in this command; report only.
 
 ```md
 1. Append to docs/PROGRESS.md: unit name, done-when status, date.
-2. Append to docs/verification-log.md anything verified against the live system in
-   this session, with the actual output pasted, not summarised.
+2. Record in docs/verification-log.md anything verified against the live system in
+   this session, with the actual output pasted, not summarised. **Correct existing
+   entries in place; never append a contradiction.** When a check resolves, edit the
+   line that said it was open. A log that accumulates contradictions is worse than
+   no log, because it still looks authoritative.
 3. Append to docs/DECISIONS.md any [OPEN] item closed this session, with the reason
    in one paragraph.
 4. Append to docs/SPEC-DELTA.md anything in the specs that now looks wrong.
