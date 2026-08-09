@@ -10,7 +10,8 @@
   "scripts": {
     "test": "vitest run",
     "sql": "tsx scripts/sql.mts",
-    "db:check": "tsx scripts/check-db.mts"
+    "db:check": "tsx scripts/check-db.mts",
+    "env:doctor": "tsx scripts/env-doctor.mts"
   },
   "keywords": [],
   "author": "",
