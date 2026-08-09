@@ -38,6 +38,12 @@ rule were folded into the surviving two commands, and `/check` gained rows for
 invariants 5 and 6 that no command previously had. The `lh-` prefix is dead naming from
 before the project became CORTEX.
 
+Since then the four purely mechanical rows of the gate — typecheck, SQL containment,
+`.env` ignored, credentials — have left the prompt entirely for
+`scripts/gate-mechanical.sh`, which `/check` calls with `--report` and a PreToolUse
+hook calls on every commit made through Claude Code. §2 assumes the gate is a prompt
+an agent reads; four of its rows are now a process that exits 2.
+
 **Not edited in the spec, deliberately.** §5's `/clear` discipline — fresh context
 before working a unit and again before gating it — still holds and is the load-bearing
 part of §2; only the command names moved. A reader following §2 literally will look for
