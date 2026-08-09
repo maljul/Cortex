@@ -226,13 +226,38 @@ has wrong — already closed, unknown repo — comes back as `isError` with the
 explanation, which is what an agent can act on. Unlike `blocked` in U8, neither is a
 value an agent should proceed from.
 
-### U10 — Agent Skill and the managed-MCP read path ⬜
+### U10 — Agent Skill and the managed-MCP read path ⬜ **BLOCKED — question outstanding with Julian**
 **Done when:** "agent recalls without any bespoke client." *(08 §4, 20–23h, verbatim)*
 **Specs:** `05` §4, `03` §4.1
 **Verify live first:** that the managed MCP server accepts the recall SQL under
 `cortex_reader`.
 **Silent break:** shipping recall SQL in the skill that omits `WHERE repo_id`. Per V5
 that fails open across tenants, and this is the one query that leaves the repo.
+
+**Attempted 2026-08-09 and stopped at STEP 0.** Written down rather than left to be
+re-derived, which is the U2 lesson. This is *not* a deferral — deferring is Julian's
+call, and the question is with him.
+
+The unit's own "verify live first" cannot be done here, for two independent reasons:
+
+1. **No way to reach the managed MCP server.** `.env` has no `cortex_reader` DSN and
+   no CockroachDB Cloud API credential; `CORTEX_MCP_ENDPOINT` holds only the public
+   URL. The transport is the done-when — "without any bespoke client" *is* the
+   managed server — so it cannot be substituted with a direct `pg` connection without
+   proving something else.
+2. **The read plane is not read-only.** V9: `cortex_reader` is a member of `admin`,
+   so it can write. Building the skill on top of that would ship a document whose
+   security argument is false, and `04` §3's prompt-injection claim rests on it.
+
+What *was* established live, and does not need redoing: the recall SQL runs correctly
+under `cortex_reader`'s privileges and its plan uses `findings_semantic` with the
+tenant prefix bounding the search. That half is in V9.
+
+The half that needs no credential — writing `skills/cortex-memory/SKILL.md` with the
+recall SQL pinned byte-for-byte against `src/memory/recall.ts`, so the `WHERE repo_id`
+above cannot drift out of it — was deliberately **not** started, because how the SQL
+is parameterised through the managed server is exactly the thing that cannot be
+checked from here, and writing it from recall is what STEP 1 forbids.
 
 ### U11 — Benchmark fixtures and task list ⬜
 **Done when:** the corpus and the overlapping-task share exist and are committed.

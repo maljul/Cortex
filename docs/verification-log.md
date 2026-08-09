@@ -409,11 +409,13 @@ Three principals, per `spec/04-ARCHITECTURE.md` §3.
 All three principals exist on the cluster (`SHOW USERS`): `cortex_reader`,
 `cortex_writer`, `cortex_demo`, alongside `julian`, `admin`, `root`.
 
-- `cortex_reader` created, `SELECT` only, verified with `SHOW GRANTS`: **YES**
+- `cortex_reader` created, `SELECT` only at table level, verified with `SHOW GRANTS`:
+  **YES — and it does not mean what this line meant it to mean. All three principals
+  are members of `admin`. See V9 below.**
 - `cortex_writer` created, holds `SELECT` in addition to the write verbs:
   **YES, and this is correct** — see the resolution below
-- `cortex_demo` created, confined to demo session scopes: **created, deliberately
-  ungranted**
+- `cortex_demo` created, confined to demo session scopes: **created, ungranted at
+  table level, and an `admin` member. Not confined at all. See V9.**
 - Confinement mechanism chosen (separate cluster vs scoped `repo_id`s), and why:
   **still open** — `04-ARCHITECTURE.md` §3 `[OPEN]`, and V5 narrowed it
 
@@ -428,12 +430,14 @@ cortex_writer    SELECT
 cortex_writer    UPDATE
 ```
 
-The read plane is clean: `cortex_reader` holds `SELECT` and no write verb, which
-is the property `spec/04-ARCHITECTURE.md` §3 rests its prompt-injection argument
-on. `cortex_demo` holds nothing — granting it table-level writes before the §3
-`[OPEN]` confinement decision is made would hand an anonymous visitor the whole
-table and break the second invariant, so its grant waits on that decision rather
-than being provisionally issued.
+**That table is true and it is not the whole answer.** At table level
+`cortex_reader` holds `SELECT` and no write verb, which is what `SHOW GRANTS ON
+TABLE` was asked and what it reported. What no one asked was whether the principal
+inherits anything, and all three inherit `admin`. V9 below has the measurement and
+the consequences; read this section only together with it. The sentence that used to
+sit here — "the read plane is clean" — was drawn from a table-level grant and stated
+as a property of the principal, which is the same shape of error as reading an
+entitlement off a catalogue listing.
 
 **Discrepancy between `sql/001_init.sql` and the spec — RESOLVED, in the spec's
 favour of the SQL.** Two apparent over-grants were examined; both turned out to be
@@ -450,9 +454,10 @@ corrected rather than the SQL:
    `repos` and `agents` are identity tables and both planes need them to resolve a
    claim to its holder. §3 now says six.
 
-What remains open here is only `cortex_demo`'s confinement mechanism. V5 above
-constrains it: it cannot rest on the vector index prefix, because a query missing
-its `repo_id` filter fails open.
+What remains open here is `cortex_demo`'s confinement mechanism — V5 above constrains
+it, since it cannot rest on the vector index prefix — **and, since V9, the `admin`
+membership of all three principals, which has to be revoked before either plane's
+privilege claim means anything.**
 
 ---
 
@@ -780,3 +785,89 @@ than left as a silent no-op an agent would read as a successful extension.
 Demo rows deleted; `SELECT count(*) FROM repos` returns 0.
 
 **Suite after:** 96/96 against the cluster above, `npx tsc --noEmit` clean.
+
+---
+
+## V9 — The three service accounts are all members of `admin`
+**2026-08-09 · found while scoping U10 · FAIL, and nothing has been changed on the
+cluster — this needs Julian's decision**
+
+**What was being checked.** U10's entry says to verify live, first, that the managed
+MCP server accepts the recall SQL under `cortex_reader`. There is no `cortex_reader`
+DSN and no Cloud API credential in `.env`, so the transport could not be reached — but
+the privilege half can be checked from the `julian` connection with `SET ROLE`, and
+that is what turned this up.
+
+Recall runs fine as `cortex_reader`, and the plan uses the vector index with the
+tenant prefix bounding the search:
+
+```
+current_user: cortex_reader
+recall under cortex_reader: OK, 0 rows
+...
+                            └── • vector search
+                                  table: findings@findings_semantic
+                                  target count: 40
+                                  prefix spans: [/'b16cdd7c-c16c-4e14-b42c-7b671589c503' - /'b16cdd7c-c16c-4e14-b42c-7b671589c503']
+```
+
+Then the same session, still as `cortex_reader`, was told to write:
+
+```
+INSERT findings: ALLOWED  <-- read plane is not read-only
+UPDATE claims: ALLOWED  <-- read plane is not read-only
+DELETE intents: ALLOWED  <-- read plane is not read-only
+```
+
+`SHOW GRANTS ON ROLE` says why:
+
+```
+role_name  member         is_admin
+admin      cortex_demo    true
+admin      cortex_reader  true
+admin      cortex_writer  true
+admin      julian         true
+admin      root           true
+```
+
+**All three service accounts are members of `admin`, with the admin option.** Almost
+certainly because they were created through the CockroachDB Cloud console, which adds
+SQL users to `admin` by default. Nothing in `sql/001_init.sql` does this; the file's
+grants are correct and irrelevant, because inherited `ALL` outranks them.
+
+**What this falsifies.**
+
+1. **`04-ARCHITECTURE.md` §3's prompt-injection argument.** It rests on the read plane
+   being unable to write. It can write. A prompt-injected agent holding the reader's
+   credentials today can drop any table in the database.
+2. **Invariant test 9 and `cortex_demo`'s confinement.** The `[OPEN]` in §3 is about
+   *how* to confine `cortex_demo` to a demo session scope. It is currently a cluster
+   admin. That is not a narrower or wider confinement mechanism, it is none.
+3. **This log's own "Service accounts" section**, corrected in place above rather than
+   contradicted here.
+
+**Why the earlier check missed it.** It asked `SHOW GRANTS ON TABLE claims` and got a
+true answer to a narrower question than the one that mattered. Table-level grants say
+what was granted *directly*; they say nothing about what is inherited. The project
+already has a rule for this exact shape — a catalogue listing is not an entitlement —
+and it was applied to Bedrock and not to RBAC.
+
+**The fix is one statement**, and it has deliberately **not** been run:
+
+```sql
+REVOKE admin FROM cortex_reader, cortex_writer, cortex_demo;
+```
+
+It is not run because it changes access control on Julian's cluster and could break
+anything that authenticates as those principals expecting admin. `cortex_writer` would
+fall back to the table grants in `001_init.sql`, which cover everything the write plane
+does; `cortex_demo` would fall back to nothing, which is what `04` §3 wants until the
+confinement decision is made. Both need confirming rather than assuming.
+
+**Re-verification after any revoke must be the probe above, not `SHOW GRANTS`.**
+The grant tables were never wrong. Attempting a write and being refused is the check;
+`RESET ROLE` afterwards, and note that `SET ROLE` from an admin session is a valid
+stand-in only because it genuinely dropped to the target principal's privileges —
+which the ALLOWED lines prove, since they are that principal's, inherited.
+
+**Stray rows from the probe** (`fact = 'x'` in `findings`) were deleted.
