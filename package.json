@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "serve": "tsx scripts/serve-mcp.mts",
     "sql": "tsx scripts/sql.mts",
     "db:check": "tsx scripts/check-db.mts",
     "env:doctor": "tsx scripts/env-doctor.mts",
@@ -22,6 +23,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.22.0"
   },
   "devDependencies": {
