@@ -61,9 +61,22 @@ accounts, two capabilities, no overlap.
 
 | Plane | Principal | Grants | Route |
 | --- | --- | --- | --- |
-| **Read** | `cortex_reader` | `SELECT` on all four tables | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
-| **Write** | `cortex_writer` | `INSERT`, `UPDATE`, `DELETE` on the four tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
+| **Read** | `cortex_reader` | `SELECT` on all six tables, and no write verb | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
+| **Write** | `cortex_writer` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
 | **Demo write** | `cortex_demo` | `INSERT`, `UPDATE`, `DELETE` confined to demo session scopes, nothing else | anonymous browser → API Gateway → demo Lambda → SQL |
+
+Two clarifications, both learned by applying the grants against a live cluster
+rather than by reasoning about them:
+
+- **The write plane needs `SELECT`.** Flow B returns "the holder's identity and
+  prior outcome" on a blocked claim, which is a read; `INSERT … RETURNING`
+  requires the privilege regardless. What makes the write plane safe is not the
+  absence of `SELECT` but that it is reachable only through a small typed
+  parameterised surface. The security claim rests on `cortex_reader` holding no
+  write verb, and that direction is exactly enforced.
+- **Six tables, not four.** There are four memory tiers but six tables: `repos`
+  and `agents` are identity, and both planes need them to resolve a claim to its
+  holder. Earlier drafts said "four" by counting tiers.
 
 Properties that follow, and that you should state explicitly:
 
