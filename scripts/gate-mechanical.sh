@@ -52,7 +52,18 @@ fi
 
 # Placeholder DSNs that are supposed to be in the repo — .env.example and the
 # error message in env-doctor. Matching them is a false positive, not a leak.
-PLACEHOLDER='user:password@|user:pass@'
+#
+# The two CREDENTIAL_ lines are this script matching itself. The patterns below are
+# committed text, and one of them spells out an API key prefix, so from the moment
+# they were committed the report row read FAIL on every run — on a hit that was the
+# check's own definition. That is the failure the comment under CREDENTIAL_CI
+# already describes for `check.md`: a row that is always red is a row nobody reads.
+#
+# Anchored to the assignment, so it excuses the definition and nothing else. Do not
+# widen it to cover prose. Write *about* these patterns without spelling them out —
+# the first attempt at this fix put the literal in a comment and in the verification
+# log, and the check correctly blocked the commit both times.
+PLACEHOLDER='user:password@|user:pass@|^\+?CREDENTIAL_C[IS]='
 
 # Two patterns, because one of them must not be case-folded.
 #
