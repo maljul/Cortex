@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "sql": "tsx scripts/sql.mts"
+    "sql": "tsx scripts/sql.mts",
+    "db:check": "tsx scripts/check-db.mts"
   },
   "keywords": [],
   "author": "",
