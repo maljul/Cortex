@@ -552,3 +552,39 @@ from §3. Closed by writing the block into §3 from §1's
 are now held together by a test, since nothing else compared them.
 
 **Result:** PASS.
+
+---
+
+## Gate run — `/check`, and one invariant-5 leak it found
+
+Date: 2026-08-09 · Cluster: `agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud:26257/defaultdb`, `sslmode=verify-full`
+
+All six gate rows passed: no split between the dedupe SELECT and the claim INSERT
+(one `client.query` each at `propose.ts:80` and `:175`, one `withRetry` at `:154`,
+`findDuplicate` unexported); `npx tsc --noEmit` exit 0; no SQL outside `src/memory/`
+and `src/db/`; the MCP boundary refuses undeclared arguments; `.env` is ignored and
+history carries only placeholder DSNs; 71/71 tests green against the cluster above.
+
+**Found outside those rows:** `close.ts` `explainFailure` read
+`SELECT repo_id, status FROM intents WHERE id = $1` — no `repo_id` filter, the only
+such read in `src/memory/`. It existed to say "belongs to another repo", which is an
+existence oracle over another tenant's UUIDs, computed from a read that crossed the
+boundary to answer. Invariant 5 is stated without exception and no test covered this
+path, so it also fell under "do not assert what the tests do not check".
+
+Fixed. The refusal is now repo-scoped and wrong-repo is indistinguishable from
+no-such-intent. The test asserts the equivalence rather than the wording — masking
+the UUID, the two messages must be byte-identical — and it failed before the fix:
+
+```
+AssertionError: expected 'intent 1d0a78b5-...-1f75582aeee9 belongs to another repo'
+  not to match /another repo/i
+```
+
+72/72 after. **Result: PASS**, with the leak above closed rather than carried.
+
+**Process note.** The leak was not a gate row, and `/check` is report-only against a
+fresh context, so nothing would have persisted it — it would have survived exactly as
+long as one conversation. `/lh-fix` takes pasted rows, which does not cover findings
+the rows did not name. Whatever a gate turns up gets fixed or written down in the same
+session; a finding held only in scrollback is not a finding.

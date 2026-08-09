@@ -259,6 +259,47 @@ describe('close — outcome, ledger and release (§4.3)', () => {
     expect(await ledgerRows(repoB)).toHaveLength(0);
   });
 
+  // Invariant 5 — every read carries WHERE repo_id. The test above proves the close
+  // is refused; it does not prove *how*, and a refusal computed from an unfiltered
+  // read of `intents` satisfies it just as well. The observable difference is what
+  // repo B is told: if the message distinguishes "another repo holds this id" from
+  // "no such id", it is an existence oracle over another tenant's primary keys, and
+  // the read that produced it left the repo.
+  it('tells repo B nothing about repo A\'s intent it could not learn from a random id', async () => {
+    const repoA = freshRepo();
+    const repoB = freshRepo();
+    const held = await granted(repoA, 'agent-1', 'work belonging to repo A', [
+      'file:src/leak.ts',
+    ], 21);
+    const absent = randomUUID();
+
+    const caught = async (intentId: string, key: string): Promise<Error> => {
+      try {
+        await close({ repoId: repoB, intentId, result: 'done', idempotencyKey: key });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error(`close of ${intentId} from repo B was not refused`);
+    };
+
+    const crossTenant = await caught(held, 'idem-cross-tenant');
+    const nonexistent = await caught(absent, 'idem-nonexistent');
+
+    expect(crossTenant).toBeInstanceOf(CloseError);
+    expect(nonexistent).toBeInstanceOf(CloseError);
+    expect(crossTenant.message).not.toMatch(/another repo/i);
+
+    // Identical once the id itself is masked: repo B learns only that the id is not
+    // one of its own, which is what it already knew.
+    expect(crossTenant.message.replace(held, '<id>')).toBe(
+      nonexistent.message.replace(absent, '<id>'),
+    );
+
+    // And nothing was disturbed on either side of the boundary.
+    expect(await claimCount(repoA)).toBe(1);
+    expect(await ledgerRows(repoB)).toHaveLength(0);
+  });
+
   it('rejects a second close under a different idempotency key', async () => {
     const repo = freshRepo();
     const intentId = await granted(repo, 'agent-1', 'close me once', ['file:src/once.ts'], 8);

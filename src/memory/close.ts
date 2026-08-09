@@ -189,19 +189,29 @@ export async function close(input: CloseInput): Promise<CloseOutput> {
   });
 }
 
-/** Turns a refused close into a message that names the actual cause. */
+/**
+ * Turns a refused close into a message that names the actual cause — within this
+ * repo, and only within it.
+ *
+ * The `repo_id` filter is not defensive tidiness, it is invariant 5: every read
+ * carries it. An earlier version read `WHERE id = $1` alone so it could say
+ * "belongs to another repo", which reads as a better error and is in fact an
+ * existence oracle — it lets a caller probe whether an arbitrary UUID names an
+ * intent in some tenant it cannot see, off a read that crossed the boundary to
+ * find out. Wrong repo and no such intent are therefore one message. Repo B
+ * learns that the id is not one of its own, which it knew before it asked.
+ */
 async function explainFailure(
   client: PoolClient,
   repoId: string,
   intentId: string,
 ): Promise<string> {
   const { rows } = await client.query(
-    'SELECT repo_id, status FROM intents WHERE id = $1',
-    [intentId],
+    'SELECT status FROM intents WHERE id = $1 AND repo_id = $2',
+    [intentId, repoId],
   );
-  const intent = rows[0] as { repo_id: string; status: string } | undefined;
+  const intent = rows[0] as { status: string } | undefined;
 
-  if (!intent) return `no intent ${intentId}`;
-  if (intent.repo_id !== repoId) return `intent ${intentId} belongs to another repo`;
+  if (!intent) return `no intent ${intentId} in this repo`;
   return `intent ${intentId} is already ${intent.status}; close is called exactly once per intent`;
 }
