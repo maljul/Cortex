@@ -54,18 +54,22 @@ the claim insert uses `ON CONFLICT DO UPDATE` guarded on `expires_at` rather tha
 `DO NOTHING` (V4: the sweep lands 62–221s late); and `close` runs the ledger insert
 first, so the unique index gates the whole operation.
 
-### U5 — Embeddings via Bedrock, content-hash cache ⬜ ← **next**
+### U5 — Embeddings via Bedrock, content-hash cache ✅
 **Done when:** "repeated intent does not re-embed." *(08 §3, 14–16h, verbatim)*
-**Specs:** `05` §6, `04` §5, `03` §4.2
-**Verify live first:** nothing — resolved 2026-08-09. `amazon.titan-embed-text-v2:0`
-returns 1024 dimensions. Do **not** use a v5 reasoning model; they are not entitled
-on this account.
-**Silent break:** caching on the statement string rather than on a content hash of
-what is actually sent. Two agents phrasing an intent identically must hit the cache;
-one whose text differs by a byte must not silently reuse another's vector, because
-dedupe is a distance test and a wrong vector produces a wrong arbitration decision.
+**Evidence:** `src/embed/titan.ts`, `test/embed.test.ts` — 13 tests, of which two
+call the live endpoint. Three layers of not-re-embedding: the cache, an in-flight
+map, and per-batch deduplication. Removing the in-flight map fails two tests, so it
+is load-bearing rather than decorative.
+**Verified live 2026-08-09:** Titan accepts `dimensions` and `normalize`, and
+returns unit vectors (L2 norm 1.0) at 1024 dimensions.
+**Deferred, deliberately:** the cache is per-process. A fleet across machines wants a
+shared store, which needs a table `03` §2 does not define. Implement `EmbeddingCache`
+against the database when that schema decision is made; do not invent the table.
+**Silent break avoided:** the hash covers model and width, newline-delimited, so a
+sentence embedded at 512 dimensions or by a later model cannot be served from a
+1024-dim entry, and a shifting field boundary cannot collide two different inputs.
 
-### U6 — Two-terminal contention gate ⬜
+### U6 — Two-terminal contention gate ⬜ ← **next**
 **Done when:** "two processes in two terminals contend for one key, one wins, the
 loser prints the winner's identity." *(08 §3, end-of-day-one gate, verbatim)*
 **Specs:** `03` §4.2, `05` §2

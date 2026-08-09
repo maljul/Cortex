@@ -19,6 +19,7 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
     "pg": "^8.22.0"
   },
   "devDependencies": {
