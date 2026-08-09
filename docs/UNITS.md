@@ -7,6 +7,11 @@ that fit in one, each with the four things `/lh-next` has to output.
 **An agent working here does not choose its own scope.** It takes the first unit
 not marked done and works only that.
 
+**This file is the status of record.** `11-SHIP-LOOP.md` §2's `lh-log` mentions a
+`docs/PROGRESS.md`; do not create one. Two status files drift into contradicting
+each other, and a contradicting log is worse than none because it still looks
+authoritative. Mark units done here, in place.
+
 > `11-SHIP-LOOP.md` §5 points at `spec/12-DAY-ZERO.md` §4 for the decomposition
 > session. **That file does not exist in this repo.** This decomposition was derived
 > from `08-BUILD-PLAN.md` plus the invariants in `03-MEMORY-MODEL.md` §8 instead. If
@@ -69,15 +74,19 @@ against the database when that schema decision is made; do not invent the table.
 sentence embedded at 512 dimensions or by a later model cannot be served from a
 1024-dim entry, and a shifting field boundary cannot collide two different inputs.
 
-### U6 — Two-terminal contention gate ⬜ ← **next**
+### U6 — Two-terminal contention gate ✅ **PASSED 2026-08-09**
 **Done when:** "two processes in two terminals contend for one key, one wins, the
 loser prints the winner's identity." *(08 §3, end-of-day-one gate, verbatim)*
-**Specs:** `03` §4.2, `05` §2
-**Silent break:** proving it with two transactions in one process. The tests already
-do that. This gate is about two OS processes and two pools, which is a different
-claim — it is the first thing that exercises the design as a fleet rather than as a
-library.
-**Blocks day two.** `08` §3: "If this does not work, day two does not start."
+**Evidence:** `scripts/contend.mts` (one agent, one process) and
+`scripts/gate-contend.mts` (`npm run gate:contend`, two processes on a shared start
+instant). Five checks pass: one grant, one block, exit codes 0 and 10 per `05` §2,
+the loser names the holder, and the loser can reach the winner's intent id. Run
+twice; the winner alternated, so it is a real race rather than a systematic
+ordering.
+**Note for whoever runs it:** the two agents must give *different* statements.
+Identical ones dedupe, which is correct behaviour and invariant 4's test, not this
+gate's. `contend.mts` says so in its usage text.
+**Day two may start.**
 
 ---
 

@@ -5,10 +5,13 @@
 - Verification gate: **5/5** — Bedrock resolved 2026-08-09, embeddings PASS (1024
   dims), v5 reasoning models NOT entitled on this account; reason model reassigned
   to `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
-- Done: schema, retry helper, typed layer, arbitration + invariants 1–8, CLOSE,
-  RECALL, embeddings + content-hash cache. Day one is complete bar its gate.
+- Done: **all of day one.** Schema, retry helper, typed layer, arbitration +
+  invariants 1–8, CLOSE, RECALL, embeddings + content-hash cache. End-of-day-one
+  gate **PASSED** 2026-08-09 (`npm run gate:contend`) — day two may start.
 - Off-plan: `src/extract/graph.ts` (belongs to consolidation, §4.4 — **do not extend**)
-- Next: U6 the two-terminal day-one gate, which blocks day two
+- Next: U7 MCP server skeleton over stdio, then U8 `cortex_propose`
+- Not done from day one: U2 `cortex init`. The migration is idempotent, but the CLI
+  that wraps it does not exist. Nothing downstream is blocked on it.
 - Open: `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed by V5
 - **Action for Julian:** `.env` still sets `BEDROCK_REASON_MODEL=anthropic.claude-sonnet-5`,
   which is not entitled on this account. Change it to
