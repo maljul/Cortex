@@ -10,7 +10,8 @@ Rules for this file, from `spec/10-KICKOFF-PROMPT.md`:
 
 Cluster: `agent-hack-30704`, CockroachDB Cloud on `aws-us-east-1`,
 `CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00, go1.25.5)`.
-Tier: `TBD` — confirm Basic vs Standard in the Console.
+Tier: **Basic** (the free tier), which is what `spec/04-ARCHITECTURE.md` §8 assumed
+for V1 and V2. Both assumptions held.
 Database `defaultdb`, SQL user `julian`, `sslmode=verify-full`.
 
 `SET CLUSTER SETTING feature.vector_index.enabled` is permitted for this user, so
@@ -185,7 +186,24 @@ error:          (empty)
 
 So outbound HTTPS from the cluster to a webhook sink works. Probe job cancelled.
 
-**Outstanding:** point a changefeed at a live URL and confirm a payload arrives.
+**Delivery confirmed** against a live webhook.site endpoint on Basic. The job
+reached a steady delivering state rather than the DNS error above:
+
+```
+job_id:         1200003867318321153
+status:         running
+running_status: running: resolved=1786282517.706972690,0
+error:          (empty)
+```
+
+An advancing `resolved` timestamp is the delivery proof: the sink is
+acknowledging, because a changefeed only advances `resolved` once the endpoint
+accepts. The events fired were an `INSERT` of row 2 and an `UPDATE` of row 1,
+with `resolved = '10s'` heartbeats between them. Job cancelled afterwards — a
+changefeed left running consumes RUs continuously on Basic.
+
+**V2 therefore passes in full, on the free tier, and the EventBridge-Scheduler
+fallback is not needed.**
 
 Two things that fell out of this and belong in the design:
 
@@ -253,9 +271,30 @@ turn the panel into an error page, which rung 1 of the degradation ladder in
 
 Per-account and per-region, and a classic day-three surprise.
 
-- Region: TBD
-- Titan Text Embeddings V2 access granted: TBD
-- Reasoning model access granted: TBD
+**The premise of this check has changed.** AWS retired the Model access page:
+
+> Serverless foundation models are now automatically enabled across all AWS
+> commercial regions when first invoked in your account [...] Note that for
+> Anthropic models, first-time users may need to submit use case details before
+> they can access the model.
+
+So there is no page to read a granted/not-granted status off. Access is no longer
+something you confirm in advance — **it is only observable by invoking the model**,
+and the Anthropic use-case gate can still fire on that first invocation. The
+day-three surprise this check exists to prevent has not gone away; it has moved
+from a settings page to the first real call.
+
+- Region: `us-east-1`, matching the cluster's `aws-us-east-1`
+- Titan Text Embeddings V2: `amazon.titan-embed-text-v2:0` — **unverified**, and
+  verifiable only by invoking. Produces the 1024 dimensions `intents.embedding`
+  and `findings.embedding` are declared with.
+- Reasoning model: `anthropic.claude-sonnet-5` (Bedrock IDs carry the
+  `anthropic.` prefix) — **unverified**, same reason. Chosen over
+  `anthropic.claude-opus-5` per `spec/04-ARCHITECTURE.md` §5, which calls for the
+  smallest adequate model because LIVE reasoning is the only real cost variable.
+
+**Action:** invoke both models once, in `us-east-1`, before day three, and paste
+the result here. A smoke call is now the only form this check can take.
 
 ---
 
@@ -263,7 +302,46 @@ Per-account and per-region, and a classic day-three surprise.
 
 Three principals, per `spec/04-ARCHITECTURE.md` §3.
 
-- `cortex_reader` created, `SELECT` only, verified with `SHOW GRANTS`: TBD
-- `cortex_writer` created, no `SELECT`-only overlap: TBD
-- `cortex_demo` created, confined to demo session scopes: TBD
+All three principals exist on the cluster (`SHOW USERS`): `cortex_reader`,
+`cortex_writer`, `cortex_demo`, alongside `julian`, `admin`, `root`.
+
+- `cortex_reader` created, `SELECT` only, verified with `SHOW GRANTS`: **YES**
+- `cortex_writer` created, no `SELECT`-only overlap: **created, but see the
+  discrepancy below — it currently holds `SELECT` too**
+- `cortex_demo` created, confined to demo session scopes: **created, deliberately
+  ungranted**
 - Confinement mechanism chosen (separate cluster vs scoped `repo_id`s), and why: TBD
+
+`SHOW GRANTS ON TABLE claims`, filtered to the `cortex%` principals:
+
+```
+grantee          privilege_type
+cortex_reader    SELECT
+cortex_writer    DELETE
+cortex_writer    INSERT
+cortex_writer    SELECT
+cortex_writer    UPDATE
+```
+
+The read plane is clean: `cortex_reader` holds `SELECT` and no write verb, which
+is the property `spec/04-ARCHITECTURE.md` §3 rests its prompt-injection argument
+on. `cortex_demo` holds nothing — granting it table-level writes before the §3
+`[OPEN]` confinement decision is made would hand an anonymous visitor the whole
+table and break the second invariant, so its grant waits on that decision rather
+than being provisionally issued.
+
+**Discrepancy — `sql/001_init.sql` over-grants relative to the spec, twice.**
+The file's own header says the spec wins and the file is a bug when they
+disagree, so both are recorded here rather than silently reconciled:
+
+1. **`cortex_writer` has `SELECT`.** §3 specifies `INSERT`, `UPDATE`, `DELETE`
+   "and nothing else". The SQL grants `SELECT` as well. This is not obviously
+   wrong in practice — Flow B returns "the holder's identity and prior outcome",
+   which is a read — so either the SQL is over-granting or §3's "nothing else"
+   understates what the arbitration transaction needs.
+2. **The grants cover six tables, not four.** §3 says "all four tables"; the
+   schema has six. `repos` and `agents` are identity tables rather than memory
+   tiers, and the grants currently include them.
+
+Both need a decision before this section can be called done, because this is the
+section §3 identifies as the one judges read for Product Readiness.

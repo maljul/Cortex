@@ -113,12 +113,19 @@ CREATE TABLE IF NOT EXISTS action_ledger (
 -- then run these grants. The reader must never gain a write verb.
 -- ---------------------------------------------------------------------
 
--- GRANT SELECT ON TABLE repos, agents, claims, intents, findings, action_ledger
---   TO cortex_reader;
+GRANT SELECT ON TABLE repos, agents, claims, intents, findings, action_ledger
+  TO cortex_reader;
 
--- GRANT SELECT, INSERT, UPDATE, DELETE
---   ON TABLE repos, agents, claims, intents, findings, action_ledger
---   TO cortex_writer;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE repos, agents, claims, intents, findings, action_ledger
+  TO cortex_writer;
+
+-- cortex_demo is deliberately NOT granted here. spec/04-ARCHITECTURE.md §3
+-- requires it to be unable to affect any row outside a live demo session scope,
+-- and §3's [OPEN] decision — separate cluster vs demo-scoped repo_ids — is what
+-- decides how that confinement is enforced. A plain table-level grant would give
+-- it the whole table and break the invariant, so the grant waits on the decision.
+-- The user exists on the cluster; only its privileges are outstanding.
 
 -- Sanity check after granting. The reader must show SELECT only.
 -- SHOW GRANTS ON TABLE claims;
