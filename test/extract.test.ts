@@ -16,7 +16,7 @@ import {
   estimatePrefixTokens,
   extractGraph,
   summarizeUsage,
-} from '../src/extract/graph';
+} from '../src/extract/graph.js';
 
 const EPISODE = {
   text: 'Agent 3 claimed src/auth/login.ts on 2026-07-14 to fix the session refresh bug.',
@@ -175,7 +175,7 @@ describe('usage accounting', () => {
     const { graph, usage } = await extractGraph(EPISODE, { client });
 
     expect(usage.cacheHit).toBe(true);
-    expect(graph.entities[0].name).toBe('agent-3');
-    expect(graph.edges[0].valid_from).toBe('2026-07-14');
+    expect(graph.entities[0]?.name).toBe('agent-3');
+    expect(graph.edges[0]?.valid_from).toBe('2026-07-14');
   });
 });

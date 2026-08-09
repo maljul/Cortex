@@ -6,7 +6,7 @@
  * Bedrock being reachable and on its output being stable, neither of which is
  * something these tests are trying to prove.
  */
-import { EMBEDDING_DIMENSIONS } from '../../src/memory/propose';
+import { EMBEDDING_DIMENSIONS } from '../../src/memory/propose.js';
 
 /** mulberry32 — small, fast, and identical across runs. */
 function prng(seed: number): () => number {

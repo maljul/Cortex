@@ -26,7 +26,7 @@ import {
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { CORTEX_TOOLS, findTool, type ToolDefinition } from './tools';
+import { CORTEX_TOOLS, findTool, type ToolDefinition } from './tools.js';
 
 /** This server surface's own version, not the package's. */
 const SERVER_VERSION = '0.1.0';

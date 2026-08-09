@@ -21,9 +21,9 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { closePool } from '../src/db/pool';
-import { Embedder } from '../src/embed/titan';
-import { propose } from '../src/memory/propose';
+import { closePool } from '../src/db/pool.js';
+import { Embedder } from '../src/embed/titan.js';
+import { propose } from '../src/memory/propose.js';
 
 const ENV_PATH = resolve(process.cwd(), '.env');
 if (existsSync(ENV_PATH)) process.loadEnvFile(ENV_PATH);

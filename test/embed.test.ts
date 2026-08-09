@@ -20,7 +20,7 @@ import {
   Embedder,
   MemoryEmbeddingCache,
   contentHash,
-} from '../src/embed/titan';
+} from '../src/embed/titan.js';
 
 /**
  * A unit vector, matching what Titan returns with `normalize: true`. Seeded by the

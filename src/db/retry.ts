@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 
-import { getPool } from './pool';
+import { getPool } from './pool.js';
 
 /** SQLSTATE for a serialization failure. Under SERIALIZABLE this is expected traffic. */
 const SERIALIZATION_FAILURE = '40001';

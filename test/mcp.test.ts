@@ -31,7 +31,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { CORTEX_TOOLS, TOOL_NAMES } from '../src/mcp/tools';
+import { CORTEX_TOOLS, TOOL_NAMES } from '../src/mcp/tools.js';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 

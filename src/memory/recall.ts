@@ -12,7 +12,7 @@
  * §3), which is why the query text is kept verbatim and parameterised: the same
  * statement ships in the Agent Skill.
  */
-import { getPool } from '../db/pool';
+import { getPool } from '../db/pool.js';
 
 /** §4.1: findings past this cosine distance are noise, not memory. */
 export const DEFAULT_MAX_DISTANCE = 0.35;

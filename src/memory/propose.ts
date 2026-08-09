@@ -8,8 +8,8 @@
  */
 import type { PoolClient } from 'pg';
 
-import { withRetry } from '../db/retry';
-import { expandKeys, type GlobResolver } from './keys';
+import { withRetry } from '../db/retry.js';
+import { expandKeys, type GlobResolver } from './keys.js';
 
 /** spec §5: cosine distance, default 0.28. Empirical — sweep it over the benchmark. */
 export const DEFAULT_DEDUPE_THRESHOLD = 0.28;

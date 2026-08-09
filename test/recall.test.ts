@@ -11,11 +11,11 @@ import { randomUUID } from 'node:crypto';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { closePool, getPool } from '../src/db/pool';
-import { close } from '../src/memory/close';
-import { propose } from '../src/memory/propose';
-import { recall } from '../src/memory/recall';
-import { cosineDistance, paraphraseOf, vector } from './helpers/vectors';
+import { closePool, getPool } from '../src/db/pool.js';
+import { close } from '../src/memory/close.js';
+import { propose } from '../src/memory/propose.js';
+import { recall } from '../src/memory/recall.js';
+import { cosineDistance, paraphraseOf, vector } from './helpers/vectors.js';
 
 function freshRepo(): string {
   return randomUUID();

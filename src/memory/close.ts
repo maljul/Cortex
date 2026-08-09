@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 
 import type { PoolClient } from 'pg';
 
-import { withRetry } from '../db/retry';
+import { withRetry } from '../db/retry.js';
 
 /** What the agent reports. `reverted` is an outcome, not a status — see below. */
 export type CloseResultKind = 'done' | 'abandoned' | 'reverted';

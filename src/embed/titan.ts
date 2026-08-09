@@ -116,8 +116,13 @@ export class Embedder {
     this.model = options.model ?? process.env.BEDROCK_EMBED_MODEL ?? EMBED_MODEL;
     this.dimensions = options.dimensions ?? EMBED_DIMENSIONS;
     this.cache = options.cache ?? new MemoryEmbeddingCache();
+    // Omitted rather than passed as undefined, which `exactOptionalPropertyTypes`
+    // rejects. Runtime behaviour is unchanged: the SDK resolves
+    // `config?.region ?? loadNodeConfig(NODE_REGION_CONFIG_OPTIONS)`, and `??`
+    // treats an absent key and an explicitly undefined one the same way.
+    const region = process.env.BEDROCK_REGION;
     this.client = new BedrockRuntimeClient({
-      region: process.env.BEDROCK_REGION,
+      ...(region === undefined ? {} : { region }),
       ...options.clientConfig,
     });
   }

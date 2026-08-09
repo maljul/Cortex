@@ -6,8 +6,8 @@
 // a fake 40001 would prove only that the wrapper can read its own error constant.
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
-import { closePool, getPool } from '../src/db/pool';
-import { getRetryCount, resetRetryCount, withRetry } from '../src/db/retry';
+import { closePool, getPool } from '../src/db/pool.js';
+import { getRetryCount, resetRetryCount, withRetry } from '../src/db/retry.js';
 
 /** A promise plus its resolver, used to interleave two live transactions. */
 function deferred() {
@@ -173,10 +173,13 @@ describe('withRetry', () => {
     expect(startedAt).toHaveLength(5);
 
     // Each gap must exceed the last: exponential, and never zero.
-    const gaps = startedAt.slice(1).map((t, i) => t - startedAt[i]);
+    // `slice(1)` means index i of the original always exists for every i here, and
+    // the length assertion above fixes gaps at four entries, so the non-null
+    // assertions are discharged by the two lines directly above them.
+    const gaps = startedAt.slice(1).map((t, i) => t - startedAt[i]!);
     for (const gap of gaps) {
       expect(gap).toBeGreaterThan(0);
     }
-    expect(gaps[gaps.length - 1]).toBeGreaterThan(gaps[0]);
+    expect(gaps[gaps.length - 1]).toBeGreaterThan(gaps[0]!);
   });
 });

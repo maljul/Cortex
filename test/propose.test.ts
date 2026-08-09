@@ -10,10 +10,10 @@ import { randomUUID } from 'node:crypto';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { closePool, getPool } from '../src/db/pool';
-import { canonicalKey, expandKeys, ResourceKeyError } from '../src/memory/keys';
-import { propose } from '../src/memory/propose';
-import { cosineDistance, paraphraseOf, vector } from './helpers/vectors';
+import { closePool, getPool } from '../src/db/pool.js';
+import { canonicalKey, expandKeys, ResourceKeyError } from '../src/memory/keys.js';
+import { propose } from '../src/memory/propose.js';
+import { cosineDistance, paraphraseOf, vector } from './helpers/vectors.js';
 
 /** A fresh repo per test. repo_id is the tenant boundary, so tests never share one. */
 function freshRepo(): string {

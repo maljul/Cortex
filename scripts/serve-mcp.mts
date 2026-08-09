@@ -9,7 +9,7 @@
  */
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { createServer } from '../src/mcp/server';
+import { createServer } from '../src/mcp/server.js';
 
 const server = createServer();
 
