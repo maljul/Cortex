@@ -272,7 +272,8 @@ describe('propose — arbitration (§4.2)', () => {
     expect(second.decision).toBe('granted');
   });
 
-  // §8 test 8 — isolation lives in the index prefix, not a WHERE clause
+  // §8 test 8, dedupe half. The repo filter in the query is what does this — see
+  // V5 in docs/verification-log.md, where the index prefix alone did not.
   it('never dedupes against an identical intent in a different repo', async () => {
     const shared = vector(77);
     const repoA = freshRepo();

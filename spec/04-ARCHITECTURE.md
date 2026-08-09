@@ -109,8 +109,13 @@ Invariants, in descending order of what a breach costs you:
   session scope. Real repository memory is not merely filtered out of the demo's
   queries; it MUST be unreachable to the principal.
 - Demo session scopes are ephemeral and row-capped. See `03-MEMORY-MODEL.md` §7.
-- One demo session MUST NOT read or write another's. The vector index prefix already
-  gives this for recall; the write path MUST NOT reintroduce a way around it.
+- One demo session MUST NOT read or write another's. **The vector index prefix does
+  not give this** — V5 in `docs/verification-log.md` measured a query without the
+  `repo_id` filter falling back to a full scan and returning the other scope's rows,
+  so the prefix fails open. Both the read and the write path MUST scope every
+  statement, and the principal MUST be unable to reach beyond a live session scope
+  even when a statement is wrong. That is a constraint on the `[OPEN]` decision
+  below, not a property already in hand.
 
 `[OPEN]` How that confinement is enforced. A dedicated cluster for the demo gives
 isolation you do not have to reason about, but it is a second free-tier cluster to

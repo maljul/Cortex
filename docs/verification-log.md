@@ -93,7 +93,10 @@ corrected the plan uses the index, and the prefix column bounds the search:
 ```
 
 That `prefix spans` line is the evidence for `spec/03-MEMORY-MODEL.md` §3's claim
-that isolation lives in the index rather than in a `WHERE` clause.
+that isolation lives in the index rather than in a `WHERE` clause. **V5 below
+retests that claim directly and finds it false as stated** — the prefix bounds the
+search when it is supplied, but omitting it falls back to a full scan rather than
+returning nothing. Read this section together with V5.
 
 **Fallback not needed.** Fixed instead, in `sql/001_init.sql` (both
 `intents_semantic` and `findings_semantic`) and in `sql/000_verify.sql`.
@@ -264,6 +267,68 @@ The demo must therefore not offer a rewind beyond 75 minutes, and should read th
 bound at runtime rather than hardcoding it — a zone-config change would otherwise
 turn the panel into an error page, which rung 1 of the degradation ladder in
 `spec/04-ARCHITECTURE.md` §5 forbids.
+
+---
+
+## V5 — Does the index prefix isolate tenants on its own?
+
+Spec: `spec/03-MEMORY-MODEL.md` §2 · Prompted by: writing §8 test 8 (recall scoped
+to repo A never returns repo B)
+
+**Result: FAIL — the claim does not hold.** The prefix does not isolate tenants.
+The `WHERE repo_id` clause does, and it is load-bearing.
+
+§2 states that `VECTOR INDEX (repo_id, embedding)` "partitions the index by
+repository, so one tenant's memory cannot surface in another tenant's recall even
+if an application filter is forgotten. Isolation lives in the index, not in a
+`WHERE` clause." V1 recorded `prefix spans` as evidence for that. V1 only ever
+tested the case where the filter **is** present, so it could not have caught this.
+
+Two `findings` rows, identical embeddings, different `repo_id`s. Same ordering,
+with and without the filter:
+
+```
+with repo filter : [ 'repo A secret' ]
+without filter   : [ 'repo A secret', 'repo B secret' ]
+```
+
+Repo B's row came back. The plans say why — supply the prefix and the vector index
+is used and bounded; omit it and the planner does not refuse, it full-scans:
+
+```
+-- no prefix supplied
+└── • scan
+      table: findings@findings_pkey
+      spans: FULL SCAN
+
+-- prefix supplied
+└── • vector search
+      table: findings@findings_semantic
+      prefix spans: [/'7dbd0b59-…-d3c2d205c02c' - /'7dbd0b59-…-d3c2d205c02c']
+```
+
+**What the prefix actually buys**, stated accurately so the README does not
+overclaim it to a judge:
+
+- Per-tenant recall is the indexed fast path, and its cost does not grow with
+  other tenants' data.
+- A forgotten filter is *visible* — it shows up as `FULL SCAN` in the plan rather
+  than quietly serving from a shared index.
+
+**What it does not buy:** a forgotten filter fails **open**, not closed. Isolation
+is an application-level property of the query, exactly the thing §2 says it is not.
+
+Consequences:
+
+1. `spec/03-MEMORY-MODEL.md` §2 corrected; the design note no longer claims the
+   index is the boundary.
+2. `src/memory/recall.ts` carries the correction inline, so the `WHERE` clause is
+   not "simplified away" later as redundant.
+3. **This changes §8 test 9.** `cortex_demo` confinement cannot rest on the index
+   prefix, which was the cheap reading of the §3 `[OPEN]` decision. Confinement has
+   to come from the principal's own grants — a separate cluster, or row-level
+   authorization — because an application query is exactly what an anonymous demo
+   path might get wrong, and the index will not catch it.
 
 ---
 

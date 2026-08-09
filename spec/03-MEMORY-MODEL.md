@@ -110,10 +110,15 @@ CREATE TABLE action_ledger (
 
 ### Design notes worth defending out loud
 
-- **The vector index prefix is not decoration.** `VECTOR INDEX (repo_id, embedding)`
-  partitions the index by repository, so one tenant's memory cannot surface in
-  another tenant's recall even if an application filter is forgotten. Isolation lives
-  in the index, not in a `WHERE` clause.
+- **The vector index prefix is not decoration**, but it is not the isolation
+  boundary either. `VECTOR INDEX (repo_id, embedding)` partitions the index by
+  repository, so a scoped recall is served from one tenant's partition and its cost
+  does not grow with other tenants' data. What it does **not** do is save a query
+  that forgets the filter: V5 in `docs/verification-log.md` measured that case and
+  the planner falls back to a full scan and returns the other tenant's rows. A
+  forgotten `WHERE repo_id` fails open. Every read MUST carry it, and any confinement
+  argument for a principal — `cortex_demo` above all — MUST rest on grants rather
+  than on the index. This paragraph previously claimed the opposite; it was wrong.
 - **`claims` is keyed by `(repo_id, resource_key)`, not by a surrogate id.** The
   uniqueness of the resource key *is* the mutual exclusion. There is no separate lock
   object to get out of sync.
@@ -322,8 +327,12 @@ The hosted demo writes as `cortex_demo`, not as `cortex_writer`. See
 `04-ARCHITECTURE.md` §3 for why the principals are separate. In data terms:
 
 - Each demo session MUST receive its own `repo_id`, distinct from any real
-  repository's, so that isolation rests on the same index prefix that isolates
-  tenants rather than on a `WHERE` clause the demo path could forget.
+  repository's, so that a demo session is a tenant like any other and inherits the
+  same scoping every other read and write already carries. Note that this is a
+  scoping mechanism, not a confinement mechanism: per V5 in
+  `docs/verification-log.md`, a query that forgets its `repo_id` filter fails open.
+  Keeping `cortex_demo` off real repository memory is the job of its grants, per
+  `04-ARCHITECTURE.md` §3.
 - Demo rows MUST carry a TTL and be reclaimed automatically. No manual cleanup
   between now and 2026-09-15.
 - The demo write path MUST enforce a per-session row cap. Reaching it makes that
