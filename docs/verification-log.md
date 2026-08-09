@@ -592,3 +592,84 @@ down in the same session; a finding held only in scrollback is not a finding.
 Closed the same day: `/check` now carries the rule itself, and rows for retry coverage
 and tenant isolation — the two invariants the gate had no row for, one of which is
 exactly what leaked above.
+
+---
+
+## V7 — `cortex_propose` decides over stdio, driven by a client with no MCP SDK
+**2026-08-09 · U8 · PASS**
+
+The done-when is "a real coding agent attaches and successfully proposes". The test
+suite proves the mechanism with the official SDK client over pipes; this run removes
+the SDK from the client side entirely, so what is exercised is `npm run serve` and
+raw newline-delimited JSON-RPC and nothing of ours. Three calls into one fresh repo
+slug: an uncontested claim, a second agent on the same key, and a third agent
+restating the first agent's task on a different key.
+
+Actual output, unedited apart from the trailing slug line:
+
+```
+[server stderr] cortex mcp server listening on stdio
+--- initialize ---
+{"name":"cortex","version":"0.1.0"}
+
+--- agent-1 -> cortex_propose ---
+isError: absent
+{
+  "decision": "granted",
+  "intentId": "155976cf-e652-4281-94d3-213618caa083",
+  "keys": [
+    "file:src/auth/login.ts"
+  ],
+  "expiresAt": "2026-08-09T17:40:34.651Z"
+}
+
+--- agent-2 -> cortex_propose ---
+isError: absent
+{
+  "decision": "blocked",
+  "contested": [
+    {
+      "key": "file:src/auth/login.ts",
+      "holder": "agent-1",
+      "intentId": "155976cf-e652-4281-94d3-213618caa083",
+      "expiresAt": "2026-08-09T17:40:34.651Z"
+    }
+  ]
+}
+
+--- agent-3 -> cortex_propose ---
+isError: absent
+{
+  "decision": "deduped",
+  "ofIntentId": "155976cf-e652-4281-94d3-213618caa083",
+  "holder": "agent-1",
+  "status": "in_flight",
+  "outcome": null,
+  "distance": 0
+}
+```
+
+`isError: absent` is the row that matters, and it is the field the unit's named
+silent break lives in. `blocked` and `deduped` arrive as ordinary results; an agent
+handed either as an error would retry through the block, which is the queue `03` §5
+forbids. Invariant 3 is visible in agent-2's reply — it names `agent-1`, the intent
+and the expiry, which is enough to re-plan without polling. Invariant 4 is visible in
+agent-3's — `outcome` is present and null because the prior intent is still in
+flight, and an absent key would leave an agent unable to tell "no outcome yet" from
+"not told".
+
+`distance: 0` is real, not a placeholder: agent-3 sent agent-1's statement verbatim,
+so Titan returns the identical vector and the cosine distance is exactly zero.
+
+The demo rows were deleted afterwards; `SELECT count(*) FROM repos` returns 0.
+
+**Two defects this surfaced, both invisible to U7 because it had no handler that
+read the environment.** `scripts/serve-mcp.mts` never loaded `.env`, so the first
+run failed with `CORTEX_DSN is empty` — `npm run serve`, the thing `05` §2 says
+coding agents attach to, could not have worked for anyone. And the entry point loads
+`.env` in its body, which runs *after* every import has been evaluated, so a
+module-scope `new Embedder()` in `src/mcp/server.ts` would have read `BEDROCK_REGION`
+one step too early and silently taken the SDK's default region. The embedder is now
+lazy for the same reason `db/pool.ts` is.
+
+**Suite after:** 86/86 against the cluster above, `npx tsc --noEmit` clean.

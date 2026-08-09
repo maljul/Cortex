@@ -51,6 +51,41 @@ files that are not there.
 
 ---
 
+### `05` §1 and `03` §4.2 name the same decision fields differently
+
+§1 types the value an agent receives as `{ decision: 'deduped'; ofIntentId; holder;
+outcome }` and `contested: Array<{ key; holder; intentId }>`. §4.2's application rule
+writes the same value as `{ decision: 'deduped', of, holder, outcome }`, and the SQL
+it returns names the column `resource_key`. Neither section acknowledges the other.
+
+Both are honoured, in the place each is about. `src/memory/propose.ts` kept §4.2's
+names because it *is* §4.2's transaction. The MCP boundary answers in §1's, because
+§1 is where the shape an agent codes against is written down, and U10's Agent Skill
+will tell agents how to react to each decision. The translation is six lines in
+`src/mcp/server.ts` and is the only place the two vocabularies meet.
+
+§1's `Decision` is also incomplete rather than wrong: it has no `distance` on a
+dedupe, no `status`, and no `expiresAt` on a contested key. The tool adds all three
+and renames none. The last one is not cosmetic — without it a blocked agent knows who
+holds the key but not for how long, which decides whether re-planning or waiting is
+correct, and invariant 3 exists to make that judgement possible.
+
+### `05` §3 advertises `glob:` keys that §6 gives the server no way to expand
+
+`resource_keys` in §3 documents the grammar as `file:<path>, glob:<pattern>,
+migration:<id>, service:<name>:<verb>`, and `03` §3 requires a glob to be claimed as
+one row per matched file plus a row for the glob. Matching needs a checkout. §6's
+configuration list has no repository root, and an MCP server is launched by an agent
+from an arbitrary working directory, so the server has nothing defensible to expand
+against.
+
+`cortex_propose` therefore refuses a `glob:` key with a message saying why — reasoning
+in `docs/DECISIONS.md`. The gap is in the spec: either §6 gains a repository root, or
+§3's description should stop naming `glob:` for this surface. Not fixed here, because
+that description is prompt surface pinned verbatim against the spec by a test, and
+editing it to match the implementation is exactly the silent reconciliation the
+project rule forbids.
+
 ## Corrected in the spec already — do not re-open
 
 ### `05` §3 — `cortex_heartbeat` had prose and no JSON block *(corrected 2026-08-09)*

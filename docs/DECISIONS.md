@@ -40,3 +40,44 @@ between two.
 **The `[OPEN]` marker in `05` §2 has not been edited.** Closing it is Julian's call,
 not a side effect of a build fix; it is recorded in `docs/SPEC-DELTA.md` as stale so
 it is not re-litigated by whoever reads §2 next.
+
+## 2026-08-09 — `repo` on the tool surface is a slug, resolved to `repo_id` on first sight
+
+`05` §6 hands an agent `CORTEX_REPO`, a slug; `03` §2 keys every table on a
+`repo_id` UUID. Everything before U8 was handed that UUID by its caller, so the tool
+surface is the first place the tenant boundary has to be *derived*. `src/memory/repos.ts`
+resolves the slug through the `repos` table — read, then insert on conflict do
+nothing, then re-read outside that transaction because its snapshot predates a
+concurrent commit and a second read inside it can legitimately see nothing.
+
+Two things were decided rather than defaulted. The slug is **case folded**, unlike
+the path body of a resource key, because the costs are asymmetric: two spellings of
+one file are two files on a case-sensitive checkout, but two spellings of one remote
+are one repository, and splitting a tenant in two leaves both halves granted with no
+error anywhere. And the insert deliberately does **not** join the arbitration
+transaction: it is not part of the all-or-nothing claim set, and putting the one row
+every agent in a fleet touches inside the SERIALIZABLE claim transaction would
+manufacture 40001s on the critical path of every proposal. It goes through
+`withRetry` on its own, which invariant 6 requires and which six concurrent
+first-calls in the test suite exercise.
+
+## 2026-08-09 — `glob:` keys are refused at the MCP boundary, not silently narrowed
+
+`03` §3 makes a glob's overlap structural: a glob is claimed as one row per matched
+file *plus* a row for the glob itself, which is what makes a later `file:` claim on a
+matched path collide. That expansion needs a checkout to match against, and `05` §6
+configures the MCP server with no repository root — it is launched by an agent from
+wherever that agent happens to be.
+
+The tempting shortcut is to claim the bare `glob:` row and move on. That is the worst
+available option: it looks like it worked, and it leaves every `file:` claim the glob
+should have covered unblocked. A double grant with no error is exactly the failure
+this project exists to prevent. So `cortex_propose` refuses a glob and says why, which
+matches §3's own stated default of refusing rather than claiming at directory
+granularity. `expandKeys` still supports globs through its injected resolver, so a CLI
+that does know the repository root loses nothing.
+
+**This is a narrowing of what `05` §3's published schema advertises** — its
+`resource_keys` description names `glob:<pattern>` — and it is recorded in
+`docs/SPEC-DELTA.md` rather than fixed by editing the description, because the
+description is prompt surface pinned verbatim against the spec by a test.

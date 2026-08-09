@@ -24,7 +24,7 @@
  *   handler, so the test here is the negative one: the skeleton must not have grown
  *   an arbitration path that would decide those without U8's transaction.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -178,7 +178,15 @@ describe('invariant 8 — no credential field on the surface, under any name', (
     // and invariant 8 names both cases explicitly.
     const published = fieldsPublishedInSpec();
 
-    for (const file of ['tools.ts', 'server.ts']) {
+    // Every file in the directory, not a list of them. U8 added one here, and a
+    // hand-maintained list is a sweep that stops covering the surface the moment
+    // the surface grows.
+    const dir = fileURLToPath(new URL('../src/mcp/', import.meta.url));
+    const files = readdirSync(dir).filter((name) => name.endsWith('.ts'));
+    expect(files).toContain('tools.ts');
+    expect(files).toContain('server.ts');
+
+    for (const file of files) {
       const source = readFileSync(new URL(`../src/mcp/${file}`, import.meta.url), 'utf8');
       for (const line of source.split('\n')) {
         const declaration = line.match(/^\s*\/?\/?\s*'?([a-z_]+)'?\s*:/);
@@ -249,11 +257,12 @@ describe('a client over stdio', () => {
     ).rejects.toThrow(/undeclared argument/i);
   });
 
-  it('reports the three tools as not yet implemented, and does not decide', async () => {
-    // U7 is the skeleton. If a call to propose ever returns `granted`, `blocked` or
-    // `deduped` from here, arbitration has been implemented outside the single
-    // transaction U8 owns — invariants 1, 3 and 4 all fail silently at that moment.
-    for (const name of TOOL_NAMES) {
+  it('reports the tools it has not implemented, and does not decide for them', async () => {
+    // U8 implemented `cortex_propose`; `cortex_close` is U9 and `cortex_heartbeat`
+    // is on `08` §6's cut list. If either of those ever returns `granted`, `blocked`
+    // or `deduped` from here, arbitration has been implemented outside the single
+    // transaction in `src/memory/` — invariants 1, 3 and 4 all fail at that moment.
+    for (const name of ['cortex_close', 'cortex_heartbeat']) {
       const result = await client.callTool({ name, arguments: {} });
       expect(result.isError, `${name} reports an error`).toBe(true);
 
@@ -261,5 +270,15 @@ describe('a client over stdio', () => {
       expect(text).toMatch(/not implemented/i);
       expect(text).not.toMatch(/granted|blocked|deduped/);
     }
+  });
+
+  it('no longer answers cortex_propose with not-implemented', async () => {
+    // The other half of U8's done-when, asserted from the U7 side so the skeleton
+    // test cannot quietly outlive the handler it was standing in for. `{}` is
+    // missing every required argument, so a live handler refuses it on the
+    // arguments — what it must not do is report itself unimplemented.
+    await expect(client.callTool({ name: 'cortex_propose', arguments: {} })).rejects.toThrow(
+      /repo|agent_id|statement|resource_keys/i,
+    );
   });
 });

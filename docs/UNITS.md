@@ -167,12 +167,29 @@ how invariant 1 breaks quietly.
 The block was written into §3 from §1's `heartbeat(repo, intentId, extendBy?)`, and a
 test now holds the two sections against each other.
 
-### U8 — `cortex_propose` tool ⬜
+### U8 — `cortex_propose` tool ✅ 2026-08-09
 **Done when:** a real coding agent attaches and successfully proposes. *(08 §4, 16–20h)*
 **Specs:** `05` §3, `03` §4.2
 **Silent break:** letting `blocked` or `deduped` surface as a tool error. They are
 normal return values; an agent that sees an error will retry through a block, which
 turns the fleet into a queue — the exact behaviour `03` §5 forbids.
+**Evidence:** `src/mcp/{server,validate}.ts`, `src/memory/repos.ts`,
+`test/propose-tool.test.ts` — 13 tests, every one over a child process speaking MCP
+on pipes, no stubs. 86/86 suite green, `npx tsc --noEmit` clean. All three decisions
+were also driven out of `npm run serve` by a client with **no MCP SDK at all**, raw
+newline-delimited JSON-RPC; that transcript is in the verification log and is the
+closest thing to the literal done-when that can be captured as text.
+**The named silent break is the load-bearing assertion.** Mutating the handler to
+return `isError: true` alongside a correct decision fails 5 tests. A second mutation
+— resolving the repo before validating the keys — fails 1.
+**Two decisions this unit had to take, both in `docs/DECISIONS.md`:** `repo` is a
+slug and had to be resolved to a `repo_id` (nothing before U8 derived the tenant
+boundary rather than being handed it), and `glob:` keys are refused at the MCP
+boundary because `05` §6 configures the server with no checkout to expand against.
+**Two bugs U7 could not have seen**, both because it had no handler that read the
+environment: `scripts/serve-mcp.mts` never loaded `.env`, so `npm run serve` had no
+DSN; and a module-scope `Embedder` would have read `BEDROCK_REGION` before the entry
+point loaded it. The embedder is now lazy, like `db/pool.ts`, for that reason.
 
 ### U9 — `cortex_close` and `cortex_heartbeat` tools ⬜
 **Done when:** a granted intent can be closed exactly once through the tool surface,
@@ -238,10 +255,12 @@ Three things carried forward that must not be forgotten:
 
 Not yet captured, worth screen-recording (`08` §5, 52–58h):
 
-- **An unmodified third-party agent attaching to `npm run serve` and listing the
-  three tools.** The whole prompt-surface argument in `05` §3 is that no bespoke
-  client is needed, and that is far more convincing seen than described. Not worth
-  recording until U8 makes `cortex_propose` actually decide — a tool list that
-  answers "not implemented" demonstrates the opposite of the claim.
+- **An unmodified third-party agent attaching to `npm run serve`, listing the three
+  tools, and proposing.** The whole prompt-surface argument in `05` §3 is that no
+  bespoke client is needed, and that is far more convincing seen than described.
+  **Now worth recording:** U8 makes `cortex_propose` decide, and the verification log
+  carries a granted / blocked / deduped transcript from a client with no MCP SDK.
+  What is still not captured is a real coding agent driving it, which is the take to
+  record — the text transcript is the proof, the agent is the demo.
 - The two-terminal contention gate (U6) is already reproducible on demand via
   `npm run gate:contend`, but no take has been recorded.
