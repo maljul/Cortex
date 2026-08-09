@@ -453,3 +453,102 @@ corrected rather than the SQL:
 What remains open here is only `cortex_demo`'s confinement mechanism. V5 above
 constrains it: it cannot rest on the vector index prefix, because a query missing
 its `repo_id` filter fails open.
+
+---
+
+## V6 — Does the suite still reach the real cluster after the ESM migration?
+
+Date: 2026-08-09 · Spec: none — this is a build-configuration check, not a spec claim
+
+**Why it needed verifying rather than reasoning about.** `package.json` moved from
+`"type": "commonjs"` to `"type": "module"` and 29 relative imports gained `.js`
+extensions. Module resolution is exactly the kind of change that can leave tests
+"passing" against nothing — a wrong resolution throws at import time, but a
+misconfigured runner can also skip files silently and still print green. So the check
+is not "the tests pass", it is that the same 71 tests in the same 7 files still pass,
+with the durations that only network round-trips to CockroachDB Cloud produce.
+
+`npx tsc --noEmit`, which had never passed on this repo:
+
+```
+tsc exit=0 ; output lines: 0
+```
+
+Before the change, the same command printed 162 lines.
+
+`npm test`:
+
+```
+ RUN  v4.1.10 /Users/julian/leasehold
+
+ Test Files  7 passed (7)
+      Tests  71 passed (71)
+   Start at  17:04:24
+   Duration  68.67s (transform 58ms, setup 21ms, import 235ms, tests 67.99s, environment 0ms)
+```
+
+67.99s of test time for 71 tests is the signature of the real cluster; the same suite
+against anything local would not spend it. File and test counts are unchanged from
+the pre-migration run, so nothing was silently dropped.
+
+`npm run db:check`, confirming the connection is the one this log names:
+
+```
+connected in 1325ms
+  user     julian
+  database defaultdb
+  version  CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00, go1.25.5)
+
+vector index setting: allowed
+```
+
+**Result:** PASS. No fallback taken.
+
+**One thing verified by reading rather than invoking, and marked as such.** The AWS
+SDK's region resolution — `config?.region ?? loadNodeConfig(NODE_REGION_CONFIG_OPTIONS)`
+in `@aws-sdk/client-bedrock-runtime/dist-es/runtimeConfig.js` line 57 — was read from
+the installed package to establish that omitting the `region` key behaves identically
+to passing it as `undefined`. That is a source reading, not a live Bedrock invocation.
+It is sufficient here because `??` has one meaning, but per this file's own rules it
+does not count as a live verification and is not claimed as one. The live embedding
+path is covered by the two Bedrock-calling tests in `test/embed.test.ts`, which are
+inside the 71 above.
+
+---
+
+## U7 — MCP server tool surface over stdio
+
+Date: 2026-08-09 · Spec: `spec/05-INTERFACES.md` §3
+
+Not a cluster check — the U7 skeleton opens no connection — but recorded here because
+the transport is a live-process claim and the same evidence rule applies.
+
+A hand-written JSON-RPC handshake, piped into `npx tsx scripts/serve-mcp.mts` with no
+MCP SDK on the client side, returned all three tools. Abridged to the fields that
+matter; the run printed the full schemas:
+
+```
+{
+  "result": {
+    "tools": [
+      { "name": "cortex_propose",   "description": "Declare an intent to modify a resource ..." },
+      { "name": "cortex_close",     "description": "Record the outcome of an intent ..." },
+      { "name": "cortex_heartbeat", "description": "Extend the lease on an intent you still hold ..." }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 2
+}
+```
+
+Two properties this establishes that an in-process test could not: stdout carries
+JSON-RPC frames and nothing else (a stray log line would have made this unparseable),
+and no shared client library is required to read the tool list.
+
+**Spec gap found:** §3 published JSON blocks for `cortex_propose` and `cortex_close`
+and only prose for `cortex_heartbeat`, while U7's done-when asks for three schemas
+from §3. Closed by writing the block into §3 from §1's
+`heartbeat(repo, intentId, extendBy?)` rather than inventing a shape. `05` §3 and §1
+are now held together by a test, since nothing else compared them.
+
+**Result:** PASS.

@@ -35,14 +35,29 @@ grants confirmed by `SHOW GRANTS` in the verification log.
 **Silent break:** a column type that quietly differs from the spec — the `VECTOR(1024)`
 width, or the `vector_cosine_ops` opclass V1 had to fix.
 
-### U2 — `cortex init` ⬜
+### U2 — `cortex init` ⬜ **DEFERRED past day two — do not treat as "next"**
 **Done when:** "`cortex init` produces a working cluster twice in a row." *(08 §3, 2–5h, verbatim)*
 **Specs:** `05` §2, `03` §2
 **Verify live first:** that `ccloud` can provision and that a second run is a no-op.
 **Silent break:** printing a credential. `05` §2: no command may print one, and
 `doctor` must fail loudly if a DSN appears in a tracked file.
 **Note:** the migration is already idempotent (U1). This unit is the CLI wrapper
-around it and nothing more. It is the only reason block 2–5h is not closed.
+around it and nothing more.
+
+**Deferred 2026-08-09, deliberately.** The rule at the top of this file is "take the
+first unit not marked done", which points here — so the deferral is written down
+rather than left to be re-derived, because it was re-derived once already and cost a
+round of ambiguity over whether U2 or U7 came next.
+
+The reason: nothing is blocked on it. Every downstream unit reaches the cluster
+through `CORTEX_DSN`, which already exists, and the schema it would apply is already
+applied and idempotent. What U2 buys is onboarding for a stranger — real value, but
+it is day three's README-and-first-run value, not day two's proof. Day two's gate
+(`08` §4) is a benchmark showing a difference between the arms, and U2 moves that
+zero distance.
+
+**Pick it up at day three, with infra and deploy.** If day three runs short, `08` §6
+does *not* list it as cuttable, so it comes before the demo SPA polish, not after.
 
 ### U3 — Retry helper ✅
 **Done when:** "forced `40001` retries and commits, covered by a test." *(08 §3, 5–9h, verbatim)*
@@ -90,15 +105,67 @@ gate's. `contend.mts` says so in its usage text.
 
 ---
 
+## Cross-cutting
+
+Not in `08`'s hour blocks. Numbered separately so the `U` numbers the specs refer to
+keep their meaning.
+
+### B1 — One module system, and a clean typecheck ✅ 2026-08-09
+**Done when:** `npx tsc --noEmit` exits clean and the full suite still passes against
+the real cluster.
+**Why it was a unit and not a cleanup:** `package.json` said `"type": "commonjs"`
+while every source file was ESM, so `npx tsc --noEmit` reported **162 errors** on a
+fresh clone and had never once passed. That is the first thing a judge running a
+build sees, and Production Readiness is scored.
+**Evidence:** `"type": "module"`, `types: ["node"]`, `.js` on all 29 relative imports
+in `src/`, `scripts/`, `test/`. `npx tsc --noEmit` exits 0; 71/71 tests pass;
+`env:doctor`, `db:check` and the MCP stdio server all still run.
+**Five real type errors were underneath the module noise**, all fixed at the type
+level with no runtime change:
+- `titan.ts` omits `region` rather than passing `undefined`, which
+  `exactOptionalPropertyTypes` rejects. The AWS SDK resolves
+  `config?.region ?? loadNodeConfig(...)`, so an absent key and an explicitly
+  undefined one behave identically — read in the installed SDK source, not assumed.
+- Four `noUncheckedIndexedAccess` sites in tests, narrowed by assertions those same
+  tests already make.
+**Do not let this regress.** `npx tsc --noEmit` belongs in whatever CI day three sets
+up; it is cheap and it caught nothing for weeks because nobody could run it.
+
+---
+
 ## Day two — the proof
 
-### U7 — MCP server skeleton, stdio transport ⬜
+### U7 — MCP server skeleton, stdio transport ✅ 2026-08-09
 **Done when:** a client lists the three write tools over stdio and gets the schemas
 from `05` §3 verbatim.
 **Specs:** `05` §3
 **Silent break:** rewording a tool `description`. Those strings are prompt surface,
 not documentation — they are what makes an unmodified third-party agent behave
 correctly. Copy them.
+**Evidence:** `src/mcp/{tools,server}.ts`, `scripts/serve-mcp.mts` (`npm run serve`),
+`test/mcp.test.ts` — 11 tests. The listing tests spawn the server as a child process
+and speak MCP over pipes; nothing imports it in-process, so a passing test means the
+transport works and not merely that a handler runs. The schema tests parse the JSON
+blocks out of `spec/05-INTERFACES.md` §3 at run time rather than snapshotting them,
+so a reworded `description` fails instead of drifting — the silent break above is the
+one thing this unit's tests are actually built around. Also driven with a hand-written
+JSON-RPC handshake and no SDK on the client side, which confirms stdout carries
+protocol frames only.
+**Three mutations were run to show the tests are load-bearing:** rewording a
+description fails 2; deleting the undeclared-argument check fails 1; adding an
+`auth_token` field fails 3.
+**Deviation from spec text, deliberate:** `05` §3's blocks omit
+`additionalProperties`, so the schemas document a closed field list without enforcing
+one. The server rejects any argument the schema did not declare. Invariant 7 is a
+claim about what reaches a handler, not about what a schema says, so it is enforced
+on the boundary now rather than left to U8.
+**No handler is implemented, on purpose.** Calling a tool returns a not-implemented
+error and never `granted`/`blocked`/`deduped`; a test asserts that. Arbitration
+belongs in `src/memory/`'s single transaction, and a handler wired up ahead of it is
+how invariant 1 breaks quietly.
+**Spec gap found and closed:** §3 gave `cortex_heartbeat` prose and no JSON block.
+The block was written into §3 from §1's `heartbeat(repo, intentId, extendBy?)`, and a
+test now holds the two sections against each other.
 
 ### U8 — `cortex_propose` tool ⬜
 **Done when:** a real coding agent attaches and successfully proposes. *(08 §4, 16–20h)*
@@ -113,8 +180,13 @@ and a long intent can extend its lease.
 **Specs:** `05` §3, `03` §4.3
 **Silent break:** `heartbeat` extending a lease the caller no longer holds. It must
 verify the holder, or a dead agent's lease gets renewed by whoever asks.
-**Not yet implemented at all:** `heartbeat` and `release` from `05` §1. Heartbeat is
-cut-list item 6 — if time runs short, drop it and use a longer fixed lease.
+**Not yet implemented at all:** `heartbeat` and `release` from `05` §1.
+**Decision 2026-08-09 — do not implement lease extension.** Heartbeat is cut-list
+item 6 (`08` §6), and it is being taken up front rather than under time pressure: use
+a longer fixed lease and leave the tool advertised but returning not-implemented. Its
+schema is settled in `05` §3 and served by U7, so this stays a scheduling decision and
+nothing downstream has to be reshaped if it is revisited. **U9 is therefore
+`cortex_close` only.** That is an hour off the critical path.
 
 ### U10 — Agent Skill and the managed-MCP read path ⬜
 **Done when:** "agent recalls without any bespoke client." *(08 §4, 20–23h, verbatim)*
@@ -161,3 +233,15 @@ Three things carried forward that must not be forgotten:
 - **`08` §7 says deploy a hello-world through the full pipeline on day one evening**,
   not on day three. Deployment eating day three is the medium-likelihood, high-impact
   risk in the register.
+- **U2 `cortex init` lands here**, deferred from day one — see its entry above for
+  why, and do not let it drift further than day three.
+
+Not yet captured, worth screen-recording (`08` §5, 52–58h):
+
+- **An unmodified third-party agent attaching to `npm run serve` and listing the
+  three tools.** The whole prompt-surface argument in `05` §3 is that no bespoke
+  client is needed, and that is far more convincing seen than described. Not worth
+  recording until U8 makes `cortex_propose` actually decide — a tool list that
+  answers "not implemented" demonstrates the opposite of the claim.
+- The two-terminal contention gate (U6) is already reproducible on demand via
+  `npm run gate:contend`, but no take has been recorded.

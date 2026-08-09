@@ -1,25 +1,29 @@
 # CORTEX
 
-## Current state (update every session)
+## Current state
 
-- Verification gate: **5/5** — Bedrock resolved 2026-08-09, embeddings PASS (1024
-  dims), v5 reasoning models NOT entitled on this account; reason model reassigned
-  to `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
-- Done: **all of day one.** Schema, retry helper, typed layer, arbitration +
-  invariants 1–8, CLOSE, RECALL, embeddings + content-hash cache. End-of-day-one
-  gate **PASSED** 2026-08-09 (`npm run gate:contend`) — day two may start.
-- Off-plan: `src/extract/graph.ts` (belongs to consolidation, §4.4 — **do not extend**)
-- Next: U7 MCP server skeleton over stdio, then U8 `cortex_propose`
-- Not done from day one: U2 `cortex init`. The migration is idempotent, but the CLI
-  that wraps it does not exist. Nothing downstream is blocked on it.
-- Open: `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed by V5
+**`docs/UNITS.md` is the status of record.** What is done, what is next, and why
+anything was deferred lives there and only there. This block used to duplicate it
+and the two drifted within a day, which cost a unit of ambiguity over whether U2 or
+U7 came next. Do not reintroduce a unit list here.
+
+- Unit status, ordering, next unit → `docs/UNITS.md`
+- Evidence for every claim → `docs/verification-log.md`
+- Why something was decided → `docs/DECISIONS.md`
+- Where `spec/` no longer matches reality → `docs/SPEC-DELTA.md`
+
+What does not belong in a unit list, and so lives here:
+
+- Verification gate: **5/5**, resolved 2026-08-09. Embeddings PASS at 1024 dims;
+  v5 reasoning models are **not entitled** on this account, so the reason model is
+  `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
+- Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
+- Open: the `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed
+  by V5 — it cannot rest on the vector index prefix.
 - **Action for Julian:** `.env` still sets `BEDROCK_REASON_MODEL=anthropic.claude-sonnet-5`,
   which is not entitled on this account. Change it to
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nothing reads it yet, so nothing
   is broken today; LIVE mode would fail the moment it does.
-
-Unit list and ordering: `docs/UNITS.md`. Evidence for every claim above:
-`docs/verification-log.md`.
 
 ---
 
@@ -76,4 +80,10 @@ From `spec/03-MEMORY-MODEL.md` §8. Tests live in `test/`.
 
 Node + TypeScript, `pg` against CockroachDB Cloud (Basic tier, `agent-hack-30704`,
 `aws-us-east-1`). Vitest, run against the **real** cluster via `CORTEX_DSN`.
-`npm test` · `npm run db:check` · `npm run sql` · `npm run env:doctor`.
+ESM throughout — `"type": "module"`, and relative imports carry `.js`.
+
+`npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
+`npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend`.
+
+`npx tsc --noEmit` exits clean and must stay that way — it is what someone cloning
+the repo runs first, and Production Readiness is scored.
