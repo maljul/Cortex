@@ -8,7 +8,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "sql": "tsx scripts/sql.mts"
   },
   "keywords": [],
   "author": "",
