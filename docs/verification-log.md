@@ -155,11 +155,47 @@ ttl = 'on', ttl_expiration_expression = 'expires_at', ttl_job_cron = '*/1 * * * 
 Spec: `spec/04-ARCHITECTURE.md` §8 · Fallback: EventBridge Scheduler polling a
 watermark every two seconds · **Time box: 20 minutes, then take the fallback**
 
-**Result:** TBD
+**Result:** PASS on availability, which was the risky half. Delivery to a real
+endpoint is still outstanding — it needs a webhook URL and nothing else.
+**The fallback is not needed.**
+
+The assumption under test was that sink-based changefeeds might be unavailable on
+this tier. They are not. `CREATE CHANGEFEED` against a deliberately unreachable
+host returned a job rather than a licensing or tier refusal:
 
 ```
-paste the CREATE CHANGEFEED result, or the exact error, and whether a payload arrived
+CREATE CHANGEFEED FOR TABLE _v2
+  INTO 'webhook-https://example.invalid/probe?insecure_tls_skip_verify=true'
+  WITH updated, resolved = '10s';
+
+  job_id: 1200000303041118209
 ```
+
+Splitting the question this way meant the 20-minute time box never had to be
+spent waiting on an external URL. `SHOW CHANGEFEED JOBS` then proved the cluster
+reached the network and failed only on DNS:
+
+```
+status:         running
+running_status: transient error: webhook sink request failed: Post
+                "https://example.invalid/probe": dial tcp: lookup example.invalid
+                on 172.20.0.10:53: no such host
+error:          (empty)
+```
+
+So outbound HTTPS from the cluster to a webhook sink works. Probe job cancelled.
+
+**Outstanding:** point a changefeed at a live URL and confirm a payload arrives.
+
+Two things that fell out of this and belong in the design:
+
+- A changefeed to a dead sink stays `running` with a **transient** error and
+  retries indefinitely; it does not fail. The "changefeed stalled" row in
+  `spec/04-ARCHITECTURE.md` §6 is therefore right that consolidation lags rather
+  than breaks, but the staleness badge cannot be driven by job status — status
+  stays `running` throughout. Drive it from the last `resolved` timestamp.
+- `insecure_tls_skip_verify=true` is fine for a webhook.site probe and must not
+  survive into the deployed API Gateway sink.
 
 ---
 
