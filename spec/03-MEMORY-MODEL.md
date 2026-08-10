@@ -238,10 +238,28 @@ implementation.
 4. **A deduped agent receives the prior outcome**, not just a rejection. That is what
    turns arbitration into memory.
 
-`DEDUPE_THRESHOLD` default `0.28` cosine distance. `[OPEN]` The right value is
-empirical. The implementer should sweep it over the benchmark corpus and report a
-precision and recall curve in `bench/results/threshold-sweep.md`. Publishing that
-curve is itself a credibility artifact.
+`DEDUPE_THRESHOLD` is **`0.39`** cosine distance. *(Closed 2026-08-11; was `[OPEN]` at a
+default of `0.28`.)* The value is empirical, as this section always said it would be, and
+it was swept over the benchmark corpus with the precision and recall curve published in
+`bench/results/*/threshold-sweep.md` — that curve is a credibility artifact and remains
+the reason to trust the number.
+
+The sweep separates the corpus cleanly: the worst genuinely-duplicate pair sits at
+0.3630, the closest combination that is *not* a duplicate at 0.4293, so any value in that
+band classifies all thirty tasks perfectly. 0.28 sat below it and caught 4 of 6 pairs
+with no false positives — recall was the problem, never precision.
+
+**Two disciplines the closing of this `[OPEN]` had to respect,** both worth stating
+because the shape recurs:
+
+- The value is **not** `JUDGE_THRESHOLD` in `bench/metrics.ts`, which is 0.40 and also
+  inside the band. The judge scores the benchmark that justifies this constant; one
+  shared number would read as the mechanism and its scorer having been tuned together.
+- It was **not** changed inside the unit that measured it. U13 published the sweep and
+  deliberately left 0.28 in place, reporting `duplicate_work_rate` 0.08 rather than the
+  0.00 the change would have bought. `06` §3 forbids the benchmark quietly tuning the
+  mechanism it scores, and the defence is not abstaining forever — it is measuring first,
+  publishing, then deciding separately, and disclosing the order.
 
 ### 4.3 CLOSE — commit outcome, finding and release together
 

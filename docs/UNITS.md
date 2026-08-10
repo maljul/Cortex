@@ -374,9 +374,13 @@ From that moment the project is submittable even if everything else fails.
 `scripts/bench-results.mts` (`npm run bench:results`), `bench/results/` committed with
 all five files `06` §6 asks for, and `test/bench-metrics.test.ts` — 12 tests. V20 has
 the table. Suite 168/168, `tsc` clean.
-**The gate, median of three runs:** `duplicate_work_rate` 0.21 → 0.08, `lost_writes`
-21 → 0, `conflicting_edits` 3 → 0, `wasted_tokens` 4000 → 1975, goodput 38.16 → 180.23
-tasks per simulated minute.
+**The gate, median of three runs**, as republished 2026-08-11 (V23) after `03` §4.2's
+threshold `[OPEN]` was closed: `duplicate_work_rate` 0.21 → 0.00, `lost_writes` 21 → 0,
+`conflicting_edits` 3 → 0, `wasted_tokens` 4000 → 867, goodput 38.16 → 200.73 tasks per
+simulated minute. **The gate passed on 2026-08-10 at the old threshold** — 0.21 → 0.08,
+4000 → 1975, goodput 180.23 — and that run is not kept alongside this one, because two
+published tables make a reader guess which is quoted. The prior figures live here and in
+V20; the artifact is singular on purpose.
 **The named silent break is the load-bearing assertion,** and it needed a distinction
 the spec does not draw: `—` means this arm has no such thing to measure, `TBD` means
 nobody measured it, and a bare `0` for either is the failure. Mutating the rate to
@@ -385,11 +389,15 @@ return 0 instead of TBD when there is no denominator fails one test and nothing 
 and a test greps its import list. It reads the committed vectors off disk and computes
 its own cosine, so `duplicate_work_rate` is recomputable from a clean clone with
 nothing provisioned.
-**CORTEX is 0.08 rather than 0.00, and that is the useful half.** The shipped 0.28
-catches 4 of 6 declared pairs; the judge scores at 0.40, inside the band where recall
-and precision are both 1.000. The two residual duplicates are exactly the pairs 0.28
-misses. `src/memory/propose.ts` was **not** edited — `docs/SPEC-DELTA.md` against `03`
-§4.2, and the `[OPEN]` is Julian's to close.
+**CORTEX was 0.08 rather than 0.00 when this unit closed, and that was the useful half.**
+The then-shipped 0.28 caught 4 of 6 declared pairs; the judge scores at 0.40, inside the
+band where recall and precision are both 1.000, so the two residual duplicates were
+exactly the pairs 0.28 missed. `src/memory/propose.ts` was **not** edited inside this
+unit — moving the mechanism's constant inside the unit that scores it is the circularity
+`06` §3 forbids. **Julian closed the `[OPEN]` at 0.39 on 2026-08-11 (V23)**, as a
+separate act with the sweep in front of him, and the row is now 0.00. That sequence —
+measure, publish, then decide — is the thing that makes the change not circular, and it
+is disclosed in `summary.md` rather than smoothed over.
 **Two metrics mean less than §3 implies, and say so in `summary.md`:**
 `serialization_retries` is 0 by construction under the serialised scheduler, and
 goodput is per simulated minute because wall-clock goodput would compare a local file

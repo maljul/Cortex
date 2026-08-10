@@ -11,8 +11,26 @@ import type { PoolClient } from 'pg';
 import { withRetry } from '../db/retry.js';
 import { expandKeys, type GlobResolver } from './keys.js';
 
-/** spec §5: cosine distance, default 0.28. Empirical — sweep it over the benchmark. */
-export const DEFAULT_DEDUPE_THRESHOLD = 0.28;
+/**
+ * Cosine distance below which a proposed intent is treated as a duplicate of one
+ * already known. `03` §4.2 marked this `[OPEN]` and empirical; it was swept and closed
+ * at **0.39** on 2026-08-10.
+ *
+ * The sweep is `bench/results/*\/threshold-sweep.md`, and the corpus separates cleanly:
+ * the worst genuinely-duplicate pair sits at 0.3630 and the closest combination that is
+ * *not* a duplicate at 0.4293, so any value in that band classifies all thirty tasks
+ * perfectly. 0.39 is near the middle of it.
+ *
+ * **It is deliberately not 0.40**, which is `JUDGE_THRESHOLD` in `bench/metrics.ts`.
+ * The judge scores the benchmark that justifies this constant; carrying the same number
+ * in both places would look like the mechanism and its scorer were tuned together, and
+ * `06` §3 exists to prevent exactly that. They were chosen independently and the values
+ * say so.
+ *
+ * The previous value, 0.28, caught 4 of the corpus's 6 declared pairs with no false
+ * positives — precision was never the problem, recall was.
+ */
+export const DEFAULT_DEDUPE_THRESHOLD = 0.39;
 
 export const EMBEDDING_DIMENSIONS = 1024;
 

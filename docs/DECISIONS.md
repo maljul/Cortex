@@ -217,7 +217,7 @@ exactly the audience being addressed. The mechanism is one sentence: a whole-fil
 rewrite from a stale snapshot leaves the file holding what the last saver happened to
 have seen.
 
-## 2026-08-10 — The judge scores at 0.40, and the mechanism keeps 0.28
+## 2026-08-10 — The judge scores at 0.40, and the mechanism kept 0.28 *(superseded 2026-08-11)*
 
 `06` §3 requires `duplicate_work_rate` to be computed by an offline judge that does not
 share code with the dedupe path. The judge therefore needs a threshold of its own, and
@@ -305,3 +305,48 @@ obeyed and the credential still leaked into an artifact, because "server side" a
 in the repository" are not the same property as "not in the deployment template". The
 general form: a credential handling rule is satisfied by inspecting the outputs, not by
 inspecting the intent.
+
+## 2026-08-11 — The dedupe threshold moves to 0.39, and the benchmark is republished
+
+`03` §4.2 marked `DEDUPE_THRESHOLD` `[OPEN]` and empirical from the beginning, and asked
+for a sweep over the benchmark corpus. The sweep exists (U13), reproduces U11's band to
+the digit, and says the same thing both times: the corpus separates at (0.3630, 0.4293),
+and the shipped 0.28 sat below the band, catching 4 of 6 declared pairs with no false
+positives. Recall was the problem; precision never was.
+
+**Closed at 0.39.** All six pairs caught, zero false positives, and CORTEX's
+`duplicate_work_rate` goes 0.08 → 0.00 with `wasted_tokens` 1975 → 867 — the two pairs
+0.28 let through were being reasoned about at full cost.
+
+**It is deliberately not 0.40, which is also in the band.** 0.40 is `JUDGE_THRESHOLD` in
+`bench/metrics.ts`. The judge scores the benchmark that justifies this constant, and the
+two carrying one number would read as the mechanism and its scorer having been tuned
+together — which is the objection `06` §3 exists to anticipate, and it is cheaper to
+avoid the appearance than to argue about it. They were picked independently and the
+values now say so. The band is wide enough that this costs nothing: 0.38, 0.39, 0.40 and
+0.42 all score recall 1.000 and precision 1.000.
+
+**On the circularity, since this is the edit `06` §3 warns about.** What §3 forbids is a
+benchmark quietly tuning the mechanism it scores. The defence is not abstaining from ever
+acting on a measurement — an experiment nobody is allowed to act on is not an experiment.
+The defence is the *order*, and that it is visible: U13 measured, published the sweep, and
+deliberately shipped the worse row (0.08 rather than 0.00) rather than move the constant
+inside the unit computing the score. The decision was taken afterwards, separately, as its
+own act. `summary.md` publishes the sweep, the old value, the new value, and the fact that
+one followed the other, so a sceptical reader can reconstruct the sequence rather than
+take it on trust.
+
+**Two things this cost, both accepted.** The end-of-day-two gate table is republished, and
+the 0.28 run is **deleted rather than kept alongside** — two published tables in one
+repository make a reader guess which one is quoted, and the prior figures survive in V20,
+in U13's entry and in this file. And `scripts/bench-results.mts` needed a second honest
+paragraph for the case where the arm *is* at zero: the old text explained "why the CORTEX
+arm is not at zero", which over a zero would have been a placeholder in prose form.
+
+**One bug this turned up, worth naming because it is the same class.** The first draft of
+that new paragraph read the count of pairs caught by the old threshold off
+`DEFAULT_DEDUPE_THRESHOLD`, and so published "it shipped at 0.28, where it caught 6 of 6"
+— true of 0.39, false of 0.28, and it would have re-described history every time the
+constant moved. The historical number is now a fixed named constant. A generated document
+that derives a claim about the past from a value that lives in the present will lie the
+first time the present changes.

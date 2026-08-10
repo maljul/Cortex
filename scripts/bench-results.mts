@@ -240,9 +240,14 @@ try {
       '',
       `The judge scores at **${JUDGE_THRESHOLD}**, chosen from this table rather than`,
       'from the mechanism: it is inside the band where recall is 1.000 and precision is',
-      'still 1.000. `src/memory/propose.ts` ships a different value, and that gap is',
-      'recorded in `docs/SPEC-DELTA.md` against `03` §4.2, which marks the threshold',
-      '`[OPEN]` and empirical. Nothing here changes the mechanism\'s constant.',
+      'still 1.000.',
+      '',
+      `\`src/memory/propose.ts\` ships **${DEFAULT_DEDUPE_THRESHOLD}**, chosen from this`,
+      'same table, which closed `03` §4.2\'s `[OPEN]`. The two constants are',
+      'deliberately different despite both being drawn from this band: the judge scores',
+      'the benchmark that justifies the mechanism\'s value, and a single shared number',
+      'would read as the two having been tuned together — which is the circularity `06`',
+      '§3 exists to prevent. They were picked independently and the values say so.',
       '',
     ].join('\n'),
     'utf8',
@@ -254,6 +259,19 @@ try {
   // The judge never sees this value — `bench/judge.ts` imports nothing from `src/`.
   const sweep = judge.sweep([...SWEEP_THRESHOLDS, DEFAULT_DEDUPE_THRESHOLD]);
   const shippedRow = sweep.find((row) => row.threshold === DEFAULT_DEDUPE_THRESHOLD)!;
+
+  /**
+   * The value the mechanism shipped through the end-of-day-two gate (U13, V20), before
+   * `03` §4.2's `[OPEN]` was closed at 0.39.
+   *
+   * Deliberately a fixed historical number and not derived from anything. The prose
+   * below describes what the *previous* constant caught; reading that count off
+   * `DEFAULT_DEDUPE_THRESHOLD` would silently re-describe history every time the
+   * constant moves — and it did exactly that once, publishing "0.28 caught 6 of 6"
+   * when 0.28 caught 4.
+   */
+  const GATE_THRESHOLD = 0.28;
+  const gateRow = sweep.find((row) => row.threshold === GATE_THRESHOLD)!;
   const declaredPairs = pairs().size;
 
   writeFileSync(
@@ -300,25 +318,56 @@ try {
       'threshold sweep and every metric above can be recomputed from a clean clone with',
       'nothing provisioned.',
       '',
-      '## Why the CORTEX arm is not at zero',
-      '',
-      `\`duplicate_work_rate\` is ${show(cortex.duplicateWorkRate)} for CORTEX, not 0.00, and`,
-      'the reason is the more useful half of the result.',
-      '',
-      `The mechanism ships a dedupe threshold of **${DEFAULT_DEDUPE_THRESHOLD}**`,
-      '(`src/memory/propose.ts`); the offline judge scores at',
-      `**${JUDGE_THRESHOLD}**, chosen from the sweep and not from the mechanism. At the`,
-      `shipped value the sweep catches ${shippedRow.truePositives} of the`,
-      `${declaredPairs} declared pairs; at the judge's value it catches all`,
-      `${declaredPairs}, with no false positives at either. So the`,
-      `${cortex.duplicatesFound} duplicates the judge found in the CORTEX arm are`,
-      'exactly the pairs the mechanism let through.',
-      '',
-      '**The threshold was not changed to make this number better.** Tuning the',
-      'mechanism against the benchmark that scores it is the circularity `06` §3 exists',
-      'to prevent, and `03` §4.2 marks the constant `[OPEN]` and empirical — moving it is',
-      "Julian's call, recorded in `docs/SPEC-DELTA.md`, not a side effect of publishing a",
-      'table.',
+      // Two different honest paragraphs, because the interesting thing to say depends
+      // on what was measured. Reporting "why the arm is not at zero" over a zero would
+      // be a placeholder in prose form, which is the failure `06` §6 names for numbers
+      // and which reads exactly as authoritative.
+      ...(cortex.duplicatesFound > 0
+        ? [
+            '## Why the CORTEX arm is not at zero',
+            '',
+            `\`duplicate_work_rate\` is ${show(cortex.duplicateWorkRate)} for CORTEX, not 0.00, and`,
+            'the reason is the more useful half of the result.',
+            '',
+            `The mechanism ships a dedupe threshold of **${DEFAULT_DEDUPE_THRESHOLD}**`,
+            '(`src/memory/propose.ts`); the offline judge scores at',
+            `**${JUDGE_THRESHOLD}**, chosen from the sweep and not from the mechanism. At the`,
+            `shipped value the sweep catches ${shippedRow.truePositives} of the`,
+            `${declaredPairs} declared pairs; at the judge's value it catches all`,
+            `${declaredPairs}, with no false positives at either. So the`,
+            `${cortex.duplicatesFound} duplicates the judge found in the CORTEX arm are`,
+            'exactly the pairs the mechanism let through.',
+          ]
+        : [
+            '## The CORTEX arm is at zero, and how its threshold was chosen',
+            '',
+            `\`duplicate_work_rate\` is ${show(cortex.duplicateWorkRate)} for CORTEX: the judge`,
+            'finds no duplicated work in the arm\'s final state. The threshold that produces',
+            'that is the one number this benchmark recommended changing, so how it was',
+            'picked matters more than the row itself.',
+            '',
+            `\`src/memory/propose.ts\` ships **${DEFAULT_DEDUPE_THRESHOLD}**, and the offline`,
+            `judge scores at **${JUDGE_THRESHOLD}**. Both are drawn from`,
+            '`threshold-sweep.md` and both sit inside the band where recall and precision',
+            'are 1.000 on this corpus — but they are **different numbers on purpose**. The',
+            'judge scores the benchmark that justifies the mechanism\'s value; carrying one',
+            'shared constant would read as the two having been tuned together.',
+            '',
+            '**The threshold was changed, after this benchmark recommended it, and that is',
+            `disclosed rather than hidden.** It shipped at ${GATE_THRESHOLD} through the`,
+            `end-of-day-two gate, where it caught ${gateRow.truePositives} of the`,
+            `${declaredPairs} declared pairs and`,
+            `${shippedRow.truePositives === declaredPairs ? `${DEFAULT_DEDUPE_THRESHOLD} catches all ${declaredPairs}` : `${DEFAULT_DEDUPE_THRESHOLD} catches ${shippedRow.truePositives}`}`,
+            '— the published row was 0.21 → 0.08 rather than 0.21 → 0.00, and',
+            'the sweep said why. `03` §4.2 marked the constant `[OPEN]` and empirical, and',
+            'closing it was Julian\'s call with the sweep in front of him. Recorded in',
+            '`docs/DECISIONS.md`.',
+            '',
+            'What `06` §3 forbids is the benchmark quietly tuning the mechanism it scores.',
+            'What defeats that is not abstaining from ever acting on a measurement — it is',
+            'publishing the sweep, the prior value, the value now, and the fact that one',
+            'followed the other. All four are in this directory.',
+          ]),
       '',
       '## Metrics that moved the wrong way',
       '',

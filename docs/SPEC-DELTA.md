@@ -122,21 +122,48 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
-### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
+### `05` §6 documents `CORTEX_DEDUPE_THRESHOLD` and nothing reads it *(2026-08-11)*
 
-Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
-for a sweep. U11 produced the first measurement, and it says the default is too tight.
-On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
+§6's configuration block lists it, so a reader takes it for a supported knob. The only
+consumer of the threshold is `DEFAULT_DEDUPE_THRESHOLD` in `src/memory/propose.ts`.
+`propose()` accepts an optional per-call `dedupeThreshold`, and nothing fills it from the
+environment — not `src/mcp/server.ts`, not the bench arms, not the scripts.
+
+**Annotated in §6 rather than fixed, deliberately.** The two available fixes are
+different decisions and neither is obviously right: wiring it up lets an operator move
+the mechanism's most sensitive constant without a commit, which after `03` §4.2 was
+closed on a published sweep is arguably a way to un-close it silently; deleting it from
+§6 gives up a knob that a real deployment might want. Julian's call.
+
+The reason this is a delta and not a nit: a documented knob that does nothing is the same
+class of defect as a comment asserting an invariant no test checks. Someone will set it,
+observe no change, and go looking for the bug somewhere real.
+
+## Corrected in the spec already — do not re-open
+
+### `03` §4.2 — `DEDUPE_THRESHOLD` was 0.28, below the band the corpus needs *(closed 2026-08-11 — 0.39)*
+
+**Closed 2026-08-11 at `0.39`.** `03` §4.2 now states the value, the band it came from,
+and the two disciplines the choice had to respect. The benchmark was re-run afterwards
+and `bench/results/` republished: CORTEX's `duplicate_work_rate` is 0.00.
+
+The rest of this entry is the original, kept because the measurement is what decided it
+and because the *order* — measure, publish, then decide separately — is the part that
+keeps the change out of `06` §3's circularity.
+
+§4.2 said the right value was empirical and asked for a sweep. U11 produced the first
+measurement, and it said the default was too tight. On the committed corpus, Titan Text
+Embeddings V2 at 1024 dimensions:
 
 - worst genuinely-duplicate pair: **0.3630**
 - closest combination that is *not* a duplicate: **0.4293**
 - so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
 - at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
 
-The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
-U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
-fixture is the wrong direction of fit. This is input to that sweep, not a decision.
-Numbers and the failed first draft are in V11.
+*(At the time of writing:)* The constant in `src/memory/propose.ts` had **not** been
+changed. Picking it belonged to U13's `bench/results/threshold-sweep.md`; moving the
+mechanism's threshold to fit a fixture is the wrong direction of fit. This was input to
+that sweep, not a decision. Numbers and the failed first draft are in V11.
 
 **The sweep exists now (U13, 2026-08-10) and it costs the mechanism a measurable
 amount.** `bench/results/<run>/threshold-sweep.md` reproduces U11's band to the digit —
@@ -149,13 +176,11 @@ What the benchmark then measures: at the shipped 0.28 the CORTEX arm's
 exactly the two declared pairs 0.28 fails to catch. A threshold anywhere in
 (0.3630, 0.4293) would take that row to zero with no false positives on this corpus.
 
-**Still not changed, and now for a stronger reason than before.** The number that would
-improve is the headline number of the benchmark that produced the recommendation.
-Making that edit inside the same unit is the circularity `06` §3 exists to prevent, and
-`03` §4.2's `[OPEN]` is Julian's to close. The cost of leaving it is one published row
-that is worse than it needs to be, which is the cheaper of the two mistakes.
-
-## Corrected in the spec already — do not re-open
+It was left unchanged through U11 and U13 for a reason worth preserving: the number that
+would improve was the headline number of the benchmark that produced the recommendation,
+and making that edit inside the same unit is the circularity `06` §3 exists to prevent.
+Waiting cost one published row that was worse than it needed to be, which was the cheaper
+of the two mistakes.
 
 ### `05` §2 — the Node-versus-Python `[OPEN]` *(closed 2026-08-10 — Node)*
 

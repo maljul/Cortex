@@ -1871,3 +1871,88 @@ separate deployable with its own tsconfig and CommonJS resolution.
 **Worth screen-recording:** `curl` against the hosted route returning the cluster's own
 version string. It is the shortest possible demonstration that the hosted surface talks
 to a real CockroachDB cluster, and it fits in five seconds of the `07` §5 video.
+
+## V23 — The dedupe threshold closes at 0.39, and the arms separate further
+**2026-08-11 · `03` §4.2 `[OPEN]` · `npm run bench:results` · PASS**
+
+`03` §4.2's threshold was the one number U13's sweep said to change and the one number
+U13 deliberately did not change. Closed now, as a separate act, with the sweep in front
+of us.
+
+### What the corpus says, measured again at the new value
+
+`test/bench-fixtures.test.ts`, against the live embedding endpoint:
+
+```
+separating band: (0.3630, 0.4293)
+at DEDUPE_THRESHOLD 0.39: 6/6 pairs caught, 0 false positives
+```
+
+At 0.28 the same test reported 4/6 caught, 0 false positives. The band is reproduced to
+the digit for the third time (U11, U13's sweep, and now), which is the reason to trust it.
+
+The sweep table agrees, and shows how much room there is:
+
+```
+| threshold | flagged | true positives | false positives | precision | recall |
+|      0.28 |       4 |              4 |               0 |     1.000 |  0.667 |
+|      0.36 |       5 |              5 |               0 |     1.000 |  0.833 |
+|      0.38 |       6 |              6 |               0 |     1.000 |  1.000 |
+|      0.40 |       6 |              6 |               0 |     1.000 |  1.000 |
+|      0.42 |       6 |              6 |               0 |     1.000 |  1.000 |
+|      0.44 |       8 |              6 |               2 |     0.750 |  1.000 |
+```
+
+**0.39 rather than 0.40**, which is `JUDGE_THRESHOLD`. Four values score identically, so
+choosing the one the scorer does not also use costs nothing and removes an objection.
+
+### The republished gate, median of three runs
+
+```
+| metric                | naive | cortex |
+|-----------------------|-------|--------|
+| duplicate_work_rate   |  0.21 |   0.00 |
+| lost_writes           |    21 |      0 |
+| conflicting_edits     |     3 |      0 |
+| wasted_tokens         |  4000 |    867 |
+| goodput (tasks/min)   | 38.16 | 200.73 |
+| claim_p50 (ms)        |     — |    739 |
+| claim_p95 (ms)        |     — |    914 |
+| serialization_retries |     — |      0 |
+```
+
+Against V20's table: `duplicate_work_rate` 0.08 → **0.00**, `wasted_tokens` 1975 → **867**,
+goodput 180.23 → **200.73**. The token figure is the informative one — the two pairs 0.28
+let through were not merely counted as duplicates, they were reasoned about at full price.
+
+`bench/results/2026-08-10T16-08-34-192Z/` was **deleted**, not kept alongside. Two
+published tables in one repository make a reader guess which is quoted; the prior figures
+live in V20, in U13's entry and in `docs/DECISIONS.md`.
+
+The two harness-dependent rows are unchanged and still mean what `06` §3's delta says
+they mean: `serialization_retries` is 0 by construction under the serialised scheduler,
+and the claim latencies are uncontended.
+
+### One bug found while writing the disclosure
+
+`scripts/bench-results.mts` gained a branch for the case where the arm is at zero, because
+the existing prose explained "why the CORTEX arm is not at zero" and would otherwise have
+published that heading over a 0.00 — a placeholder in prose form. The first draft of the
+replacement then did this:
+
+```
+It shipped at 0.28 through the end-of-day-two gate, where it caught 6 of the 6
+declared pairs
+```
+
+**0.28 caught 4.** The sentence read the historical count off `DEFAULT_DEDUPE_THRESHOLD`,
+which is now 0.39, so a claim about the past was being computed from a value that lives
+in the present. Fixed with a fixed `GATE_THRESHOLD = 0.28` and its own sweep row; the
+file now renders `it shipped at 0.28 ... where it caught 4 of the 6 declared pairs and
+0.39 catches all 6`.
+
+Caught by reading the generated output rather than the generator. This is the third time
+in this project that the artifact contradicted the reasoning about the artifact, after
+V14's join and V22's template.
+
+Suite **174/174**, `npx tsc --noEmit` clean.

@@ -1,6 +1,6 @@
 # Dedupe threshold sweep
 
-Recorded 2026-08-10T16:08:34.192Z. Distance is cosine over the committed embedding
+Recorded 2026-08-10T22:38:54.176Z. Distance is cosine over the committed embedding
 cassettes, computed in `bench/judge.ts` — not by the operator the mechanism
 uses. Ground truth is the `pair` label in `bench/tasks.json`, written by hand
 before anything was measured.
@@ -29,6 +29,11 @@ degrades the system.
 
 The judge scores at **0.4**, chosen from this table rather than
 from the mechanism: it is inside the band where recall is 1.000 and precision is
-still 1.000. `src/memory/propose.ts` ships a different value, and that gap is
-recorded in `docs/SPEC-DELTA.md` against `03` §4.2, which marks the threshold
-`[OPEN]` and empirical. Nothing here changes the mechanism's constant.
+still 1.000.
+
+`src/memory/propose.ts` ships **0.39**, chosen from this
+same table, which closed `03` §4.2's `[OPEN]`. The two constants are
+deliberately different despite both being drawn from this band: the judge scores
+the benchmark that justifies the mechanism's value, and a single shared number
+would read as the two having been tuned together — which is the circularity `06`
+§3 exists to prevent. They were picked independently and the values say so.

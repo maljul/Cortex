@@ -251,11 +251,20 @@ CORTEX_MCP_API_KEY         # bearer token of a Cloud service account, not a SQL 
 CORTEX_REPO                # repo slug
 CORTEX_REPO_ROOT           # checkout to expand glob: keys against; unset means refuse
 CORTEX_LEASE_TTL           # default 10m
-CORTEX_DEDUPE_THRESHOLD    # default 0.28
+CORTEX_DEDUPE_THRESHOLD    # NOT READ BY ANYTHING — see below. Mechanism default 0.39
 BEDROCK_REGION
 BEDROCK_EMBED_MODEL           # Titan Text Embeddings V2, 1024 dim
 BEDROCK_REASON_MODEL          # LIVE mode only
 ```
+
+**`CORTEX_DEDUPE_THRESHOLD` is documented here and read by nothing.** *(Found
+2026-08-11.)* The only consumer of the threshold is `DEFAULT_DEDUPE_THRESHOLD` in
+`src/memory/propose.ts`; `propose()` takes an optional per-call `dedupeThreshold`, and no
+code path fills it from the environment. Recorded rather than quietly wired up or quietly
+deleted, because the two fixes are different decisions: making it configurable means an
+operator can move the mechanism's most sensitive constant without a commit, which is a
+choice, not a bug fix. A documented knob that does nothing is the same class of defect as
+a comment asserting an invariant no test checks — it reads as a capability and is not one.
 
 **The three `CORTEX_MCP_*` values no longer configure the read path.** They are kept
 because `npm run probe:read` uses them to re-measure the managed server's reach, which

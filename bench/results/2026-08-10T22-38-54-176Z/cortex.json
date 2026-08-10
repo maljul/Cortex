@@ -7,72 +7,72 @@
     {
       "run": 1,
       "metrics": {
-        "totalCompleted": 24,
-        "duplicateWorkRate": 0.08333333333333333,
-        "duplicatesFound": 2,
+        "totalCompleted": 22,
+        "duplicateWorkRate": 0,
+        "duplicatesFound": 0,
         "lostWrites": 0,
         "conflictingEdits": 0,
-        "wastedTokens": 1975,
-        "totalTokens": 15154,
-        "goodputPerMinute": 180.22938285090115,
-        "claimP50Ms": 676.682,
-        "claimP95Ms": 807.889,
+        "wastedTokens": 867,
+        "totalTokens": 14046,
+        "goodputPerMinute": 200.72992700729927,
+        "claimP50Ms": 752.165,
+        "claimP95Ms": 1035.36,
         "serializationRetries": 0
       },
-      "wallClockMs": 44854,
-      "totalVirtualMs": 7324,
+      "wallClockMs": 48033,
+      "totalVirtualMs": 6576,
       "serializationRetries": 0
     },
     {
       "run": 2,
       "metrics": {
-        "totalCompleted": 24,
-        "duplicateWorkRate": 0.08333333333333333,
-        "duplicatesFound": 2,
+        "totalCompleted": 22,
+        "duplicateWorkRate": 0,
+        "duplicatesFound": 0,
         "lostWrites": 0,
         "conflictingEdits": 0,
-        "wastedTokens": 1975,
-        "totalTokens": 15154,
-        "goodputPerMinute": 180.22938285090115,
-        "claimP50Ms": 676.485,
-        "claimP95Ms": 802.637,
+        "wastedTokens": 867,
+        "totalTokens": 14046,
+        "goodputPerMinute": 200.72992700729927,
+        "claimP50Ms": 738.039,
+        "claimP95Ms": 874.66,
         "serializationRetries": 0
       },
-      "wallClockMs": 43999,
-      "totalVirtualMs": 7324,
+      "wallClockMs": 44054,
+      "totalVirtualMs": 6576,
       "serializationRetries": 0
     },
     {
       "run": 3,
       "metrics": {
-        "totalCompleted": 24,
-        "duplicateWorkRate": 0.08333333333333333,
-        "duplicatesFound": 2,
+        "totalCompleted": 22,
+        "duplicateWorkRate": 0,
+        "duplicatesFound": 0,
         "lostWrites": 0,
         "conflictingEdits": 0,
-        "wastedTokens": 1975,
-        "totalTokens": 15154,
-        "goodputPerMinute": 180.22938285090115,
-        "claimP50Ms": 678.493,
-        "claimP95Ms": 812.893,
+        "wastedTokens": 867,
+        "totalTokens": 14046,
+        "goodputPerMinute": 200.72992700729927,
+        "claimP50Ms": 739.113,
+        "claimP95Ms": 913.896,
         "serializationRetries": 0
       },
-      "wallClockMs": 44013,
-      "totalVirtualMs": 7324,
+      "wallClockMs": 44381,
+      "totalVirtualMs": 6576,
       "serializationRetries": 0
     }
   ],
   "median": {
-    "totalCompleted": 24,
-    "duplicateWorkRate": 0.08333333333333333,
-    "duplicatesFound": 2,
+    "totalCompleted": 22,
+    "duplicateWorkRate": 0,
+    "duplicatesFound": 0,
     "lostWrites": 0,
     "conflictingEdits": 0,
-    "wastedTokens": 1975,
-    "totalTokens": 15154,
-    "goodputPerMinute": 180.22938285090115,
-    "claimP50Ms": 676.682,
-    "claimP95Ms": 807.889,
+    "wastedTokens": 867,
+    "totalTokens": 14046,
+    "goodputPerMinute": 200.72992700729927,
+    "claimP50Ms": 739.113,
+    "claimP95Ms": 913.896,
     "serializationRetries": 0
   },
   "notes": [
@@ -123,8 +123,6 @@
         "13ebc788052c1a45129bc6a02491a06f116faf50c4f804ddb599dd1aece4395b",
         "1e1abfb4c6660c21938a02148335a395d0384a988e2fc00b87e4c56a57af26f8",
         "4b63f6b6c0daf43b0a1b636788855a969f9c49737428673f1007c09a43099342",
-        "5096deb641c644c92d864b830c4fce864e38cbc567f28be9611f99124c32ce9e",
-        "608504e006dd2884c2acabbc0e99f9a0049a558e46e3e38e319c149678b17441",
         "62d0c028474f5c75800cabdc27a7c5cfe409cb2ae88d2b09c9d008aef484c10d",
         "672a1036c06c52c9193bba0053219519faecea4af40f46645d987611fdfbe05e",
         "690d02c055fe61dce1283705673898df2ddd93fc8c845ae9660b17e74c5652cc",
@@ -513,13 +511,14 @@
         "taskId": "P3b",
         "attempt": 1,
         "kind": "propose",
-        "outcome": "blocked",
+        "outcome": "deduped",
         "startVirtualMs": 1363,
         "endVirtualMs": 1418,
         "detail": {
-          "keys": 1,
+          "ofTask": "P3a",
           "holder": "agent-1",
-          "holderTask": "P3a"
+          "status": "in_flight",
+          "distance": 0.363
         }
       },
       {
@@ -1209,11 +1208,14 @@
         "taskId": "P1a",
         "attempt": 1,
         "kind": "propose",
-        "outcome": "granted",
+        "outcome": "deduped",
         "startVirtualMs": 3754,
         "endVirtualMs": 3814,
         "detail": {
-          "keys": 1
+          "ofTask": "P1b",
+          "holder": "agent-3",
+          "status": "done",
+          "distance": 0.3203
         }
       },
       {
@@ -1245,14 +1247,14 @@
       {
         "seq": 82,
         "agent": "agent-1",
-        "taskId": "P1a",
+        "taskId": "C1",
         "attempt": 1,
-        "kind": "work",
+        "kind": "recall",
         "outcome": "ok",
         "startVirtualMs": 3814,
-        "endVirtualMs": 4563,
+        "endVirtualMs": 3863,
         "detail": {
-          "files": 1
+          "findings": 0
         }
       },
       {
@@ -1270,6 +1272,19 @@
       },
       {
         "seq": 84,
+        "agent": "agent-1",
+        "taskId": "C1",
+        "attempt": 1,
+        "kind": "propose",
+        "outcome": "granted",
+        "startVirtualMs": 3863,
+        "endVirtualMs": 3919,
+        "detail": {
+          "keys": 2
+        }
+      },
+      {
+        "seq": 85,
         "agent": "agent-5",
         "taskId": "P6a",
         "attempt": 1,
@@ -1285,7 +1300,20 @@
         }
       },
       {
-        "seq": 85,
+        "seq": 86,
+        "agent": "agent-1",
+        "taskId": "C1",
+        "attempt": 1,
+        "kind": "work",
+        "outcome": "ok",
+        "startVirtualMs": 3919,
+        "endVirtualMs": 5034,
+        "detail": {
+          "files": 2
+        }
+      },
+      {
+        "seq": 87,
         "agent": "agent-5",
         "taskId": "I3",
         "attempt": 1,
@@ -1298,7 +1326,7 @@
         }
       },
       {
-        "seq": 86,
+        "seq": 88,
         "agent": "agent-4",
         "taskId": "P5b",
         "attempt": 1,
@@ -1311,7 +1339,7 @@
         }
       },
       {
-        "seq": 87,
+        "seq": 89,
         "agent": "agent-5",
         "taskId": "I3",
         "attempt": 1,
@@ -1324,7 +1352,7 @@
         }
       },
       {
-        "seq": 88,
+        "seq": 90,
         "agent": "agent-4",
         "taskId": "P4a",
         "attempt": 1,
@@ -1337,7 +1365,7 @@
         }
       },
       {
-        "seq": 89,
+        "seq": 91,
         "agent": "agent-5",
         "taskId": "I3",
         "attempt": 1,
@@ -1350,7 +1378,7 @@
         }
       },
       {
-        "seq": 90,
+        "seq": 92,
         "agent": "agent-4",
         "taskId": "P4a",
         "attempt": 1,
@@ -1366,7 +1394,7 @@
         }
       },
       {
-        "seq": 91,
+        "seq": 93,
         "agent": "agent-4",
         "taskId": "I2",
         "attempt": 1,
@@ -1379,7 +1407,7 @@
         }
       },
       {
-        "seq": 92,
+        "seq": 94,
         "agent": "agent-4",
         "taskId": "I2",
         "attempt": 1,
@@ -1392,7 +1420,7 @@
         }
       },
       {
-        "seq": 93,
+        "seq": 95,
         "agent": "agent-4",
         "taskId": "I2",
         "attempt": 1,
@@ -1405,59 +1433,7 @@
         }
       },
       {
-        "seq": 94,
-        "agent": "agent-1",
-        "taskId": "P1a",
-        "attempt": 1,
-        "kind": "close",
-        "outcome": "done",
-        "startVirtualMs": 4563,
-        "endVirtualMs": 4605,
-        "detail": {
-          "releasedKeys": 1
-        }
-      },
-      {
-        "seq": 95,
-        "agent": "agent-1",
-        "taskId": "C1",
-        "attempt": 1,
-        "kind": "recall",
-        "outcome": "ok",
-        "startVirtualMs": 4605,
-        "endVirtualMs": 4654,
-        "detail": {
-          "findings": 0
-        }
-      },
-      {
         "seq": 96,
-        "agent": "agent-1",
-        "taskId": "C1",
-        "attempt": 1,
-        "kind": "propose",
-        "outcome": "granted",
-        "startVirtualMs": 4654,
-        "endVirtualMs": 4710,
-        "detail": {
-          "keys": 2
-        }
-      },
-      {
-        "seq": 97,
-        "agent": "agent-1",
-        "taskId": "C1",
-        "attempt": 1,
-        "kind": "work",
-        "outcome": "ok",
-        "startVirtualMs": 4710,
-        "endVirtualMs": 5825,
-        "detail": {
-          "files": 2
-        }
-      },
-      {
-        "seq": 98,
         "agent": "agent-3",
         "taskId": "P4b",
         "attempt": 1,
@@ -1470,7 +1446,7 @@
         }
       },
       {
-        "seq": 99,
+        "seq": 97,
         "agent": "agent-2",
         "taskId": "I5",
         "attempt": 1,
@@ -1483,7 +1459,7 @@
         }
       },
       {
-        "seq": 100,
+        "seq": 98,
         "agent": "agent-5",
         "taskId": "I3",
         "attempt": 1,
@@ -1496,7 +1472,7 @@
         }
       },
       {
-        "seq": 101,
+        "seq": 99,
         "agent": "agent-2",
         "taskId": "P5a",
         "attempt": 1,
@@ -1509,7 +1485,20 @@
         }
       },
       {
-        "seq": 102,
+        "seq": 100,
+        "agent": "agent-1",
+        "taskId": "C1",
+        "attempt": 1,
+        "kind": "close",
+        "outcome": "done",
+        "startVirtualMs": 5034,
+        "endVirtualMs": 5057,
+        "detail": {
+          "releasedKeys": 2
+        }
+      },
+      {
+        "seq": 101,
         "agent": "agent-5",
         "taskId": "C2",
         "attempt": 2,
@@ -1522,7 +1511,7 @@
         }
       },
       {
-        "seq": 103,
+        "seq": 102,
         "agent": "agent-2",
         "taskId": "P5a",
         "attempt": 1,
@@ -1538,7 +1527,7 @@
         }
       },
       {
-        "seq": 104,
+        "seq": 103,
         "agent": "agent-2",
         "taskId": "R2",
         "attempt": 1,
@@ -1551,7 +1540,7 @@
         }
       },
       {
-        "seq": 105,
+        "seq": 104,
         "agent": "agent-2",
         "taskId": "R2",
         "attempt": 1,
@@ -1564,7 +1553,7 @@
         }
       },
       {
-        "seq": 106,
+        "seq": 105,
         "agent": "agent-2",
         "taskId": "R2",
         "attempt": 1,
@@ -1577,7 +1566,7 @@
         }
       },
       {
-        "seq": 107,
+        "seq": 106,
         "agent": "agent-4",
         "taskId": "I2",
         "attempt": 1,
@@ -1590,113 +1579,33 @@
         }
       },
       {
-        "seq": 108,
-        "agent": "agent-4",
-        "taskId": "P3b",
-        "attempt": 2,
-        "kind": "recall",
-        "outcome": "ok",
-        "startVirtualMs": 5388,
-        "endVirtualMs": 5884,
-        "detail": {
-          "findings": 0
-        }
-      },
-      {
-        "seq": 109,
+        "seq": 107,
         "agent": "agent-5",
         "taskId": "C2",
         "attempt": 2,
-        "kind": "propose",
-        "outcome": "blocked",
-        "startVirtualMs": 5530,
-        "endVirtualMs": 5562,
-        "detail": {
-          "keys": 1,
-          "holder": "agent-1",
-          "holderTask": "C1"
-        }
-      },
-      {
-        "seq": 110,
-        "agent": "agent-5",
-        "taskId": "C2",
-        "attempt": 3,
-        "kind": "recall",
-        "outcome": "ok",
-        "startVirtualMs": 5562,
-        "endVirtualMs": 5877,
-        "detail": {
-          "findings": 0
-        }
-      },
-      {
-        "seq": 111,
-        "agent": "agent-1",
-        "taskId": "C1",
-        "attempt": 1,
-        "kind": "close",
-        "outcome": "done",
-        "startVirtualMs": 5825,
-        "endVirtualMs": 5848,
-        "detail": {
-          "releasedKeys": 2
-        }
-      },
-      {
-        "seq": 112,
-        "agent": "agent-5",
-        "taskId": "C2",
-        "attempt": 3,
         "kind": "propose",
         "outcome": "granted",
-        "startVirtualMs": 5877,
-        "endVirtualMs": 5900,
+        "startVirtualMs": 5530,
+        "endVirtualMs": 5562,
         "detail": {
           "keys": 2
         }
       },
       {
-        "seq": 113,
-        "agent": "agent-4",
-        "taskId": "P3b",
-        "attempt": 2,
-        "kind": "propose",
-        "outcome": "granted",
-        "startVirtualMs": 5884,
-        "endVirtualMs": 5925,
-        "detail": {
-          "keys": 1
-        }
-      },
-      {
-        "seq": 114,
+        "seq": 108,
         "agent": "agent-5",
         "taskId": "C2",
-        "attempt": 3,
+        "attempt": 2,
         "kind": "work",
         "outcome": "ok",
-        "startVirtualMs": 5900,
-        "endVirtualMs": 6873,
+        "startVirtualMs": 5562,
+        "endVirtualMs": 6535,
         "detail": {
           "files": 2
         }
       },
       {
-        "seq": 115,
-        "agent": "agent-4",
-        "taskId": "P3b",
-        "attempt": 2,
-        "kind": "work",
-        "outcome": "ok",
-        "startVirtualMs": 5925,
-        "endVirtualMs": 7294,
-        "detail": {
-          "files": 1
-        }
-      },
-      {
-        "seq": 116,
+        "seq": 109,
         "agent": "agent-2",
         "taskId": "R2",
         "attempt": 1,
@@ -1709,29 +1618,16 @@
         }
       },
       {
-        "seq": 117,
+        "seq": 110,
         "agent": "agent-5",
         "taskId": "C2",
-        "attempt": 3,
-        "kind": "close",
-        "outcome": "done",
-        "startVirtualMs": 6873,
-        "endVirtualMs": 6905,
-        "detail": {
-          "releasedKeys": 2
-        }
-      },
-      {
-        "seq": 118,
-        "agent": "agent-4",
-        "taskId": "P3b",
         "attempt": 2,
         "kind": "close",
         "outcome": "done",
-        "startVirtualMs": 7294,
-        "endVirtualMs": 7324,
+        "startVirtualMs": 6535,
+        "endVirtualMs": 6576,
         "detail": {
-          "releasedKeys": 1
+          "releasedKeys": 2
         }
       }
     ],
@@ -2048,24 +1944,6 @@
         "endVirtualMs": 4012
       },
       {
-        "taskId": "P1a",
-        "agent": "agent-1",
-        "result": "done",
-        "effects": [
-          {
-            "file": "src/auth/login.ts",
-            "startLine": 1,
-            "endLine": 8
-          }
-        ],
-        "tokens": {
-          "input": 516,
-          "output": 61
-        },
-        "startVirtualMs": 3814,
-        "endVirtualMs": 4605
-      },
-      {
         "taskId": "P4b",
         "agent": "agent-3",
         "result": "done",
@@ -2120,24 +1998,6 @@
         "endVirtualMs": 5035
       },
       {
-        "taskId": "I2",
-        "agent": "agent-4",
-        "result": "done",
-        "effects": [
-          {
-            "file": "src/lib/dates.ts",
-            "startLine": 4,
-            "endLine": 11
-          }
-        ],
-        "tokens": {
-          "input": 421,
-          "output": 69
-        },
-        "startVirtualMs": 4231,
-        "endVirtualMs": 5388
-      },
-      {
         "taskId": "C1",
         "agent": "agent-1",
         "result": "done",
@@ -2157,8 +2017,26 @@
           "input": 890,
           "output": 92
         },
-        "startVirtualMs": 4710,
-        "endVirtualMs": 5848
+        "startVirtualMs": 3919,
+        "endVirtualMs": 5057
+      },
+      {
+        "taskId": "I2",
+        "agent": "agent-4",
+        "result": "done",
+        "effects": [
+          {
+            "file": "src/lib/dates.ts",
+            "startLine": 4,
+            "endLine": 11
+          }
+        ],
+        "tokens": {
+          "input": 421,
+          "output": 69
+        },
+        "startVirtualMs": 4231,
+        "endVirtualMs": 5388
       },
       {
         "taskId": "R2",
@@ -2198,26 +2076,8 @@
           "input": 935,
           "output": 111
         },
-        "startVirtualMs": 5900,
-        "endVirtualMs": 6905
-      },
-      {
-        "taskId": "P3b",
-        "agent": "agent-4",
-        "result": "done",
-        "effects": [
-          {
-            "file": "src/payments/charge.ts",
-            "startLine": 12,
-            "endLine": 16
-          }
-        ],
-        "tokens": {
-          "input": 463,
-          "output": 68
-        },
-        "startVirtualMs": 5925,
-        "endVirtualMs": 7324
+        "startVirtualMs": 5562,
+        "endVirtualMs": 6576
       }
     ],
     "finalState": [
@@ -2234,11 +2094,9 @@
       "I6",
       "I7",
       "I8",
-      "P1a",
       "P1b",
       "P2a",
       "P3a",
-      "P3b",
       "P4b",
       "P5b",
       "P6b",
@@ -2256,830 +2114,774 @@
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "recall",
-          "realMs": 1331.001
+          "realMs": 1366.145
         },
         {
           "seq": 2,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "propose",
-          "realMs": 677.235
+          "realMs": 752.165
         },
         {
           "seq": 3,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "recall",
-          "realMs": 141.328
+          "realMs": 157.962
         },
         {
           "seq": 4,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "work",
-          "realMs": 0.387
+          "realMs": 0.404
         },
         {
           "seq": 5,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "propose",
-          "realMs": 678.268
+          "realMs": 747.453
         },
         {
           "seq": 6,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "recall",
-          "realMs": 138.755
+          "realMs": 151.538
         },
         {
           "seq": 7,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "work",
-          "realMs": 0.194
+          "realMs": 0.143
         },
         {
           "seq": 8,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "propose",
-          "realMs": 674.015
+          "realMs": 784.604
         },
         {
           "seq": 9,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "work",
-          "realMs": 0.358
+          "realMs": 0.334
         },
         {
           "seq": 10,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "recall",
-          "realMs": 139.698
+          "realMs": 159.317
         },
         {
           "seq": 11,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "propose",
-          "realMs": 680.053
+          "realMs": 742.551
         },
         {
           "seq": 12,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "work",
-          "realMs": 0.562
+          "realMs": 0.209
         },
         {
           "seq": 13,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "recall",
-          "realMs": 140.103
+          "realMs": 152.731
         },
         {
           "seq": 14,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "propose",
-          "realMs": 676.539
+          "realMs": 735.892
         },
         {
           "seq": 15,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "work",
-          "realMs": 0.466
+          "realMs": 0.241
         },
         {
           "seq": 16,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "close",
-          "realMs": 657.337
+          "realMs": 742.457
         },
         {
           "seq": 17,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "recall",
-          "realMs": 139.006
+          "realMs": 162.334
         },
         {
           "seq": 18,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "propose",
-          "realMs": 672.977
+          "realMs": 764.445
         },
         {
           "seq": 19,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "work",
-          "realMs": 0.541
+          "realMs": 0.215
         },
         {
           "seq": 20,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "close",
-          "realMs": 729.228
+          "realMs": 895.485
         },
         {
           "seq": 21,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "recall",
-          "realMs": 141.182
+          "realMs": 153.219
         },
         {
           "seq": 22,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "close",
-          "realMs": 675.504
+          "realMs": 718.821
         },
         {
           "seq": 23,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "propose",
-          "realMs": 680.459
+          "realMs": 743.533
         },
         {
           "seq": 24,
           "agent": "agent-4",
           "taskId": "P3b",
           "kind": "recall",
-          "realMs": 138.647
+          "realMs": 151.458
         },
         {
           "seq": 25,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "work",
-          "realMs": 0.646
+          "realMs": 0.878
         },
         {
           "seq": 26,
           "agent": "agent-4",
           "taskId": "P3b",
           "kind": "propose",
-          "realMs": 808.261
+          "realMs": 443.807
         },
         {
           "seq": 27,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "recall",
-          "realMs": 144.478
+          "realMs": 165.808
         },
         {
           "seq": 28,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "propose",
-          "realMs": 672.238
+          "realMs": 827.566
         },
         {
           "seq": 29,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "work",
-          "realMs": 0.24
+          "realMs": 0.508
         },
         {
           "seq": 30,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "close",
-          "realMs": 663.831
+          "realMs": 930.222
         },
         {
           "seq": 31,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "recall",
-          "realMs": 143.004
+          "realMs": 155.477
         },
         {
           "seq": 32,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "propose",
-          "realMs": 685.83
+          "realMs": 739.301
         },
         {
           "seq": 33,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "work",
-          "realMs": 2.894
+          "realMs": 0.421
         },
         {
           "seq": 34,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "close",
-          "realMs": 666.614
+          "realMs": 915.236
         },
         {
           "seq": 35,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "close",
-          "realMs": 658.193
+          "realMs": 724.641
         },
         {
           "seq": 36,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "close",
-          "realMs": 670.03
+          "realMs": 722.99
         },
         {
           "seq": 37,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "recall",
-          "realMs": 144.184
+          "realMs": 151.754
         },
         {
           "seq": 38,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "propose",
-          "realMs": 673.092
+          "realMs": 870.809
         },
         {
           "seq": 39,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "recall",
-          "realMs": 141.005
+          "realMs": 156.976
         },
         {
           "seq": 40,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "recall",
-          "realMs": 142.341
+          "realMs": 156.396
         },
         {
           "seq": 41,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "work",
-          "realMs": 3.347
+          "realMs": 0.484
         },
         {
           "seq": 42,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "propose",
-          "realMs": 678.481
+          "realMs": 888.916
         },
         {
           "seq": 43,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "propose",
-          "realMs": 683.768
+          "realMs": 771.074
         },
         {
           "seq": 44,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "work",
-          "realMs": 0.615
+          "realMs": 0.612
         },
         {
           "seq": 45,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "work",
-          "realMs": 0.362
+          "realMs": 0.601
         },
         {
           "seq": 46,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "close",
-          "realMs": 711.146
+          "realMs": 721.469
         },
         {
           "seq": 47,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "recall",
-          "realMs": 142.293
+          "realMs": 150.373
         },
         {
           "seq": 48,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "propose",
-          "realMs": 672.909
+          "realMs": 737.35
         },
         {
           "seq": 49,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "work",
-          "realMs": 2.799
+          "realMs": 0.597
         },
         {
           "seq": 50,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "close",
-          "realMs": 659.038
+          "realMs": 713.465
         },
         {
           "seq": 51,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "recall",
-          "realMs": 143.23
+          "realMs": 152.062
         },
         {
           "seq": 52,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "propose",
-          "realMs": 804.537
+          "realMs": 880.949
         },
         {
           "seq": 53,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "close",
-          "realMs": 652.927
+          "realMs": 859.427
         },
         {
           "seq": 54,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "recall",
-          "realMs": 145.22
+          "realMs": 150.243
         },
         {
           "seq": 55,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "recall",
-          "realMs": 143.322
+          "realMs": 170.584
         },
         {
           "seq": 56,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "close",
-          "realMs": 653.258
+          "realMs": 747.513
         },
         {
           "seq": 57,
           "agent": "agent-3",
           "taskId": "P2b",
           "kind": "recall",
-          "realMs": 142.143
+          "realMs": 151.778
         },
         {
           "seq": 58,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "propose",
-          "realMs": 676.208
+          "realMs": 741.323
         },
         {
           "seq": 59,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "propose",
-          "realMs": 674.084
+          "realMs": 761.469
         },
         {
           "seq": 60,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "work",
-          "realMs": 3.409
+          "realMs": 0.473
         },
         {
           "seq": 61,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "work",
-          "realMs": 0.504
+          "realMs": 0.325
         },
         {
           "seq": 62,
           "agent": "agent-3",
           "taskId": "P2b",
           "kind": "propose",
-          "realMs": 395.04
+          "realMs": 445.036
         },
         {
           "seq": 63,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "close",
-          "realMs": 675.421
+          "realMs": 720.362
         },
         {
           "seq": 64,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "recall",
-          "realMs": 139.275
+          "realMs": 152.891
         },
         {
           "seq": 65,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "recall",
-          "realMs": 139.952
+          "realMs": 154.077
         },
         {
           "seq": 66,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "propose",
-          "realMs": 679.407
+          "realMs": 745.186
         },
         {
           "seq": 67,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "propose",
-          "realMs": 676.728
+          "realMs": 744.021
         },
         {
           "seq": 68,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "work",
-          "realMs": 3.393
+          "realMs": 0.59
         },
         {
           "seq": 69,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "work",
-          "realMs": 0.491
+          "realMs": 0.451
         },
         {
           "seq": 70,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "close",
-          "realMs": 651.365
+          "realMs": 717.162
         },
         {
           "seq": 71,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "recall",
-          "realMs": 141.365
+          "realMs": 154.962
         },
         {
           "seq": 72,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "close",
-          "realMs": 658.773
+          "realMs": 712.583
         },
         {
           "seq": 73,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "recall",
-          "realMs": 140.949
+          "realMs": 149.828
         },
         {
           "seq": 74,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "propose",
-          "realMs": 672.949
+          "realMs": 1035.36
         },
         {
           "seq": 75,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "close",
-          "realMs": 650.895
+          "realMs": 842.746
         },
         {
           "seq": 76,
           "agent": "agent-1",
           "taskId": "P1a",
           "kind": "recall",
-          "realMs": 155.444
+          "realMs": 152.644
         },
         {
           "seq": 77,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "propose",
-          "realMs": 673.423
+          "realMs": 950.203
         },
         {
           "seq": 78,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "work",
-          "realMs": 2.608
+          "realMs": 0.462
         },
         {
           "seq": 79,
           "agent": "agent-1",
           "taskId": "P1a",
           "kind": "propose",
-          "realMs": 676.682
+          "realMs": 567.437
         },
         {
           "seq": 80,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "work",
-          "realMs": 0.471
+          "realMs": 1.322
         },
         {
           "seq": 81,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "close",
-          "realMs": 657.368
+          "realMs": 716.531
         },
         {
           "seq": 82,
           "agent": "agent-1",
-          "taskId": "P1a",
-          "kind": "work",
-          "realMs": 0.732
+          "taskId": "C1",
+          "kind": "recall",
+          "realMs": 151.123
         },
         {
           "seq": 83,
           "agent": "agent-5",
           "taskId": "P6a",
           "kind": "recall",
-          "realMs": 142.783
+          "realMs": 151.622
         },
         {
           "seq": 84,
-          "agent": "agent-5",
-          "taskId": "P6a",
+          "agent": "agent-1",
+          "taskId": "C1",
           "kind": "propose",
-          "realMs": 396.101
+          "realMs": 1016.662
         },
         {
           "seq": 85,
           "agent": "agent-5",
-          "taskId": "I3",
-          "kind": "recall",
-          "realMs": 141.729
+          "taskId": "P6a",
+          "kind": "propose",
+          "realMs": 611.695
         },
         {
           "seq": 86,
-          "agent": "agent-4",
-          "taskId": "P5b",
-          "kind": "close",
-          "realMs": 663.373
+          "agent": "agent-1",
+          "taskId": "C1",
+          "kind": "work",
+          "realMs": 0.979
         },
         {
           "seq": 87,
           "agent": "agent-5",
           "taskId": "I3",
-          "kind": "propose",
-          "realMs": 688.776
+          "kind": "recall",
+          "realMs": 150.983
         },
         {
           "seq": 88,
           "agent": "agent-4",
-          "taskId": "P4a",
-          "kind": "recall",
-          "realMs": 138.228
+          "taskId": "P5b",
+          "kind": "close",
+          "realMs": 716.89
         },
         {
           "seq": 89,
           "agent": "agent-5",
           "taskId": "I3",
-          "kind": "work",
-          "realMs": 2.757
+          "kind": "propose",
+          "realMs": 1064.034
         },
         {
           "seq": 90,
           "agent": "agent-4",
           "taskId": "P4a",
-          "kind": "propose",
-          "realMs": 398.133
+          "kind": "recall",
+          "realMs": 157.192
         },
         {
           "seq": 91,
-          "agent": "agent-4",
-          "taskId": "I2",
-          "kind": "recall",
-          "realMs": 143.665
+          "agent": "agent-5",
+          "taskId": "I3",
+          "kind": "work",
+          "realMs": 0.643
         },
         {
           "seq": 92,
           "agent": "agent-4",
-          "taskId": "I2",
+          "taskId": "P4a",
           "kind": "propose",
-          "realMs": 684.003
+          "realMs": 571.143
         },
         {
           "seq": 93,
           "agent": "agent-4",
           "taskId": "I2",
-          "kind": "work",
-          "realMs": 3.53
+          "kind": "recall",
+          "realMs": 151.494
         },
         {
           "seq": 94,
-          "agent": "agent-1",
-          "taskId": "P1a",
-          "kind": "close",
-          "realMs": 660.656
+          "agent": "agent-4",
+          "taskId": "I2",
+          "kind": "propose",
+          "realMs": 879.421
         },
         {
           "seq": 95,
-          "agent": "agent-1",
-          "taskId": "C1",
-          "kind": "recall",
-          "realMs": 142.351
+          "agent": "agent-4",
+          "taskId": "I2",
+          "kind": "work",
+          "realMs": 0.689
         },
         {
           "seq": 96,
-          "agent": "agent-1",
-          "taskId": "C1",
-          "kind": "propose",
-          "realMs": 679.28
-        },
-        {
-          "seq": 97,
-          "agent": "agent-1",
-          "taskId": "C1",
-          "kind": "work",
-          "realMs": 3.391
-        },
-        {
-          "seq": 98,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "close",
-          "realMs": 656.651
+          "realMs": 721.094
+        },
+        {
+          "seq": 97,
+          "agent": "agent-2",
+          "taskId": "I5",
+          "kind": "close",
+          "realMs": 709.348
+        },
+        {
+          "seq": 98,
+          "agent": "agent-5",
+          "taskId": "I3",
+          "kind": "close",
+          "realMs": 717.538
         },
         {
           "seq": 99,
           "agent": "agent-2",
-          "taskId": "I5",
-          "kind": "close",
-          "realMs": 653.12
+          "taskId": "P5a",
+          "kind": "recall",
+          "realMs": 151.57
         },
         {
           "seq": 100,
-          "agent": "agent-5",
-          "taskId": "I3",
+          "agent": "agent-1",
+          "taskId": "C1",
           "kind": "close",
-          "realMs": 686.519
+          "realMs": 712.529
         },
         {
           "seq": 101,
-          "agent": "agent-2",
-          "taskId": "P5a",
-          "kind": "recall",
-          "realMs": 140.637
-        },
-        {
-          "seq": 102,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "recall",
-          "realMs": 140.067
+          "realMs": 150.652
+        },
+        {
+          "seq": 102,
+          "agent": "agent-2",
+          "taskId": "P5a",
+          "kind": "propose",
+          "realMs": 569.894
         },
         {
           "seq": 103,
           "agent": "agent-2",
-          "taskId": "P5a",
-          "kind": "propose",
-          "realMs": 400.496
+          "taskId": "R2",
+          "kind": "recall",
+          "realMs": 160.955
         },
         {
           "seq": 104,
           "agent": "agent-2",
           "taskId": "R2",
-          "kind": "recall",
-          "realMs": 142.254
+          "kind": "propose",
+          "realMs": 866.256
         },
         {
           "seq": 105,
           "agent": "agent-2",
           "taskId": "R2",
-          "kind": "propose",
-          "realMs": 676.077
+          "kind": "work",
+          "realMs": 0.494
         },
         {
           "seq": 106,
-          "agent": "agent-2",
-          "taskId": "R2",
-          "kind": "work",
-          "realMs": 4.802
-        },
-        {
-          "seq": 107,
           "agent": "agent-4",
           "taskId": "I2",
           "kind": "close",
-          "realMs": 657.304
+          "realMs": 721.345
         },
         {
-          "seq": 108,
-          "agent": "agent-4",
-          "taskId": "P3b",
-          "kind": "recall",
-          "realMs": 139.729
-        },
-        {
-          "seq": 109,
+          "seq": 107,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "propose",
-          "realMs": 807.889
+          "realMs": 870.264
+        },
+        {
+          "seq": 108,
+          "agent": "agent-5",
+          "taskId": "C2",
+          "kind": "work",
+          "realMs": 0.874
+        },
+        {
+          "seq": 109,
+          "agent": "agent-2",
+          "taskId": "R2",
+          "kind": "close",
+          "realMs": 715.346
         },
         {
           "seq": 110,
           "agent": "agent-5",
           "taskId": "C2",
-          "kind": "recall",
-          "realMs": 138.52
-        },
-        {
-          "seq": 111,
-          "agent": "agent-1",
-          "taskId": "C1",
           "kind": "close",
-          "realMs": 654.481
-        },
-        {
-          "seq": 112,
-          "agent": "agent-5",
-          "taskId": "C2",
-          "kind": "propose",
-          "realMs": 676.622
-        },
-        {
-          "seq": 113,
-          "agent": "agent-4",
-          "taskId": "P3b",
-          "kind": "propose",
-          "realMs": 682.373
-        },
-        {
-          "seq": 114,
-          "agent": "agent-5",
-          "taskId": "C2",
-          "kind": "work",
-          "realMs": 4.807
-        },
-        {
-          "seq": 115,
-          "agent": "agent-4",
-          "taskId": "P3b",
-          "kind": "work",
-          "realMs": 0.735
-        },
-        {
-          "seq": 116,
-          "agent": "agent-2",
-          "taskId": "R2",
-          "kind": "close",
-          "realMs": 662.923
-        },
-        {
-          "seq": 117,
-          "agent": "agent-5",
-          "taskId": "C2",
-          "kind": "close",
-          "realMs": 652.009
-        },
-        {
-          "seq": 118,
-          "agent": "agent-4",
-          "taskId": "P3b",
-          "kind": "close",
-          "realMs": 666.428
+          "realMs": 726.666
         }
       ],
-      "wallClockMs": 44854,
-      "totalVirtualMs": 7324,
+      "wallClockMs": 48033,
+      "totalVirtualMs": 6576,
       "serializationRetries": 0
     }
   }
