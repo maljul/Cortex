@@ -301,6 +301,140 @@ describe('cortex_propose over stdio', () => {
   });
 });
 
+describe('glob: keys, against a configured repository root', () => {
+  // `05` §3's `resource_keys` description advertises `glob:<pattern>`, and U8 refused
+  // it because §6 configured the server with no checkout to match against. That gap
+  // was recorded in docs/SPEC-DELTA.md rather than papered over; this closes it — §6
+  // now names `CORTEX_REPO_ROOT`, and the server expands a glob when it is set.
+  //
+  // The expansion is what makes the grammar work, not a convenience: `03` §3 requires
+  // a glob to be claimed as one row per matched file *plus* a row for the glob, so
+  // that a later `file:` claim on a matched path collides. A bare `glob:` row would
+  // grant twice with no error.
+  let rooted: Client;
+
+  beforeAll(async () => {
+    const { getDefaultEnvironment } = await import(
+      '@modelcontextprotocol/sdk/client/stdio.js'
+    );
+
+    rooted = new Client({ name: 'cortex-u8-glob-test', version: '0.0.0' });
+    await rooted.connect(
+      new StdioClientTransport({
+        command: 'npx',
+        args: ['tsx', 'scripts/serve-mcp.mts'],
+        cwd: repoRoot,
+        stderr: 'pipe',
+        // Merged rather than replaced: the default environment carries PATH and HOME,
+        // without which npx does not resolve and the AWS SDK finds no credentials.
+        env: { ...getDefaultEnvironment(), CORTEX_REPO_ROOT: `${repoRoot}bench/fixtures` },
+      }),
+    );
+  });
+
+  afterAll(async () => {
+    await rooted.close();
+  });
+
+  async function proposeRooted(args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const result = (await rooted.callTool({
+      name: 'cortex_propose',
+      arguments: args,
+    })) as ToolResult;
+    expect(result.isError, `propose errored: ${JSON.stringify(result.content)}`).toBeFalsy();
+    return JSON.parse(result.content![0]!.text!) as Record<string, unknown>;
+  }
+
+  it('claims one key per matched file, plus the glob itself', async () => {
+    const slug = freshSlug('glob');
+
+    const decision = await proposeRooted({
+      repo: slug,
+      agent_id: 'agent-1',
+      statement: UNRELATED.a,
+      resource_keys: ['glob:src/auth/**'],
+    });
+
+    expect(decision.decision).toBe('granted');
+    expect(decision.keys).toEqual([
+      'file:src/auth/login.ts',
+      'file:src/auth/middleware.ts',
+      'file:src/auth/password.ts',
+      'file:src/auth/session.ts',
+      'file:src/auth/token.ts',
+      'glob:src/auth/**',
+    ]);
+
+    const claims = await claimsFor(await repoIdOf(slug));
+    expect(claims.map((c) => c.key)).toEqual(decision.keys);
+  });
+
+  it('blocks a later file: claim on a path the glob already covers', async () => {
+    // The overlap `03` §3 makes structural. Without the expansion this second call is
+    // granted, two agents edit login.ts believing they hold different keys, and
+    // nothing anywhere reports a conflict.
+    const slug = freshSlug('glob-overlap');
+
+    const first = await proposeRooted({
+      repo: slug,
+      agent_id: 'agent-1',
+      statement: UNRELATED.a,
+      resource_keys: ['glob:src/auth/**'],
+    });
+    expect(first.decision).toBe('granted');
+
+    const second = await proposeRooted({
+      repo: slug,
+      agent_id: 'agent-2',
+      statement: UNRELATED.b,
+      resource_keys: ['file:src/auth/login.ts'],
+    });
+
+    expect(second.decision).toBe('blocked');
+    expect(second.contested).toEqual([
+      expect.objectContaining({ key: 'file:src/auth/login.ts', holder: 'agent-1' }),
+    ]);
+  });
+
+  it('expands only inside the subtree the pattern names', async () => {
+    // Not the 200-key limit — `bench/fixtures` has 40 files, so that bound cannot be
+    // reached here and `test/propose.test.ts` already covers it against `expandKeys`
+    // directly. What this checks is containment: a pattern naming one subtree must not
+    // pull in keys from outside it, since every extra key is a claim taken against a
+    // file the agent never asked for and did not intend to edit.
+    const slug = freshSlug('glob-wide');
+
+    const decision = await proposeRooted({
+      repo: slug,
+      agent_id: 'agent-1',
+      statement: UNRELATED.a,
+      resource_keys: ['glob:src/lib/**'],
+    });
+
+    expect(decision.decision).toBe('granted');
+    for (const key of decision.keys as string[]) {
+      expect(key.startsWith('file:src/lib/') || key === 'glob:src/lib/**').toBe(true);
+    }
+  });
+
+  it('still refuses a glob when no root is configured', async () => {
+    // The default server in the other describe block has no CORTEX_REPO_ROOT, so it
+    // must keep refusing rather than expanding against whatever directory it happens
+    // to have been launched from.
+    await expect(
+      client.callTool({
+        name: 'cortex_propose',
+        arguments: {
+          repo: freshSlug('glob-unrooted'),
+          agent_id: 'agent-1',
+          statement: UNRELATED.a,
+          resource_keys: ['glob:src/**'],
+        },
+      }),
+    ).rejects.toThrow(/CORTEX_REPO_ROOT|no repository checkout/i);
+  });
+});
+
 describe('invariant 7 — the handler is reachable only through declared arguments', () => {
   async function refuses(args: Record<string, unknown>, pattern: RegExp): Promise<void> {
     await expect(

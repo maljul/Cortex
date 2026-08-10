@@ -7,7 +7,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
 import { closePool, getPool } from '../src/db/pool.js';
-import { getRetryCount, resetRetryCount, withRetry } from '../src/db/retry.js';
+import {
+  BASE_DELAY_MS,
+  backoffMs,
+  getRetryCount,
+  MAX_ATTEMPTS,
+  resetRetryCount,
+  withRetry,
+} from '../src/db/retry.js';
 
 /** A promise plus its resolver, used to interleave two live transactions. */
 function deferred() {
@@ -159,7 +166,7 @@ describe('withRetry', () => {
     expect(getRetryCount()).toBe(4);
   });
 
-  test('backs off between attempts instead of retrying in a tight loop', async () => {
+  test('never retries in a tight loop', async () => {
     const startedAt: number[] = [];
 
     const doomed = withRetry(async (client) => {
@@ -172,14 +179,54 @@ describe('withRetry', () => {
     await expect(doomed).rejects.toMatchObject({ code: '40001' });
     expect(startedAt).toHaveLength(5);
 
-    // Each gap must exceed the last: exponential, and never zero.
-    // `slice(1)` means index i of the original always exists for every i here, and
-    // the length assertion above fixes gaps at four entries, so the non-null
-    // assertions are discharged by the two lines directly above them.
+    // Only that a gap exists. This test used to also assert the last gap exceeded the
+    // first, and that assertion was measuring the network rather than the backoff: an
+    // attempt spends about a second in round trips to CockroachDB Cloud against 20–180ms
+    // of sleep, so jitter decides the comparison. It failed with
+    // `expected 1048 to be greater than 1048`, and would have passed just as happily
+    // with the backoff deleted.
+    //
+    // The growth is asserted directly below, against `backoffMs`, where it is real.
+    // `slice(1)` means index i of the original always exists for every i here, and the
+    // length assertion above fixes gaps at four entries.
     const gaps = startedAt.slice(1).map((t, i) => t - startedAt[i]!);
     for (const gap of gaps) {
       expect(gap).toBeGreaterThan(0);
     }
-    expect(gaps[gaps.length - 1]).toBeGreaterThan(gaps[0]!);
+  });
+});
+
+describe('backoffMs — §5 exponential backoff with jitter', () => {
+  // A pure function, so the property can be asserted exactly instead of inferred from
+  // a stopwatch. This is where "exponential" is actually checked.
+  const attempts = [1, 2, 3, 4];
+
+  test('grows exponentially, and consecutive attempts cannot overlap', () => {
+    // 200 draws per attempt: with jitter this either holds for every draw or the
+    // windows overlap and it fails almost immediately.
+    for (let draw = 0; draw < 200; draw += 1) {
+      const delays = attempts.map((attempt) => backoffMs(attempt));
+      for (let i = 1; i < delays.length; i += 1) {
+        expect(
+          delays[i]!,
+          `attempt ${i + 1} (${delays[i]}) must exceed attempt ${i} (${delays[i - 1]})`,
+        ).toBeGreaterThan(delays[i - 1]!);
+      }
+    }
+  });
+
+  test('stays inside the window its base and jitter allow', () => {
+    for (const attempt of attempts) {
+      const base = BASE_DELAY_MS * 2 ** (attempt - 1);
+      for (let draw = 0; draw < 200; draw += 1) {
+        const delay = backoffMs(attempt);
+        expect(delay).toBeGreaterThanOrEqual(base);
+        expect(delay).toBeLessThan(base + BASE_DELAY_MS);
+      }
+    }
+  });
+
+  test('caps at the five attempts §5 allows', () => {
+    expect(MAX_ATTEMPTS).toBe(5);
   });
 });

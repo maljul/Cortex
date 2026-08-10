@@ -44,14 +44,28 @@ Since then the four purely mechanical rows of the gate — typecheck, SQL contai
 hook calls on every commit made through Claude Code. §2 assumes the gate is a prompt
 an agent reads; four of its rows are now a process that exits 2.
 
-**Not edited in the spec, deliberately.** §5's `/clear` discipline — fresh context
-before working a unit and again before gating it — still holds and is the load-bearing
-part of §2; only the command names moved. A reader following §2 literally will look for
-files that are not there.
+**Edited in the spec 2026-08-10.** §2 now opens with a superseded banner giving the
+current command set and the mapping, §3's driver sequence reads `/go` then `/check`,
+and the stale `/lh-gate` references in Cadence and the Escape hatch are corrected. The
+command prose under §2 is deliberately kept: it is where the reasoning for each step
+lives, and it is labelled as reasoning rather than as something to type.
+
+§5's `/clear` discipline — fresh context before working a unit and again before gating
+it — is unchanged and remains the load-bearing part. This entry stays here rather than
+under Corrected because the drift it records is not fully closed: §2 still describes a
+gate that is a prompt an agent reads, and four of those rows are now a shell script
+that exits 2.
 
 ---
 
-### `05` §1 and `03` §4.2 name the same decision fields differently
+### `05` §1 and `03` §4.2 name the same decision fields differently *(§1 completed 2026-08-10)*
+
+**Half closed.** §1's `Decision` type was missing `status` and `distance` on a dedupe
+and `expiresAt` on a contested key — fields `cortex_propose` has returned since U8.
+§1 now lists them, with a note on why `expiresAt` in particular is not decoration: it
+is how a blocked agent chooses between re-planning and coming back.
+
+The naming difference itself is **not** reconciled, deliberately, and stays open below.
 
 §1 types the value an agent receives as `{ decision: 'deduped'; ofIntentId; holder;
 outcome }` and `contested: Array<{ key; holder; intentId }>`. §4.2's application rule
@@ -64,13 +78,68 @@ names because it *is* §4.2's transaction. The MCP boundary answers in §1's, be
 will tell agents how to react to each decision. The translation is six lines in
 `src/mcp/server.ts` and is the only place the two vocabularies meet.
 
-§1's `Decision` is also incomplete rather than wrong: it has no `distance` on a
-dedupe, no `status`, and no `expiresAt` on a contested key. The tool adds all three
-and renames none. The last one is not cosmetic — without it a blocked agent knows who
-holds the key but not for how long, which decides whether re-planning or waiting is
-correct, and invariant 3 exists to make that judgement possible.
+§1's `Decision` was also incomplete rather than wrong — no `distance` or `status` on a
+dedupe, no `expiresAt` on a contested key, all three of which the tool returns and
+none of which it renames. **That half is fixed as of 2026-08-10; §1 lists them.** The
+last one was never cosmetic: without it a blocked agent knows who holds the key but
+not for how long, which is what decides between re-planning and waiting, and invariant
+3 exists to make that judgement possible.
 
-### `05` §3 advertises `glob:` keys that §6 gives the server no way to expand
+### `04` §2 — "governed by Cloud RBAC" does not describe the managed MCP server
+
+§2 routes agent reads through the CockroachDB Cloud Managed MCP Server on the argument
+that the agent's read access is then "governed by Cloud RBAC and audit logging rather
+than by code you wrote". V10 measured what that server actually offers, and the
+argument does not survive contact with it in two ways.
+
+**It is not a read plane.** Of the twelve tools it advertises, three write:
+`insert_rows`, `create_table` and `create_database`. Being read-only cannot be a
+property of this endpoint, so it has to come from the principal — and §2 does not say
+which principal, because the Cloud service account that authenticates to it is an
+organization-level identity that `GRANT` does not apply to.
+
+**Whether its writes reach `claims` and `intents` is TBD**, and is the question that
+matters: an agent handed this endpoint for recall would also hold an unarbitrated
+write path into the memory the whole mechanism exists to arbitrate. It could not be
+measured because the service account has no roles — see V10 — and `npm run probe:read`
+answers it in one run once it does.
+
+Not reconciled in the spec, deliberately. Either §2 gains a constraint on the
+principal that makes the claim true, or the read path is not this server; that is an
+architecture decision and Julian's, not a wording fix.
+
+### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
+
+Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
+for a sweep. U11 produced the first measurement, and it says the default is too tight.
+On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
+
+- worst genuinely-duplicate pair: **0.3630**
+- closest combination that is *not* a duplicate: **0.4293**
+- so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
+- at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
+
+The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
+U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
+fixture is the wrong direction of fit. This is input to that sweep, not a decision.
+Numbers and the failed first draft are in V11.
+
+## Corrected in the spec already — do not re-open
+
+### `05` §3 advertised `glob:` keys that §6 gave the server no way to expand *(corrected 2026-08-10)*
+
+**Closed.** §6 now names `CORTEX_REPO_ROOT`, and `cortex_propose` expands a glob
+against it — one claim per matched file plus a row for the glob, which is the
+structural overlap `03` §3 requires. With the variable unset the tool still refuses,
+because a server launched from an arbitrary working directory resolving a glob against
+whatever tree it happens to be in is worse than refusing: it returns a plausible key
+set for someone else's files.
+
+Mutating the resolver to return no matches — the "claim the bare `glob:` row" shortcut
+this entry originally warned about — fails two tests, one of them the double-grant:
+a `file:` claim on a path the glob covers is granted rather than blocked.
+
+The original entry, kept because the reasoning is what decided it:
 
 `resource_keys` in §3 documents the grammar as `file:<path>, glob:<pattern>,
 migration:<id>, service:<name>:<verb>`, and `03` §3 requires a glob to be claimed as
@@ -86,7 +155,16 @@ that description is prompt surface pinned verbatim against the spec by a test, a
 editing it to match the implementation is exactly the silent reconciliation the
 project rule forbids.
 
-### `05` §6 configures the managed MCP server with a URL and no credential
+### `05` §6 configured the managed MCP server with a URL and no credential *(corrected 2026-08-10)*
+
+**Closed.** §6 now lists `CORTEX_MCP_CLUSTER_ID`, `CORTEX_MCP_API_KEY` and
+`CORTEX_READER_DSN`, with a paragraph on what a Cloud service account is and why an
+endpoint alone reaches nothing. The names were settled by being used: they are what is
+in `.env` and what `scripts/probe-read-plane.mts` reads.
+
+What is **not** closed by that edit is the question behind it, which is still open
+above as "`04` §2 — 'governed by Cloud RBAC' does not describe the managed MCP
+server". The original gap, for the reasoning:
 
 §6 lists `CORTEX_MCP_ENDPOINT # https://cockroachlabs.cloud/mcp` and nothing else for
 the read plane, which reads as though the endpoint were all that is needed. It is not.
@@ -124,24 +202,6 @@ out `admin` by default, so the assumption to test is that this principal is over
 `create_table` and `create_database`, so it is not a read plane whatever its SQL
 identity turns out to be. The identity itself is still TBD: the service account has no
 roles, so every SQL tool answers `unauthorized`. `npm run probe:read` settles it.
-
-### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
-
-Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
-for a sweep. U11 produced the first measurement, and it says the default is too tight.
-On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
-
-- worst genuinely-duplicate pair: **0.3630**
-- closest combination that is *not* a duplicate: **0.4293**
-- so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
-- at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
-
-The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
-U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
-fixture is the wrong direction of fit. This is input to that sweep, not a decision.
-Numbers and the failed first draft are in V11.
-
-## Corrected in the spec already — do not re-open
 
 ### `06` §4 said 24 tasks while its own composition summed to 30 *(corrected 2026-08-10)*
 

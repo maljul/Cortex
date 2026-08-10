@@ -61,7 +61,16 @@ manufacture 40001s on the critical path of every proposal. It goes through
 `withRetry` on its own, which invariant 6 requires and which six concurrent
 first-calls in the test suite exercise.
 
-## 2026-08-09 — `glob:` keys are refused at the MCP boundary, not silently narrowed
+## 2026-08-09 — `glob:` keys are never silently narrowed *(extended 2026-08-10: they are now expanded when a root is configured)*
+
+**Superseded in part, and corrected here rather than contradicted below.** The decision
+that held was the second half — never claim the bare `glob:` row. What changed on
+2026-08-10 is that the server no longer *only* refuses: `05` §6 gained
+`CORTEX_REPO_ROOT`, and when it is set `cortex_propose` expands a glob into one claim
+per matched file plus the glob row, which is the overlap `03` §3 asks for. With it
+unset the refusal below still stands, for exactly the reason given below.
+
+The original entry:
 
 `03` §3 makes a glob's overlap structural: a glob is claimed as one row per matched
 file *plus* a row for the glob itself, which is what makes a later `file:` claim on a

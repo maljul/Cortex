@@ -10,8 +10,10 @@ points to the same `@cortex/core`.
 ```ts
 type Decision =
   | { decision: 'granted';  intentId: string; keys: string[]; expiresAt: string }
-  | { decision: 'deduped';  ofIntentId: string; holder: string; outcome: Outcome | null }
-  | { decision: 'blocked';  contested: Array<{ key: string; holder: string; intentId: string }> };
+  | { decision: 'deduped';  ofIntentId: string; holder: string; outcome: Outcome | null;
+                            status: string; distance: number }
+  | { decision: 'blocked';  contested: Array<{ key: string; holder: string; intentId: string;
+                                              expiresAt: string }> };
 
 interface Cortex {
   recall(repo: string, query: string, k?: number): Promise<Finding[]>;
@@ -21,6 +23,17 @@ interface Cortex {
   heartbeat(repo: string, intentId: string, extendBy?: string): Promise<void>;
 }
 ```
+
+`status`, `distance` and the contested `expiresAt` were added 2026-08-10 to match what
+`cortex_propose` actually returns. They are what make a decision actionable rather than
+merely informative: `expiresAt` is how a blocked agent decides between re-planning and
+coming back, which is the whole purpose of telling it who holds the key.
+
+Note that the field names here and in `03` §4.2 differ — `ofIntentId` against `of`,
+`key` against the `resource_key` the SQL returns. Both are honoured, each in its own
+layer: the core library keeps §4.2's names because it *is* that transaction, and the
+MCP boundary translates to the names above, because this is where the shape an agent
+codes against is written down. See `docs/SPEC-DELTA.md`.
 
 Design rules the implementer MUST honour:
 
@@ -213,15 +226,33 @@ Contracts on this surface, all of which follow from rule B4:
 
 ```
 CORTEX_DSN                 # write-plane connection string, server side only
+CORTEX_READER_DSN          # read-plane connection string, cortex_reader, SELECT only
 CORTEX_DEMO_DSN            # hosted demo only, cortex_demo principal, server side only
 CORTEX_MCP_ENDPOINT        # https://cockroachlabs.cloud/mcp
+CORTEX_MCP_CLUSTER_ID      # the mcp-cluster-id header; from the Console cluster URL
+CORTEX_MCP_API_KEY         # bearer token of a Cloud service account, not a SQL user
 CORTEX_REPO                # repo slug
+CORTEX_REPO_ROOT           # checkout to expand glob: keys against; unset means refuse
 CORTEX_LEASE_TTL           # default 10m
 CORTEX_DEDUPE_THRESHOLD    # default 0.28
 BEDROCK_REGION
 BEDROCK_EMBED_MODEL           # Titan Text Embeddings V2, 1024 dim
 BEDROCK_REASON_MODEL          # LIVE mode only
 ```
+
+The endpoint alone does not reach the managed MCP server. Its client configuration is
+the URL plus an `mcp-cluster-id` header and an `Authorization: Bearer` token, and that
+token belongs to a **Cloud service account** — an organization-level identity created
+in the Console, distinct from the SQL users in `04` §3, and governed by Cloud roles
+rather than by `GRANT`. A new service account starts as Organization Member, which
+carries no permissions at all; until it is given a cluster-scoped role every SQL tool
+answers `unauthorized` and `list_clusters` returns nothing. See V10.
+
+`CORTEX_REPO_ROOT` is what makes the `glob:` half of §3's `resource_keys` grammar
+usable. `03` §3 requires a glob to be claimed as one row per matched file plus a row
+for the glob itself, which needs a checkout to match against; a server launched from an
+arbitrary working directory has none, so with this unset the tool refuses the key
+rather than resolving it against the wrong tree.
 
 No credential is ever read from, or written to, the repository. `cortex doctor`
 MUST fail loudly if a DSN appears in a tracked file.

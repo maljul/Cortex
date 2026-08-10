@@ -1117,3 +1117,95 @@ This is the unit's silent break, caught by measurement on the first run. Nothing
 reading those statements aloud reveals a 0.48; a benchmark built on the first draft
 would have reported that arbitrated memory does not reduce duplicate work, and the
 fixture would have been the reason.
+
+---
+
+## V12 — `glob:` keys expand against a configured checkout
+**2026-08-10 · closing a SPEC-DELTA entry · PASS**
+
+`05` §3's `resource_keys` description advertises `glob:<pattern>`, and U8 refused it
+because §6 configured the server with no checkout to match against. Recorded as a gap
+rather than papered over; now closed. §6 names `CORTEX_REPO_ROOT`, and the server
+expands a glob into one claim per matched file **plus** a row for the glob itself,
+which is the structural overlap `03` §3 requires.
+
+Verified over stdio against a server launched with the root pointing at
+`bench/fixtures`, using the corpus U11 committed:
+
+```
+glob:src/auth/** ->
+  file:src/auth/login.ts
+  file:src/auth/middleware.ts
+  file:src/auth/password.ts
+  file:src/auth/session.ts
+  file:src/auth/token.ts
+  glob:src/auth/**
+```
+
+Six claim rows in the database for one requested key, and a second agent asking for
+`file:src/auth/login.ts` is **blocked**, naming the glob's holder.
+
+**Why the extra rows are the whole point.** Mutating the resolver to return no matches
+— the "just claim the bare `glob:` row" shortcut, which looks equivalent and is not —
+fails two tests, and the second one is the double grant: the later `file:` claim on a
+covered path is *granted*, two agents edit `login.ts` each believing it holds a key the
+other does not, and nothing anywhere reports a conflict.
+
+With `CORTEX_REPO_ROOT` unset the tool still refuses, and a test asserts that. A server
+is launched by an agent from an arbitrary working directory, and a glob resolved
+against the wrong tree is worse than a refused one — it returns a plausible key set for
+someone else's files.
+
+One implementation note worth keeping: the handler expands the keys *before* resolving
+the repo and calling Bedrock, so a bad key costs neither a tenant row nor an
+invocation, and `propose` expands again inside its transaction. The resolver therefore
+has to be passed through to `propose` as well; re-expanding an already-expanded set is
+idempotent, but without the resolver the `glob:` row in that set trips the default
+refusal. That was a real failure during this work, not a hypothetical.
+
+---
+
+## V13 — A retry test was measuring the network, not the backoff
+**2026-08-10 · found by a red suite · FIXED**
+
+`test/retry.test.ts` failed a full run with:
+
+```
+FAIL  test/retry.test.ts > withRetry > backs off between attempts instead of retrying in a tight loop
+AssertionError: expected 1048 to be greater than 1048
+```
+
+It had passed the two runs before it and passed the run after, which is the shape of
+a flake and was very nearly treated as one.
+
+**The cause is not flakiness, it is the assertion.** The test forced five real 40001
+retries against CockroachDB Cloud, recorded `Date.now()` at the start of each attempt,
+and asserted the last gap exceeded the first. A gap is round-trip time plus backoff.
+Each attempt issues three statements against a cluster in `aws-us-east-1`, so the
+round trips are of the order of a second; `backoffMs` contributes 20–40ms on the first
+retry and 160–180ms on the fourth. The signal is ~140ms inside ~1000ms of jitter, and
+on this run the two gaps came out identical to the millisecond.
+
+**It failed in both directions.** It could go red with the backoff working, which is
+what happened, and it would have gone green with the backoff deleted — the round trips
+alone produce non-zero, unordered gaps. A test that cannot fail for the reason it
+names is not covering the thing it claims to cover, which is `03` §5's requirement of
+"exponential backoff plus jitter".
+
+**Fixed by asserting the property where it exists.** `backoffMs` is now exported and
+tested directly, over 200 draws per attempt, for two things: consecutive attempts
+never overlap (the jitter window is one `BASE_DELAY_MS`, deliberately narrower than
+the gap between successive delays, so this holds for every draw rather than usually),
+and each delay stays inside `[base, base + BASE_DELAY_MS)`.
+
+The end-to-end test keeps the half it can genuinely observe — every gap is greater
+than zero, so the helper never spins in a tight loop — and the comparison that was
+measuring the network is gone, with the reason written where the assertion used to be.
+
+**This is a strengthening, not a weakening, and it is worth stating plainly** because
+the rule is that a failing check is never made to pass by relaxing it. Flattening
+`backoffMs` to a constant now fails two tests. Under the old assertion the same
+mutation passed.
+
+**Suite after:** 113/113 green, with three new assertions replacing one that could not
+discriminate.

@@ -184,8 +184,10 @@ return `isError: true` alongside a correct decision fails 5 tests. A second muta
 — resolving the repo before validating the keys — fails 1.
 **Two decisions this unit had to take, both in `docs/DECISIONS.md`:** `repo` is a
 slug and had to be resolved to a `repo_id` (nothing before U8 derived the tenant
-boundary rather than being handed it), and `glob:` keys are refused at the MCP
-boundary because `05` §6 configures the server with no checkout to expand against.
+boundary rather than being handed it), and `glob:` keys are never narrowed to a bare
+`glob:` row. **Extended 2026-08-10:** `05` §6 gained `CORTEX_REPO_ROOT` and the server
+now expands a glob against it — one claim per matched file plus the glob — so §3's
+advertised grammar is fully served. Unset, it still refuses.
 **Two bugs U7 could not have seen**, both because it had no handler that read the
 environment: `scripts/serve-mcp.mts` never loaded `.env`, so `npm run serve` had no
 DSN; and a module-scope `Embedder` would have read `BEDROCK_REGION` before the entry

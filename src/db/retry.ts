@@ -28,10 +28,24 @@ function isSerializationFailure(error: unknown): boolean {
   return (error as { code?: string } | null)?.code === SERIALIZATION_FAILURE;
 }
 
-/** Exponential, with jitter on top so a fleet of agents does not retry in lockstep. */
-function backoffMs(attempt: number): number {
+/**
+ * Exponential, with jitter on top so a fleet of agents does not retry in lockstep.
+ *
+ * Exported for the tests. The growth cannot be observed end to end: an attempt against
+ * CockroachDB Cloud spends roughly a second in round trips and 20–180ms in here, so a
+ * test that times the gaps between attempts is measuring the network. It read
+ * `expected 1048 to be greater than 1048` once, and would equally have passed with the
+ * backoff removed entirely. The property is tested directly instead.
+ *
+ * The jitter window is one `BASE_DELAY_MS`, which is deliberately narrower than the
+ * gap between consecutive attempts, so successive delays cannot overlap however the
+ * random draw falls.
+ */
+export function backoffMs(attempt: number): number {
   return BASE_DELAY_MS * 2 ** (attempt - 1) + Math.random() * BASE_DELAY_MS;
 }
+
+export { BASE_DELAY_MS, MAX_ATTEMPTS };
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

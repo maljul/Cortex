@@ -39,6 +39,8 @@ if (raw.includes('\r')) problems.push('has CRLF line endings; the \\r becomes pa
 
 console.log('\nkeys');
 const seen = new Map<string, number[]>();
+/** Parsed values, for the semantic checks at the bottom. Never printed. */
+const values = new Map<string, string>();
 const lines = raw.split(/\r?\n/);
 
 lines.forEach((line, i) => {
@@ -66,6 +68,7 @@ lines.forEach((line, i) => {
   const bare = quoted ? value.slice(1, -1) : value;
 
   seen.set(key, [...(seen.get(key) ?? []), n]);
+  values.set(key, bare.trim());
 
   const state = bare.trim() === '' ? 'EMPTY' : `${bare.length} chars${quoted ? ', quoted' : ''}`;
   console.log(`  line ${String(n).padStart(3)}  ${key.padEnd(24)} ${state}`);
@@ -111,4 +114,35 @@ if (problems.length > 0) {
   for (const p of problems) console.log(`  - ${p}`);
 } else if (fromShell === undefined) {
   console.log('\nno structural problems found');
+}
+
+/**
+ * Values that are structurally fine and wrong anyway.
+ *
+ * Everything above is about whether a value arrives. This is about whether the value
+ * that arrives works, and it exists because the alternative was a line in CLAUDE.md
+ * asking someone to remember. A note nobody runs is not a check.
+ */
+const warnings: string[] = [];
+
+// "Bedrock model access" in docs/verification-log.md: the v5 reasoning models are
+// listed in this account's catalogue and are NOT entitled — measured by invoking them,
+// because a catalogue listing is not an entitlement. `claude-sonnet-4-5-…` does not
+// match this pattern, which is the point of anchoring on `-5` after the family name.
+const UNENTITLED_REASON_MODEL = /(^|\.)anthropic\.claude-(sonnet|opus)-5/;
+const reasonModel = values.get('BEDROCK_REASON_MODEL');
+
+if (reasonModel !== undefined && UNENTITLED_REASON_MODEL.test(reasonModel)) {
+  warnings.push(
+    'BEDROCK_REASON_MODEL is set to a v5 reasoning model, which is not entitled on ' +
+      'this account — see "Bedrock model access" in docs/verification-log.md, where ' +
+      'invoking it failed. Nothing reads this variable yet, so nothing is broken ' +
+      'today; LIVE mode fails at the first invoke. Use ' +
+      'us.anthropic.claude-sonnet-4-5-20250929-v1:0.',
+  );
+}
+
+if (warnings.length > 0) {
+  console.log('\nwarnings');
+  for (const w of warnings) console.log(`  - ${w}`);
 }

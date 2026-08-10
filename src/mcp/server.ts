@@ -20,6 +20,9 @@
  * Nothing here writes to stdout except the transport. On stdio, stdout *is* the
  * protocol channel — a stray log line is a parse error at the client.
  */
+import { globSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
@@ -94,6 +97,44 @@ function asDecision(result: ProposeResult): Record<string, unknown> {
 }
 
 /**
+ * Expands a `glob:` key against the checkout named by `CORTEX_REPO_ROOT` (`05` §6).
+ *
+ * `03` §3 makes a glob's overlap with the files it matches **structural**: the glob is
+ * claimed as one row per matched file *plus* a row for the glob itself, so a later
+ * `file:` claim on a matched path collides on the concrete row. Claiming only the bare
+ * `glob:` row would grant that later claim as well — two agents editing one file,
+ * each holding a key it believes is its own, and no error anywhere.
+ *
+ * With no root configured the server refuses, rather than matching against whatever
+ * directory it happened to be launched from. An MCP server is started by an agent from
+ * an arbitrary working directory, and a glob resolved against the wrong tree is worse
+ * than a refused one: it returns a plausible key set for someone else's files.
+ * §3's own default is to refuse rather than widen.
+ */
+function resolveGlob(pattern: string): string[] {
+  const root = process.env.CORTEX_REPO_ROOT;
+
+  if (root === undefined || root === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `cortex_propose cannot expand glob:${pattern} — CORTEX_REPO_ROOT is not set, so the ` +
+        'server has no repository checkout to match it against. Set it, or name the files.',
+    );
+  }
+
+  // Directories are dropped: a claim is on a file, and `03` §3 refuses to claim at
+  // directory granularity. `globSync` returns paths relative to `cwd`, which is what
+  // the `file:` grammar wants, and `canonicalKey` rejects anything that escapes.
+  return globSync(pattern, { cwd: root }).filter((match) => {
+    try {
+      return statSync(join(root, match)).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
  * `cortex_propose` — `05` §3, over the arbitration transaction in `03` §4.2.
  *
  * The order of the four steps is load-bearing. Both refusals come first, so a call
@@ -108,19 +149,7 @@ async function handlePropose(args: Record<string, unknown>): Promise<Record<stri
 
   let keys: string[];
   try {
-    keys = await expandKeys(requested, (pattern) => {
-      // `03` §3 makes a glob's overlap with the files it matches structural: the
-      // glob is claimed as one row per matched file plus a row for the glob itself.
-      // That needs a checkout to match against, and `05` §6 configures the server
-      // with no repository root. Claiming the bare `glob:` row instead would leave a
-      // later `file:` claim on a matched path unblocked — a double grant, with no
-      // error anywhere. §3's own default is to refuse rather than widen.
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `cortex_propose cannot expand glob:${pattern} — the MCP server has no repository ` +
-          'checkout to match it against. Name the files.',
-      );
-    });
+    keys = await expandKeys(requested, resolveGlob);
   } catch (error) {
     if (error instanceof ResourceKeyError) {
       throw new McpError(ErrorCode.InvalidParams, error.message);
@@ -131,7 +160,20 @@ async function handlePropose(args: Record<string, unknown>): Promise<Record<stri
   const repoId = await resolveRepoId(repo);
   const embedding = await getEmbedder().embed(statement);
 
-  const result = await propose({ repoId, agentId, statement, resourceKeys: keys, embedding });
+  // `keys` is already expanded, and `propose` expands again inside its transaction —
+  // so the resolver has to go with it, or the `glob:` row in that set trips the
+  // default resolver's refusal. Re-expanding an expanded set is idempotent: the
+  // `file:` rows canonicalise to themselves and the glob matches the same files.
+  // The expansion above is not redundant despite that: it happens *before* the repo
+  // is registered and before Bedrock is called, so a bad key costs neither.
+  const result = await propose({
+    repoId,
+    agentId,
+    statement,
+    resourceKeys: keys,
+    embedding,
+    resolveGlob,
+  });
 
   // Not `isError`. `blocked` and `deduped` are ordinary outcomes of a working
   // arbitration transaction (`03` §4.2, invariants 3 and 4), and an agent that is

@@ -68,6 +68,23 @@ Shared, arbitrated memory for fleets of coding agents. CockroachDB + AWS.
 
 ### 2. Four slash commands in `.claude/commands/`
 
+> **Superseded 2026-08-10 — the commands below no longer exist under these names.**
+> `.claude/commands/` holds `go.md`, `check.md` and `ship.md`. `/go` absorbs
+> `lh-next` + `lh-work` + `lh-log`; `/check` absorbs `lh-gate` + `lh-fix`; `/ship` is
+> the former `lh-ship`. The `lh-` prefix predates the project being called CORTEX.
+>
+> No content below was dropped — the four-item unit preamble, the transaction
+> boundary statement, the `DECISIONS.md` `[OPEN]` step and the spec-error-goes-to-delta
+> rule were folded into the two surviving commands, and `/check` gained rows for
+> invariants 5 and 6 that no command here ever had. Two further changes: the four
+> mechanical rows of the gate (typecheck, SQL containment, `.env` ignored,
+> credentials) are now `scripts/gate-mechanical.sh`, a process that exits 2 rather
+> than a prompt an agent can skip; and `docs/PROGRESS.md`, named below, was never
+> created — `docs/UNITS.md` is the status of record.
+>
+> The prose is kept because it is where the reasoning lives. Read it for *why* each
+> step exists, not for what to type.
+
 **`lh-next.md`**
 
 ```md
@@ -161,21 +178,20 @@ If a section has nothing to add, write nothing for it. Do not pad.
 
 ```
 /clear
-/lh-next                    → tells you the unit and its risk
-/lh-work <unit>             → tests first, then implementation
+/go                         → next unit from docs/UNITS.md, tests first, record, commit
 /clear
-/lh-gate                    → fresh context, adversarial, evidence required
-/lh-log                     → record and commit
+/check                      → fresh context, adversarial, evidence required
 ```
 
-`/clear` before `/lh-work` and again before `/lh-gate` is not optional. The gate
-must not run in the same context that wrote the code, or it will grade its own
-homework. This is the one piece of GSD's design worth carrying over.
+`/clear` before `/go` and again before `/check` is not optional. The gate must not run
+in the same context that wrote the code, or it will grade its own homework. This is the
+one piece of GSD's design worth carrying over, and it is the part of this section that
+survived the command rename unchanged.
 
 ## Cadence
 
 - Run the full loop per unit in the day tables of `08-BUILD-PLAN.md`.
-- Run `/lh-gate` at minimum at every end-of-day gate, and always before recording a
+- Run `/check` at minimum at every end-of-day gate, and always before recording a
   benchmark number.
 - Anything trivial — a typo, a README line, a config tweak — skip the loop entirely.
   Ceremony on trivial work is exactly the overhead you are trying to escape.
@@ -193,13 +209,14 @@ was built to prevent.
 
 **Parallelism.** GSD runs independent plans in waves. This loop is sequential.
 **Patch:** git worktrees, one Claude Code session each, two at a time, three at most.
-Data layer merges first, and no branch merges without passing `/lh-gate` on its own.
+Data layer merges first, and no branch merges without passing `/check` on its own.
 
 **Failure diagnosis.** GSD generates a fix-plan when verification fails. **Patch:**
-add `lh-fix.md` to `.claude/commands/`:
+a fix step, which since 2026-08-10 lives inside `/check` rather than in a separate
+command. The prompt it runs is unchanged:
 
 ```md
-Argument: the failing rows from /lh-gate output.
+Argument: the failing rows from /check output.
 
 1. For each failure, state the root cause in one sentence. Do not propose a fix yet.
 2. Say whether the cause is a bug, a spec error, or an environment problem. If it is
