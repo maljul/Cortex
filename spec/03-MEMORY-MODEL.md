@@ -169,12 +169,22 @@ SELECT n.fact,
        count(i.id) FILTER (WHERE i.outcome->>'result' = 'reverted') AS times_reverted,
        max(i.closed_at)                                             AS last_touched
 FROM near n
-LEFT JOIN intents i ON i.id = n.source_intent_id
+LEFT JOIN intents i ON i.id = n.source_intent_id AND i.repo_id = $2
 WHERE n.dist < 0.35
 GROUP BY n.fact, n.confidence, n.dist
 ORDER BY times_reverted DESC, n.dist ASC
 LIMIT 8;
 ```
+
+**Two `repo_id` predicates, not one.** This query has two reads. The CTE scopes the
+vector search; the join needs its own filter, because `findings.source_intent_id`
+carries no foreign key and so a finding in repo A can name an intent in repo B. Until
+2026-08-10 this block had only the first, which contradicted §2's "every read MUST
+carry it" and invariant 5 within this document. It was not theoretical: V14 measured
+repo A's recall counting repo B's revert into its own ordering. No text crossed — the
+join contributes only `times_reverted` and `last_touched` — but those two are what
+`ORDER BY times_reverted DESC` ranks on, so the answer was computed from a tenant the
+caller cannot see. Ship this query with both predicates or not at all.
 
 This query is the artifact to put on screen in the video. It joins semantic
 similarity with structural outcome history in one statement on one snapshot. A vector

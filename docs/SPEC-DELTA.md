@@ -108,30 +108,6 @@ Not reconciled in the spec, deliberately. Either §2 gains a constraint on the
 principal that makes the claim true, or the read path is not this server; that is an
 architecture decision and Julian's, not a wording fix.
 
-### `03` §4.1 — the published recall SQL scopes the CTE and not the join
-
-§4.1's query is the artifact the project puts on screen, and U10 ships it byte-for-byte
-in the Agent Skill. It carries `WHERE repo_id = $2` inside the `near` CTE and then
-joins episodic history with `LEFT JOIN intents i ON i.id = n.source_intent_id` — no
-`repo_id` on the join. §2's own design note says every read MUST carry the filter
-because a forgotten one fails open, so §4.1 contradicts §2 and invariant 5 within the
-same document.
-
-**It is not theoretical.** `findings.source_intent_id` has no foreign key, so nothing
-structural stops a finding in repo A from naming an intent in repo B. Measured against
-the cluster on 2026-08-10 (V14): a finding in repo A pointing at a *reverted* intent in
-repo B came back from `recall({ repoId: repoA })` with `timesReverted: 1` and a
-`lastTouched` date. No text crosses — the join contributes only the two aggregates —
-but `ORDER BY times_reverted DESC` is the ordering §4.1 exists for, so the answer repo
-A receives is computed from a tenant it cannot see.
-
-`src/memory/recall.ts` now joins `ON i.id = n.source_intent_id AND i.repo_id = $2`, and
-`test/recall.test.ts` fails without it. That is not a reconciliation of the spec in
-code: §2 and §8 already require the filter, and this is §4.1's SQL failing to
-implement its own document. **The spec text is unedited** — correcting the query that
-`06`/`05` treat as a fixed artifact is Julian's call, and it must be made before U10
-writes `SKILL.md`, because the skill pins this SQL and would pin the gap with it.
-
 ### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
 
 Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
@@ -149,6 +125,33 @@ fixture is the wrong direction of fit. This is input to that sweep, not a decisi
 Numbers and the failed first draft are in V11.
 
 ## Corrected in the spec already — do not re-open
+
+### `03` §4.1 — the published recall SQL scoped the CTE and not the join *(corrected 2026-08-10)*
+
+**Closed.** §4.1's `LEFT JOIN` now reads
+`ON i.id = n.source_intent_id AND i.repo_id = $2`, with a paragraph under the block on
+why the query has two `repo_id` predicates rather than one. Settled by Julian the same
+day it was found; it was an internal contradiction rather than a design choice, since
+§2's design note and invariant 5 both already required the filter.
+
+The original entry, kept because the measurement is what decided it:
+
+§4.1's query is the artifact the project puts on screen, and U10 ships it byte-for-byte
+in the Agent Skill. It carried `WHERE repo_id = $2` inside the `near` CTE and then
+joined episodic history with `LEFT JOIN intents i ON i.id = n.source_intent_id` — no
+`repo_id` on the join.
+
+**It was not theoretical.** `findings.source_intent_id` has no foreign key, so nothing
+structural stops a finding in repo A from naming an intent in repo B. Measured against
+the cluster on 2026-08-10 (V14): a finding in repo A pointing at a *reverted* intent in
+repo B came back from `recall({ repoId: repoA })` with `timesReverted: 1` and a
+`lastTouched` date. No text crossed — the join contributes only the two aggregates —
+but `ORDER BY times_reverted DESC` is the ordering §4.1 exists for, so the answer repo
+A received was computed from a tenant it cannot see.
+
+`src/memory/recall.ts` joins with the predicate and `test/recall.test.ts` fails without
+it. Had this stayed open past U10, `SKILL.md` would have pinned the gap byte-for-byte
+alongside the query.
 
 ### `05` §3 advertised `glob:` keys that §6 gave the server no way to expand *(corrected 2026-08-10)*
 

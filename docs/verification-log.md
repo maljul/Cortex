@@ -1254,7 +1254,10 @@ are themselves an oracle over another repo's history.
 predicate is added, no assertion was narrowed, and removing it turns the new test red
 again. Suite after: **117/117 green**, `npx tsc --noEmit` clean.
 
-**Recorded against the spec, not fixed in it.** `03` §4.1's published SQL still omits
-the predicate; the entry is in `docs/SPEC-DELTA.md`. It has to be settled before U10
-writes `SKILL.md`, because the skill pins this query byte-for-byte and would pin the
-gap with it.
+**The spec was corrected the same day, by Julian.** `03` §4.1's published SQL now
+carries the join predicate, with a paragraph under the block on why the query has two
+`repo_id` filters and not one. It was an internal contradiction — §2's design note and
+invariant 5 both already required it — rather than a design question, which is why it
+was settled immediately rather than left open. The `docs/SPEC-DELTA.md` entry has moved
+to Corrected. Had it stayed open past U10, `SKILL.md` would have pinned the gap
+byte-for-byte alongside the query.
