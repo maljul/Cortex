@@ -25,10 +25,10 @@ What does not belong in a unit list, and so lives here:
   reads and cannot write; writer writes and cannot `DROP`; `cortex_demo` can do
   nothing. Do not re-check this with `SHOW GRANTS` — that is the narrow question whose
   true answer hid the admin membership. Attempt the write.
-- **Action for Julian:** `.env` still sets `BEDROCK_REASON_MODEL=anthropic.claude-sonnet-5`,
-  which is not entitled on this account. Change it to
-  `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nothing reads it yet, so nothing
-  is broken today; LIVE mode would fail the moment it does.
+- Reason model: **resolved 2026-08-10.** `.env` now sets
+  `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which is the
+  entitled one; `npm run env:doctor` no longer warns. Nothing reads it yet, so LIVE
+  mode is still unproven end to end — that is day three's job, not this line's.
 - **Action for Julian, blocking U10:** the Cloud service account behind
   `CORTEX_MCP_API_KEY` has no roles — `list_clusters` returns zero rows, so every SQL
   tool answers `unauthorized` (V10). Cloud's default is Organization Member, which
