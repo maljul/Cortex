@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Replace the hand-rolled date parsing with ISO 8601 helpers\n\n--- src/lib/dates.ts (16 lines) ---\n   1| // Date helpers, hand rolled.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export function parseDate(text: string): Date {\n   5|   const [day, month, year] = text.split('/').map(Number);\n   6|   return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);\n   7| }\n   8| \n   9| export function formatDate(date: Date): string {\n  10|   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;\n  11| }\n  12| \n  13| export function minutesBetween(a: Date, b: Date): number {\n  14|   return Math.abs(a.getTime() - b.getTime()) / 60000;\n  15| }\n  16| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/lib/dates.ts",
+        "startLine": 4,
+        "endLine": 11
+      }
+    ],
+    "note": "Replaced hand-rolled date parsing and formatting functions with ISO 8601 standard methods using toISOString() and Date constructor.",
+    "tokens": {
+      "input": 421,
+      "output": 69
+    }
+  }
+}

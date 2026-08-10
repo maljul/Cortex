@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Expire idle sessions after thirty minutes of inactivity\n\n--- src/auth/session.ts (36 lines) ---\n   1| // Session records. Expiry is not enforced on read.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { newId } from '../lib/ids.js';\n   5| import { pool } from '../db/pool.js';\n   6| \n   7| export interface Session {\n   8|   id: string;\n   9|   userId: string;\n  10|   token: string;\n  11|   createdAt: Date;\n  12|   lastSeenAt: Date;\n  13| }\n  14| \n  15| export async function createSession(userId: string): Promise<Session> {\n  16|   const session: Session = {\n  17|     id: newId(),\n  18|     userId,\n  19|     token: newId(),\n  20|     createdAt: new Date(),\n  21|     lastSeenAt: new Date(),\n  22|   };\n  23| \n  24|   await pool.query(\n  25|     'INSERT INTO sessions (id, user_id, token, created_at, last_seen_at) VALUES ($1,$2,$3,$4,$5)',\n  26|     [session.id, session.userId, session.token, session.createdAt, session.lastSeenAt],\n  27|   );\n  28| \n  29|   return session;\n  30| }\n  31| \n  32| export async function findSession(token: string): Promise<Session | undefined> {\n  33|   const { rows } = await pool.query('SELECT * FROM sessions WHERE token = $1', [token]);\n  34|   return rows[0];\n  35| }\n  36| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/auth/session.ts",
+        "startLine": 32,
+        "endLine": 35
+      }
+    ],
+    "note": "Modified findSession to check if lastSeenAt is older than 30 minutes and return undefined for expired sessions, treating them as non-existent.",
+    "tokens": {
+      "input": 611,
+      "output": 73
+    }
+  }
+}

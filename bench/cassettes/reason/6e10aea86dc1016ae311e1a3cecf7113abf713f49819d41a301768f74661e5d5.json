@@ -1,0 +1,23 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Record a status transition history for every order\n\n--- src/orders/status.ts (20 lines) ---\n   1| // Order status transitions. History is not recorded.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import type { OrderStatus } from '../db/types.js';\n   5| import { Conflict } from '../lib/errors.js';\n   6| \n   7| const ALLOWED: Record<OrderStatus, OrderStatus[]> = {\n   8|   pending: ['paid', 'cancelled'],\n   9|   paid: ['shipped', 'cancelled'],\n  10|   shipped: ['delivered'],\n  11|   delivered: [],\n  12|   cancelled: [],\n  13| };\n  14| \n  15| export function assertTransition(from: OrderStatus, to: OrderStatus): void {\n  16|   if (!ALLOWED[from].includes(to)) {\n  17|     throw new Conflict(`cannot move an order from ${from} to ${to}`);\n  18|   }\n  19| }\n  20| \n--- src/orders/repository.ts (34 lines) ---\n   1| // All order persistence. The busiest file in the service.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { pool } from '../db/pool.js';\n   5| import type { Order, OrderStatus } from '../db/types.js';\n   6| \n   7| export async function insertOrder(order: Order): Promise<void> {\n   8|   await pool.query(\n   9|     'INSERT INTO orders (id, customer_id, status, total_minor, placed_at) VALUES ($1,$2,$3,$4,$5)',\n  10|     [order.id, order.customerId, order.status, order.totalMinor, order.placedAt],\n  11|   );\n  12| \n  13|   for (const line of order.lines) {\n  14|     await pool.query(\n  15|       'INSERT INTO order_lines (order_id, sku, quantity, price_minor) VALUES ($1,$2,$3,$4)',\n  16|       [order.id, line.sku, line.quantity, line.priceMinor],\n  17|     );\n  18|   }\n  19| }\n  20| \n  21| export async function findOrder(id: string): Promise<Order | undefined> {\n  22|   const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);\n  23|   return rows[0];\n  24| }\n  25| \n  26| export async function allOrders(): Promise<Order[]> {\n  27|   const { rows } = await pool.query('SELECT * FROM orders ORDER BY placed_at DESC');\n  28|   return rows;\n  29| }\n  30| \n  31| export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {\n  32|   await pool.query('UPDATE orders SET status = $2 WHERE id = $1', [id, status]);\n  33| }\n  34| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/orders/status.ts",
+        "startLine": 1,
+        "endLine": 1
+      },
+      {
+        "file": "src/orders/repository.ts",
+        "startLine": 31,
+        "endLine": 33
+      }
+    ],
+    "note": "Added status transition history recording by updating the comment in status.ts and modifying updateOrderStatus to insert a record into an order_status_history table with order_id, old_status, new_status, and timestamp.",
+    "tokens": {
+      "input": 935,
+      "output": 111
+    }
+  }
+}

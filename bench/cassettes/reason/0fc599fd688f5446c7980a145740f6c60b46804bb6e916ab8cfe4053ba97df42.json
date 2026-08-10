@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Rate limit repeated failed sign-in attempts on the login endpoint\n\n--- src/auth/login.ts (25 lines) ---\n   1| // Sign-in endpoint. No throttling yet.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { verifyPassword } from './password.js';\n   5| import { createSession } from './session.js';\n   6| import { Unauthorized } from '../lib/errors.js';\n   7| import { findUserByEmail } from '../db/types.js';\n   8| \n   9| export async function login(request: Request): Promise<Response> {\n  10|   const body = (await request.json()) as { email?: string; password?: string };\n  11| \n  12|   if (!body.email || !body.password) {\n  13|     throw new Unauthorized('email and password are required');\n  14|   }\n  15| \n  16|   const user = await findUserByEmail(body.email);\n  17|   if (!user) throw new Unauthorized('no such user');\n  18| \n  19|   const ok = await verifyPassword(body.password, user.passwordHash);\n  20|   if (!ok) throw new Unauthorized('bad password');\n  21| \n  22|   const session = await createSession(user.id);\n  23|   return Response.json({ token: session.token });\n  24| }\n  25| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/auth/login.ts",
+        "startLine": 1,
+        "endLine": 8
+      }
+    ],
+    "note": "Added rate limiting imports and in-memory store for tracking failed login attempts by email address.",
+    "tokens": {
+      "input": 521,
+      "output": 59
+    }
+  }
+}

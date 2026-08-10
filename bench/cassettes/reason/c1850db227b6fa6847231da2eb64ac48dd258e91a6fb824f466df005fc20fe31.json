@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Build a customer order history view on top of the customer lookup index\n\n--- src/orders/get.ts (13 lines) ---\n   1| // Single order lookup.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { findOrder } from './repository.js';\n   5| import { NotFound } from '../lib/errors.js';\n   6| \n   7| export async function getOrder(request: Request): Promise<Response> {\n   8|   const id = new URL(request.url).pathname.split('/')[2] ?? '';\n   9|   const order = await findOrder(id);\n  10|   if (!order) throw new NotFound(`no order ${id}`);\n  11|   return Response.json(order);\n  12| }\n  13| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/orders/get.ts",
+        "startLine": 4,
+        "endLine": 12
+      }
+    ],
+    "note": "Added getCustomerOrders function that retrieves order history for a customer by looking up the customer first, then filtering orders by customerId.",
+    "tokens": {
+      "input": 362,
+      "output": 70
+    }
+  }
+}

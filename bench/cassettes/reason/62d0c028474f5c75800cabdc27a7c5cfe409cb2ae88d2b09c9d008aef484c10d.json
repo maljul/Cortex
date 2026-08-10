@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Cache inventory availability lookups for thirty seconds\n\n--- src/inventory/repository.ts (14 lines) ---\n   1| // Stock levels. Every read hits the database.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { pool } from '../db/pool.js';\n   5| \n   6| export async function stockLevel(sku: string): Promise<number> {\n   7|   const { rows } = await pool.query('SELECT quantity FROM stock WHERE sku = $1', [sku]);\n   8|   return rows[0]?.quantity ?? 0;\n   9| }\n  10| \n  11| export async function adjustStock(sku: string, delta: number): Promise<void> {\n  12|   await pool.query('UPDATE stock SET quantity = quantity + $2 WHERE sku = $1', [sku, delta]);\n  13| }\n  14| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/inventory/repository.ts",
+        "startLine": 1,
+        "endLine": 9
+      }
+    ],
+    "note": "Added a Map-based cache with 30-second TTL for stockLevel lookups, storing both quantity and timestamp, and checking expiry before returning cached values.",
+    "tokens": {
+      "input": 390,
+      "output": 75
+    }
+  }
+}

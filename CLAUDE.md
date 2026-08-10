@@ -28,7 +28,7 @@ What does not belong in a unit list, and so lives here:
   `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
   half is green, the demo half is red on a missing credential (below).
   `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
-  cannot read or write any of the six tables. **Suite 144/144.**
+  cannot read or write any of the six tables. **Suite 156/156.**
 - Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
   probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer
@@ -47,8 +47,20 @@ What does not belong in a unit list, and so lives here:
 - U10 is **unblocked** and reshaped: the skill ships recall SQL against
   `CORTEX_READER_DSN`, pinned byte-for-byte against `src/memory/recall.ts` by a test,
   because both `repo_id` predicates must survive retyping (V14). It is still not the
-  critical path — `08` §4's end-of-day-two gate is U13's summary table, and U12 is the
-  next workable unit.
+  critical path — `08` §4's end-of-day-two gate is U13's summary table.
+- **The benchmark harness is deterministic by serialising, and that bounds what two of
+  `06` §3's metrics can say** (V19, `docs/DECISIONS.md`). One step runs at a time on a
+  simulated clock, so contention is real and reproducible — agent B genuinely finds
+  agent A's row in `claims` — but two transactions never overlap. `serialization_retries`
+  is therefore 0 by construction and `claim_p50` is an uncontended latency. Report them
+  as what they measure. The real race is proven by `npm run gate:contend` (U6) and by
+  `test/retry.test.ts` (V13); do not restate either as a benchmark result.
+- **`bench/cassettes/` is committed and is the reproducibility claim.** Replay reaches
+  no network at all — the run record carries `liveCalls: {embed: 0, reason: 0}` and a
+  cassette miss is a hard error, never a fall-through to Bedrock. Re-record with
+  `npm run bench -- --record`, which prefetches every task rather than recording what a
+  run happened to touch. Editing a fixture or a task statement changes the prompt and
+  so changes the key: expect a `CassetteMiss`, and re-record rather than loosening it.
 
 ---
 

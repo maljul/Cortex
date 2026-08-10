@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Switch the logger to structured JSON output with a request id on every line\n\n--- src/lib/logger.ts (15 lines) ---\n   1| // Logging. Plain text, no request correlation.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export const logger = {\n   5|   info(message: string, fields: object = {}): void {\n   6|     console.log(`INFO  ${message} ${JSON.stringify(fields)}`);\n   7|   },\n   8|   warn(message: string, fields: object = {}): void {\n   9|     console.warn(`WARN  ${message} ${JSON.stringify(fields)}`);\n  10|   },\n  11|   error(message: string, fields: object = {}): void {\n  12|     console.error(`ERROR ${message} ${JSON.stringify(fields)}`);\n  13|   },\n  14| };\n  15| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/lib/logger.ts",
+        "startLine": 1,
+        "endLine": 14
+      }
+    ],
+    "note": "Changed logger to output structured JSON with level, message, requestId, and fields properties instead of plain text format.",
+    "tokens": {
+      "input": 396,
+      "output": 64
+    }
+  }
+}

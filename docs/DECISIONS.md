@@ -155,3 +155,64 @@ test you can run" beats "the platform handles it".
 U10 is unblocked and its shape changes: the skill ships the recall SQL against
 `cortex_reader`, pinned byte-for-byte against `src/memory/recall.ts` so both `repo_id`
 predicates cannot drift out of it (V14).
+
+## 2026-08-10 — The benchmark serialises its fleet, and gives up two metrics to do it
+
+`06` §5 requires the re-run to be reproducible from a clean clone plus a cluster, and
+asks for "simulated clock offsets so contention is forced deterministically rather
+than hoped for". U12's scheduler takes that literally: five agents each hold a virtual
+clock, and the scheduler repeatedly runs one step of whichever agent is furthest
+behind. Exactly one step is ever in flight.
+
+**What that buys.** Two runs of one arm at one seed produce identical decisions,
+against a live SERIALIZABLE database, which `test/bench-runner.test.ts` asserts by
+running each arm twice rather than by inspecting one run. Contention is not simulated:
+agent B really does find agent A's row in `claims` and really is told who holds it.
+
+**What it costs, stated rather than discovered later.** Two transactions never overlap,
+so the harness produces no `40001` retries and `claim_p50`/`claim_p95` are uncontended
+latencies. `06` §3 lists `serialization_retries` as a metric; measured here it will be
+0, and 0 is a fact about the harness, not about the mechanism.
+
+**The alternative was worse.** Racing five real processes is what actually produces
+retries, and it is what `08` §4's end-of-day-one gate already does — `npm run
+gate:contend` contends two processes for one key and V13 forces a genuine `40001`
+between two interleaved clients. Doing it again inside the benchmark would trade the
+reproducibility §5 demands for a number two other pieces of evidence already carry, and
+a benchmark whose figures move between runs is worth less than one that admits its
+scope. The race is proven; the benchmark measures wasted work.
+
+**Consequence for U13.** Report `serialization_retries` and the claim latencies as what
+they measure, with the harness's serialisation named beside them. Do not omit the rows
+— an absent metric reads as a hidden one — and do not quote U6's contention as a
+benchmark result.
+
+## 2026-08-10 — The NAIVE arm keeps last-write-wins, and publishes the loss rate
+
+`06` §2 specifies the naive arm's shared state as "JSON file on disk, last-write-wins",
+and §2 also requires it to be a fair representation of what people actually do rather
+than a strawman. Implemented literally — read the file, work, write the whole file back
+from the pre-work snapshot — it loses 21 of the 28 writes it acknowledges (V19). That
+is a striking number and the temptation was to soften it.
+
+**It was not softened, for a reason that is about honesty in both directions.** The
+obvious softening is to re-read and merge at save time. That is no longer
+last-write-wins, so it is no longer what §2 specifies; worse, it would be *flattering*
+in a way this harness cannot justify, because the scheduler serialises steps, so a
+read-merge-write would appear atomic here and would not be atomic between two real
+processes. The naive arm would then lose almost nothing for a reason that is an
+artefact of the test rig.
+
+**What fairness did buy the naive arm.** Its local vector store is one file per note,
+so it never loses a memory — real vector stores handle concurrent inserts, and nothing
+here is arranged to make the naive arm bad at remembering. It currently has *more*
+working recall than the CORTEX arm, whose `findings` table waits on consolidation
+(`03` §4.4). That asymmetry is recorded in the run record and in V19 rather than
+quietly corrected.
+
+**What ships with the number.** §7.5 says publish a metric that moves the wrong way and
+explain it; this one moves the right way and still needs its mechanism published beside
+it, because a 75% loss rate with no explanation reads as a manufactured benchmark to
+exactly the audience being addressed. The mechanism is one sentence: a whole-file
+rewrite from a stale snapshot leaves the file holding what the last saver happened to
+have seen.

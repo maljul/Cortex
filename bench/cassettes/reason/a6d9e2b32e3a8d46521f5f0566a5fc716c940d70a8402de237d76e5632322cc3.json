@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Migrate the payment provider integration to their version three API\n\n--- src/payments/provider.ts (18 lines) ---\n   1| // Payment provider client, pinned to their v2 API.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { loadConfig } from '../config.js';\n   5| \n   6| export async function providerRequest(\n   7|   path: string,\n   8|   body: Record<string, unknown>,\n   9| ): Promise<Response> {\n  10|   const config = loadConfig();\n  11| \n  12|   return fetch(`${config.paymentProviderUrl}${path}`, {\n  13|     method: 'POST',\n  14|     headers: { 'content-type': 'application/json' },\n  15|     body: JSON.stringify(body),\n  16|   });\n  17| }\n  18| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/payments/provider.ts",
+        "startLine": 1,
+        "endLine": 16
+      }
+    ],
+    "note": "Updated payment provider integration from v2 to v3 API by modifying the URL construction and request headers to match v3 requirements.",
+    "tokens": {
+      "input": 396,
+      "output": 70
+    }
+  }
+}

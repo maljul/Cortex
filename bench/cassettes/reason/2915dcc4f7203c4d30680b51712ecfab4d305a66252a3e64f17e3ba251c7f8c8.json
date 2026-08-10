@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Validate the shipping address before creating a label\n\n--- src/shipping/label.ts (18 lines) ---\n   1| // Label creation. The address is not checked.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { quoteFor } from './quote.js';\n   5| \n   6| export interface Address {\n   7|   line1: string;\n   8|   line2?: string;\n   9|   city: string;\n  10|   postcode: string;\n  11|   country: string;\n  12| }\n  13| \n  14| export async function createLabel(address: Address, weightKg: number): Promise<string> {\n  15|   const quote = quoteFor(weightKg, address.country);\n  16|   return `label:${quote.carrier}:${address.postcode}`;\n  17| }\n  18| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/shipping/label.ts",
+        "startLine": 14,
+        "endLine": 16
+      }
+    ],
+    "note": "Added address validation before creating the label by checking that required fields (line1, city, postcode, country) are non-empty strings.",
+    "tokens": {
+      "input": 391,
+      "output": 70
+    }
+  }
+}

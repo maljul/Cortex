@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Refuse order creation when the requested quantity exceeds available stock\n\n--- src/orders/create.ts (28 lines) ---\n   1| // Order creation. Does not check stock.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { insertOrder } from './repository.js';\n   5| import { validateOrderInput } from './validation.js';\n   6| import { reserveStock } from '../inventory/reserve.js';\n   7| import { chargeCard } from '../payments/charge.js';\n   8| import { newId } from '../lib/ids.js';\n   9| \n  10| export async function createOrder(request: Request): Promise<Response> {\n  11|   const input = validateOrderInput(await request.json());\n  12| \n  13|   const order = {\n  14|     id: newId(),\n  15|     customerId: input.customerId,\n  16|     lines: input.lines,\n  17|     status: 'pending' as const,\n  18|     totalMinor: input.lines.reduce((sum, line) => sum + line.priceMinor * line.quantity, 0),\n  19|     placedAt: new Date(),\n  20|   };\n  21| \n  22|   await reserveStock(order.lines);\n  23|   await chargeCard(order.customerId, order.totalMinor, order.id);\n  24|   await insertOrder(order);\n  25| \n  26|   return Response.json(order, { status: 201 });\n  27| }\n  28| \n--- src/orders/repository.ts (34 lines) ---\n   1| // All order persistence. The busiest file in the service.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { pool } from '../db/pool.js';\n   5| import type { Order, OrderStatus } from '../db/types.js';\n   6| \n   7| export async function insertOrder(order: Order): Promise<void> {\n   8|   await pool.query(\n   9|     'INSERT INTO orders (id, customer_id, status, total_minor, placed_at) VALUES ($1,$2,$3,$4,$5)',\n  10|     [order.id, order.customerId, order.status, order.totalMinor, order.placedAt],\n  11|   );\n  12| \n  13|   for (const line of order.lines) {\n  14|     await pool.query(\n  15|       'INSERT INTO order_lines (order_id, sku, quantity, price_minor) VALUES ($1,$2,$3,$4)',\n  16|       [order.id, line.sku, line.quantity, line.priceMinor],\n  17|     );\n  18|   }\n  19| }\n  20| \n  21| export async function findOrder(id: string): Promise<Order | undefined> {\n  22|   const { rows } = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);\n  23|   return rows[0];\n  24| }\n  25| \n  26| export async function allOrders(): Promise<Order[]> {\n  27|   const { rows } = await pool.query('SELECT * FROM orders ORDER BY placed_at DESC');\n  28|   return rows;\n  29| }\n  30| \n  31| export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {\n  32|   await pool.query('UPDATE orders SET status = $2 WHERE id = $1', [id, status]);\n  33| }\n  34| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/orders/create.ts",
+        "startLine": 11,
+        "endLine": 22
+      }
+    ],
+    "note": "Added stock availability check before order creation that throws an error if any requested quantity exceeds available stock for that SKU.",
+    "tokens": {
+      "input": 1067,
+      "output": 65
+    }
+  }
+}

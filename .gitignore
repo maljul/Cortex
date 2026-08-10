@@ -15,6 +15,12 @@ build/
 *.log
 npm-debug.log*
 
+# Benchmark working directories. The cassettes under bench/cassettes/ ARE committed
+# (06 §5: a cassette that is not in the repository is a promise, not a recording), and
+# so are the published results under bench/results/ (§6). These are the per-invocation
+# scratch runs: the NAIVE arm's shared JSON file and one run record per arm.
+bench/runs/
+
 # OS / editor
 .DS_Store
 .env

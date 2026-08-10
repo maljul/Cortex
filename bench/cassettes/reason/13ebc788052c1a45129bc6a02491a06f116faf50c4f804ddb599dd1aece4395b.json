@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Convert stored shipping quotes to the new integer minor unit representation\n\n--- src/shipping/quote.ts (18 lines) ---\n   1| // Shipping quotes. Prices are floats.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export interface Quote {\n   5|   carrier: string;\n   6|   price: number;\n   7|   estimatedDays: number;\n   8| }\n   9| \n  10| export function quoteFor(weightKg: number, country: string): Quote {\n  11|   const base = country === 'PL' ? 3.5 : 9.9;\n  12|   return {\n  13|     carrier: country === 'PL' ? 'inpost' : 'dhl',\n  14|     price: base + weightKg * 0.75,\n  15|     estimatedDays: country === 'PL' ? 1 : 4,\n  16|   };\n  17| }\n  18| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/shipping/quote.ts",
+        "startLine": 1,
+        "endLine": 17
+      }
+    ],
+    "note": "Changed price from float to integer minor units (cents) by multiplying all price calculations by 100 and updating the comment to reflect this representation.",
+    "tokens": {
+      "input": 419,
+      "output": 71
+    }
+  }
+}

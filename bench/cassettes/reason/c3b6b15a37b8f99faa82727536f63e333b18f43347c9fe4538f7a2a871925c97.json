@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Add a migration runner that records which schema versions have been applied\n\n--- src/db/migrations.ts (11 lines) ---\n   1| // Schema migrations, applied by hand today.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export const migrations: string[] = [\n   5|   'CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT)',\n   6|   'CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, token TEXT, created_at TIMESTAMPTZ, last_seen_at TIMESTAMPTZ)',\n   7|   'CREATE TABLE orders (id TEXT PRIMARY KEY, customer_id TEXT, status TEXT, total_minor BIGINT, placed_at TIMESTAMPTZ)',\n   8|   'CREATE TABLE order_lines (order_id TEXT, sku TEXT, quantity INT, price_minor BIGINT)',\n   9|   'CREATE TABLE stock (sku TEXT PRIMARY KEY, quantity INT)',\n  10| ];\n  11| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/db/migrations.ts",
+        "startLine": 1,
+        "endLine": 11
+      }
+    ],
+    "note": "Added a migration runner function that creates a schema_migrations table to track applied versions and runs only unapplied migrations in order.",
+    "tokens": {
+      "input": 405,
+      "output": 68
+    }
+  }
+}

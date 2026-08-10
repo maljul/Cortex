@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Raise the password hashing cost factor and rehash on next sign-in\n\n--- src/auth/password.ts (13 lines) ---\n   1| // Password hashing. Cost factor is low and has not been revisited.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| const COST = 8;\n   5| \n   6| export async function hashPassword(plain: string): Promise<string> {\n   7|   return Bun.password.hash(plain, { algorithm: 'bcrypt', cost: COST });\n   8| }\n   9| \n  10| export async function verifyPassword(plain: string, hash: string): Promise<boolean> {\n  11|   return Bun.password.verify(plain, hash);\n  12| }\n  13| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/auth/password.ts",
+        "startLine": 4,
+        "endLine": 12
+      }
+    ],
+    "note": "Increased bcrypt cost from 8 to 12 and added needsRehash function to check if existing hashes need upgrading to the new cost factor.",
+    "tokens": {
+      "input": 366,
+      "output": 77
+    }
+  }
+}

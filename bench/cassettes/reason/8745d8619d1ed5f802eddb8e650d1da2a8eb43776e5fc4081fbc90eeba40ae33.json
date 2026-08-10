@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Make the payment charge call idempotent using the request key\n\n--- src/payments/charge.ts (23 lines) ---\n   1| // Card charging. Retries are not idempotent.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { providerRequest } from './provider.js';\n   5| import { PaymentFailed } from '../lib/errors.js';\n   6| \n   7| export async function chargeCard(\n   8|   customerId: string,\n   9|   amountMinor: number,\n  10|   orderId: string,\n  11| ): Promise<string> {\n  12|   const response = await providerRequest('/charges', {\n  13|     customer: customerId,\n  14|     amount: amountMinor,\n  15|     reference: orderId,\n  16|   });\n  17| \n  18|   if (!response.ok) throw new PaymentFailed(`charge declined for ${orderId}`);\n  19| \n  20|   const body = (await response.json()) as { id: string };\n  21|   return body.id;\n  22| }\n  23| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/payments/charge.ts",
+        "startLine": 12,
+        "endLine": 16
+      }
+    ],
+    "note": "Added idempotency_key field to the providerRequest payload using orderId as the request key to ensure retries of the same order don't create duplicate charges.",
+    "tokens": {
+      "input": 459,
+      "output": 76
+    }
+  }
+}

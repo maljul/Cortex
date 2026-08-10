@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Expose carrier tracking events through a paginated endpoint\n\n--- src/shipping/tracking.ts (19 lines) ---\n   1| // Carrier tracking events.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export interface TrackingEvent {\n   5|   at: Date;\n   6|   status: string;\n   7|   location: string;\n   8| }\n   9| \n  10| const events = new Map<string, TrackingEvent[]>();\n  11| \n  12| export function record(labelId: string, event: TrackingEvent): void {\n  13|   events.set(labelId, [...(events.get(labelId) ?? []), event]);\n  14| }\n  15| \n  16| export function history(labelId: string): TrackingEvent[] {\n  17|   return events.get(labelId) ?? [];\n  18| }\n  19| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/shipping/tracking.ts",
+        "startLine": 16,
+        "endLine": 18
+      }
+    ],
+    "note": "Added a paginated function that returns a slice of tracking events based on page number and page size parameters, with default values of page 1 and size 10.",
+    "tokens": {
+      "input": 397,
+      "output": 75
+    }
+  }
+}

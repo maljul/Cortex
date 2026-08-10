@@ -1,0 +1,23 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Apply a five second timeout to every outbound HTTP request\n\n--- src/lib/http.ts (16 lines) ---\n   1| // Outbound HTTP helper. No timeout is applied.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export async function postJson(url: string, body: unknown): Promise<Response> {\n   5|   return fetch(url, {\n   6|     method: 'POST',\n   7|     headers: { 'content-type': 'application/json' },\n   8|     body: JSON.stringify(body),\n   9|   });\n  10| }\n  11| \n  12| export async function getJson<T>(url: string): Promise<T> {\n  13|   const response = await fetch(url);\n  14|   return (await response.json()) as T;\n  15| }\n  16| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/lib/http.ts",
+        "startLine": 5,
+        "endLine": 9
+      },
+      {
+        "file": "src/lib/http.ts",
+        "startLine": 13,
+        "endLine": 13
+      }
+    ],
+    "note": "Added a signal with AbortSignal.timeout(5000) to both fetch calls to enforce a five second timeout on all outbound HTTP requests.",
+    "tokens": {
+      "input": 385,
+      "output": 95
+    }
+  }
+}

@@ -13,6 +13,54 @@ is not undone by a later reader.
 
 ## Open
 
+### `08` §4 and `05` §2 name `cortex bench`; the command is `npm run bench` *(2026-08-10)*
+
+U12's done-when is "`cortex bench` runs both arms deterministically", and `05` §2 puts
+`bench` in the `npx cortex <command>` table. **There is no `cortex` binary.** The CLI is
+U2, deferred to day three with the rest of the onboarding surface, so the harness ships
+as `npm run bench` alongside `npm run gate:contend`, `npm run db:check` and the other
+scripts that would each be a `cortex` subcommand.
+
+Recorded rather than papered over: adding a `bin` entry to `package.json` pointing at a
+TypeScript file would make `npx cortex bench` work on this machine, where `tsx` is
+installed, and fail on the clean clone `06` §5 is written about. That is a worse lie
+than a differently-named command, and the flags (`--arm`, `--seed`, `--tasks`,
+`--record`, `--json`) are already the shape `05` §2 asks for, including `--json`.
+
+**Closes when U2 lands.** `cortex bench` should then delegate to the same `runArm`, and
+the README must publish whichever name actually works, because §7.1 requires the exact
+reproducing command.
+
+### `06` §3 — two metrics cannot mean what §3 implies under a reproducible harness *(2026-08-10)*
+
+§5 requires the re-run to be reproducible; U12's scheduler achieves that by running one
+step at a time on a simulated clock (`docs/DECISIONS.md`, V19). Contention is real and
+deterministic, but two transactions never overlap, so:
+
+- **`serialization_retries`** is 0 by construction. §3 defines it as a "count of `40001`
+  retries", which reads as a property of the mechanism under load; measured here it is a
+  property of the harness.
+- **`claim_p50` / `claim_p95`** are uncontended arbitration latencies, not the queueing
+  behaviour the percentile pair suggests.
+
+Not a spec error so much as a place where §3 and §5 pull against each other, and §5
+wins because a benchmark whose figures move between runs is worth nothing. §3 would be
+better with a sentence saying which of its metrics are harness-dependent. The real race
+is evidenced separately by `npm run gate:contend` (U6) and V13.
+
+### `06` §5 — "both arms consume the same cassettes" is true of the library, not the draws *(2026-08-10)*
+
+§5: "Both arms consume the **same cassettes**. Any difference in results is therefore
+attributable to the coordination layer and nothing else." Read strictly that is false of
+any working implementation, and the reason is the mechanism itself: the CORTEX arm does
+not reason about a task it dedupes, so it draws *fewer* reasoning cassettes than NAIVE.
+That gap is the saving being measured.
+
+What holds, and what `test/bench-runner.test.ts` asserts instead: both arms embed every
+task they attempt, so the embedding sets are **equal**; and CORTEX's reasoning keys are a
+strict **subset** of NAIVE's, which covers all 30 tasks. Same library, fewer draws — the
+attributability §5 wants, stated in a form that can be checked.
+
 ### `05` §2 — the Node-versus-Python `[OPEN]` is answered in practice, still marked open
 
 §2 leaves the CLI runtime open with a mild preference for Node. Everything in the

@@ -291,11 +291,33 @@ positives. Something in (0.3630, 0.4293) catches all six. Nothing was changed in
 **Spec contradiction found and corrected:** §4 said 24 tasks while its own bullets
 summed to 30. Julian settled it in favour of the bullets; `06` §4 now says 30.
 
-### U12 — Five-agent runner and cassettes ⬜
+### U12 — Five-agent runner and cassettes ✅ 2026-08-10
 **Done when:** "`cortex bench` runs both arms deterministically." *(08 §4, 23–29h, verbatim)*
 **Specs:** `06`
 **Silent break:** non-determinism leaking in through model calls or wall-clock time,
 so two runs of the same arm disagree and the published number is unreproducible.
+**Evidence:** `bench/{run,scheduler,cassettes,reason,rng,types}.ts`,
+`bench/arms/{shared,naive,cortex}.ts`, `src/memory/history.ts`, `scripts/bench.mts`
+(`npm run bench`), 30 reasoning + 30 embedding cassettes committed under
+`bench/cassettes/`, and `test/bench-runner.test.ts` — 12 tests. V19 has the output.
+Suite 156/156, `tsc` clean.
+**The named silent break is the load-bearing assertion.** The test runs *each arm
+twice* and compares the decision sequences; a determinism test that inspected one run
+could not fail for the reason it exists. Adding `+ (Date.now() % 7)` to one step
+duration fails that test and nothing else.
+**Determinism is bought with a trade, and it is written down** (`docs/DECISIONS.md`):
+one step runs at a time on a simulated clock, so contention is real and reproducible
+but two transactions never overlap. This harness produces no `40001`s and its
+`claim_p50` is an uncontended latency. U6 and V13 are where the real race is proven;
+U13 must report those two metrics as what they measure.
+**Cassettes are recorded by a prefetch over the whole task list**, not as a side effect
+of a run — otherwise the committed library would depend on which arm ran, since CORTEX
+never reasons about what it dedupes.
+**Two findings for U13, both honest-against-us:** CORTEX recall returns 0 every time
+because consolidation (`03` §4.4) is not built while NAIVE reads its own local notes,
+so the three recall-dependent tasks understate CORTEX; and the naive arm loses 21 of
+28 acknowledged writes, which is what last-write-wins on a whole-file rewrite does and
+needs the mechanism published beside it.
 
 ### U13 — Metrics, duplicate judge, results writer ⬜
 **Done when:** "`bench/results/` populated and committed." *(08 §4, 29–32h, verbatim)*
@@ -345,3 +367,8 @@ Not yet captured, worth screen-recording (`08` §5, 52–58h):
   record — the text transcript is the proof, the agent is the demo.
 - The two-terminal contention gate (U6) is already reproducible on demand via
   `npm run gate:contend`, but no take has been recorded.
+- **`npm run bench` printing both arms side by side**, with `live model calls embed 0,
+  reason 0` visible on each. That line is the reproducibility claim made watchable: the
+  numbers came off committed cassettes, not off a live sample. Run it twice in the take
+  so the figures repeat — the determinism is the point, and a still frame cannot show
+  it. The CORTEX arm takes ~45s of real time against the cluster; cut or speed it.

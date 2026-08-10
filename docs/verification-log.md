@@ -1481,3 +1481,107 @@ and for a tenth of the cost.
 Report-only: writes nothing to the cluster, changes no state. Re-run it before the
 recording session rather than trusting this entry — an entitlement is an account fact
 and can change without the repository knowing.
+
+---
+
+## V19 — `cortex bench` runs both arms, and the same arm twice, identically
+**2026-08-10 · U12 · `npm run bench` · PASS**
+
+Actual output of a replay run, both arms, at the shipped seed:
+
+```
+NAIVE  seed 1729  5 agents
+  tasks attempted     30
+  acknowledged done   28
+  in final state      7
+  acknowledged, gone  21
+  tokens reported     17182
+  steps               120
+  virtual ms          7862
+  wall clock ms       103
+  live model calls    embed 0, reason 0
+
+CORTEX  seed 1729  5 agents
+  tasks attempted     30
+  acknowledged done   24
+  in final state      24
+  acknowledged, gone  0
+  granted/blocked/deduped  26/3/4
+  tokens reported     15154
+  steps               118
+  virtual ms          7324
+  wall clock ms       45904
+  live model calls    embed 0, reason 0
+```
+
+Run twice; the two runs printed the same figures. `live model calls 0` on both arms is
+the line that matters most in that block: the numbers came off the 30 reasoning and 30
+embedding cassettes committed under `bench/cassettes/`, not off a live sample.
+
+**These are not the benchmark's numbers.** They are a runner smoke summary. `06` §3's
+metrics are U13's, computed by an offline judge that does not share code with the
+dedupe path, and `bench/results/` is empty until then. Nothing above should be quoted
+as a result.
+
+**Determinism, measured rather than asserted.** `test/bench-runner.test.ts` runs each
+arm **twice** and compares the decision sequences — 12 tests, all green, and the CORTEX
+half is ~120 sequential round trips to the real cluster per run. The comparison covers
+`decisions`, `acknowledged`, `finalState`, `taskIds` and the cassette key sets; it
+excludes `timings`, which is wall clock and does not reproduce. That split is in
+`bench/types.ts` and is the honest shape of the claim: coordination outcomes
+reproduce, network latency does not.
+
+**The mutation.** Adding `+ (Date.now() % 7)` to one step duration — the exact silent
+break U12 names, wall-clock time leaking into the simulated clock — fails the
+determinism test and nothing else:
+
+```
+FAIL  test/bench-runner.test.ts > NAIVE arm > runs the same workload twice and decides identically
+AssertionError: expected { arm: 'naive', seed: 1729, …(6) } to deeply equal { arm: 'naive', seed: 1729, …(6) }
+      Tests  1 failed | 2 passed | 9 skipped (12)
+```
+
+**The naive arm loses 21 of the 28 writes it acknowledged, and that is the mechanism
+rather than a thumb on the scale.** Each agent reads the whole shared JSON file, works,
+and writes the whole file back from the snapshot it took before the work — so the file
+ends up holding roughly what the last saver happened to have seen. That is what
+last-write-wins on a whole-file rewrite does, and `06` §2 specifies exactly that for
+this arm. There is no code path that drops an entry and none that inspects whose entry
+it is; the losses fall out of the read-work-write shape when two agents' cycles
+overlap. A merge at save time would lose far less, and would also be dishonest here:
+this harness serialises steps, so a read-merge-write would look atomic and would not be
+atomic between two real processes.
+
+**The CORTEX arm loses none**, which is not a surprise and is worth stating as the
+narrow claim it is: `close` writes the outcome, spends the idempotency key and releases
+the claims on one snapshot, so an acknowledged close is a committed row.
+
+**Three things a reader should hold against these numbers.**
+
+1. **`serialization_retries` will be 0 and `claim_p50` is an uncontended latency.** The
+   scheduler runs one step at a time on a simulated clock, because `06` §5 asks for
+   contention forced deterministically and five racing processes are not reproducible.
+   Contention is real — agent B genuinely finds agent A's row in `claims`, three times
+   here — but two transactions never overlap inside CockroachDB, so this harness
+   produces no 40001s. The race is proven elsewhere and was not weakened to fit:
+   `npm run gate:contend` (U6) contends two real processes for one key, and
+   `test/retry.test.ts` forces a real 40001 (V13).
+2. **CORTEX recall returns 0 findings, every time.** `findings` is populated by
+   consolidation, which `03` §4.4 makes changefeed-driven and which is not built. The
+   NAIVE arm meanwhile reads its own local note store and returns real hits. On the
+   three recall-dependent tasks the benchmark therefore *understates* CORTEX. It is not
+   corrected here: writing a findings row from the runner would benchmark a mechanism
+   that does not exist.
+3. **The two arms do not consume identical cassette sets, and must not.** They embed
+   the same 30 statements, so the embedding sets are equal. NAIVE reasons about all 30
+   tasks; CORTEX skips the 4 it dedupes, so it draws a strict subset — that gap *is* the
+   saving being measured. A test asserts the subset relation rather than equality.
+
+**Recording is a prefetch, not a side effect of a run.** `--record` loops over every
+task in `bench/tasks.json` and records a cassette for each, whether or not any arm
+reaches it. Recorded as a side effect instead, CORTEX would never record what it
+dedupes and NAIVE would never record what it skips, so the committed library would
+depend on the coordination layer — and a later threshold change would open holes that
+surface as a `CassetteMiss` weeks afterwards.
+
+Suite **156/156**, `npx tsc --noEmit` clean.

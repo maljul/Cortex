@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Email an order confirmation to the customer once the order is placed\n\n--- src/notify/templates.ts (17 lines) ---\n   1| // Message templates.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| const templates: Record<string, string> = {\n   5|   'order.placed': 'Your order {{id}} is confirmed.',\n   6|   'order.cancelled': 'Your order {{id}} was cancelled.',\n   7|   'order.shipped': 'Your order {{id}} is on its way.',\n   8| };\n   9| \n  10| export function render(name: string, data: object): string {\n  11|   const template = templates[name] ?? '';\n  12|   return Object.entries(data).reduce(\n  13|     (text, [key, value]) => text.replaceAll(`{{${key}}}`, String(value)),\n  14|     template,\n  15|   );\n  16| }\n  17| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/notify/templates.ts",
+        "startLine": 10,
+        "endLine": 16
+      }
+    ],
+    "note": "The render function template replacement logic needs to be integrated with an email sending mechanism that triggers on order placement events.",
+    "tokens": {
+      "input": 410,
+      "output": 63
+    }
+  }
+}

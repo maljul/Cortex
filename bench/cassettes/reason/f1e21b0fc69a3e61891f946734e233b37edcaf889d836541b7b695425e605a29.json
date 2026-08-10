@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Time out sessions that have been idle for thirty minutes\n\n--- src/auth/middleware.ts (20 lines) ---\n   1| // Wraps a handler so it only runs for a signed-in caller.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { findSession } from './session.js';\n   5| import { Unauthorized } from '../lib/errors.js';\n   6| \n   7| type Handler = (request: Request) => Promise<Response>;\n   8| \n   9| export function requireSession(handler: Handler): Handler {\n  10|   return async (request: Request) => {\n  11|     const header = request.headers.get('authorization');\n  12|     if (!header?.startsWith('Bearer ')) throw new Unauthorized('missing bearer token');\n  13| \n  14|     const session = await findSession(header.slice('Bearer '.length));\n  15|     if (!session) throw new Unauthorized('unknown session');\n  16| \n  17|     return handler(request);\n  18|   };\n  19| }\n  20| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/auth/middleware.ts",
+        "startLine": 14,
+        "endLine": 15
+      }
+    ],
+    "note": "Added session idle timeout check that throws Unauthorized if the session has been inactive for more than thirty minutes.",
+    "tokens": {
+      "input": 436,
+      "output": 62
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Send an order confirmation email when an order is placed\n\n--- src/notify/email.ts (13 lines) ---\n   1| // Outbound email.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| import { render } from './templates.js';\n   5| \n   6| export async function sendEmail(to: string, template: string, data: object): Promise<void> {\n   7|   const body = render(template, data);\n   8|   await fetch('https://mail.example.com/send', {\n   9|     method: 'POST',\n  10|     body: JSON.stringify({ to, body }),\n  11|   });\n  12| }\n  13| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/notify/email.ts",
+        "startLine": 13,
+        "endLine": 13
+      }
+    ],
+    "note": "Added sendOrderConfirmation function that sends an order confirmation email using the existing sendEmail utility with an 'order-confirmation' template.",
+    "tokens": {
+      "input": 345,
+      "output": 70
+    }
+  }
+}

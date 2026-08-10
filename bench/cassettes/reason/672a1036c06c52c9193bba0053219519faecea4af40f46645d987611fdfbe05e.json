@@ -1,0 +1,18 @@
+{
+  "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "prompt": "TASK: Store monetary amounts as integer minor units instead of floating point\n\n--- src/lib/money.ts (15 lines) ---\n   1| // Money. Amounts are floats, which has caused rounding complaints.\n   2| // Part of the CORTEX benchmark fixture corpus. Not production code.\n   3| \n   4| export function format(amount: number, currency = 'PLN'): string {\n   5|   return `${amount.toFixed(2)} ${currency}`;\n   6| }\n   7| \n   8| export function add(a: number, b: number): number {\n   9|   return a + b;\n  10| }\n  11| \n  12| export function percentage(amount: number, percent: number): number {\n  13|   return amount * (percent / 100);\n  14| }\n  15| ",
+  "result": {
+    "edits": [
+      {
+        "file": "src/lib/money.ts",
+        "startLine": 1,
+        "endLine": 15
+      }
+    ],
+    "note": "Changed all functions to work with integer minor units (cents) instead of floats, requiring amounts to be passed as integers and converting to decimal display only in format function.",
+    "tokens": {
+      "input": 366,
+      "output": 75
+    }
+  }
+}

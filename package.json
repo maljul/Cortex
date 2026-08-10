@@ -15,7 +15,9 @@
     "env:doctor": "tsx scripts/env-doctor.mts",
     "contend": "tsx scripts/contend.mts",
     "gate:contend": "tsx scripts/gate-contend.mts",
-    "probe:read": "tsx scripts/probe-read-plane.mts"
+    "bench": "tsx scripts/bench.mts",
+    "probe:read": "tsx scripts/probe-read-plane.mts",
+    "probe:reason": "tsx scripts/probe-reason.mts"
   },
   "keywords": [],
   "author": "",
