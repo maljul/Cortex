@@ -57,7 +57,7 @@ SELECT n.fact,
        count(i.id) FILTER (WHERE i.outcome->>'result' = 'reverted') AS times_reverted,
        max(i.closed_at)                                             AS last_touched
 FROM near n
-LEFT JOIN intents i ON i.id = n.source_intent_id
+LEFT JOIN intents i ON i.id = n.source_intent_id AND i.repo_id = $2
 WHERE n.dist < $4
 GROUP BY n.fact, n.confidence, n.dist
 ORDER BY times_reverted DESC, n.dist ASC
@@ -73,6 +73,16 @@ LIMIT $5`;
  * SCAN and happily returns another repo's rows. The prefix makes single-tenant
  * recall the fast path and makes a forgotten filter visible in the plan. It is not
  * the isolation boundary, so this clause is the boundary and must not be removed.
+ *
+ * There are *two* such clauses, and §4.1's published SQL has only the first. The
+ * `near` CTE scopes the vector search; the `LEFT JOIN` onto `intents` needs its own
+ * `i.repo_id`, because `findings.source_intent_id` carries no foreign key and so a
+ * finding in repo A can name an intent in repo B. Measured, not reasoned: without
+ * the join predicate, repo A's recall counted repo B's revert into its own ordering.
+ * No text crosses — the join contributes only `times_reverted` and `last_touched` —
+ * but the ordering repo A receives is then computed from a tenant it cannot see, and
+ * invariant 5 is that every read carries the filter rather than that the rows happen
+ * to line up. Recorded against §4.1 in docs/SPEC-DELTA.md.
  */
 export async function recall(input: RecallInput): Promise<Finding[]> {
   const {

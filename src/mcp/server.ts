@@ -160,9 +160,9 @@ async function handlePropose(args: Record<string, unknown>): Promise<Record<stri
   const repoId = await resolveRepoId(repo);
   const embedding = await getEmbedder().embed(statement);
 
-  // `keys` is already expanded, and `propose` expands again inside its transaction —
-  // so the resolver has to go with it, or the `glob:` row in that set trips the
-  // default resolver's refusal. Re-expanding an expanded set is idempotent: the
+  // `keys` is already expanded, and `propose` expands again before it opens its
+  // transaction — so the resolver has to go with it, or the `glob:` row in that set
+  // trips the default resolver's refusal. Re-expanding an expanded set is idempotent: the
   // `file:` rows canonicalise to themselves and the glob matches the same files.
   // The expansion above is not redundant despite that: it happens *before* the repo
   // is registered and before Bedrock is called, so a bad key costs neither.

@@ -1209,3 +1209,52 @@ mutation passed.
 
 **Suite after:** 113/113 green, with three new assertions replacing one that could not
 discriminate.
+
+---
+
+## V14 — Recall's join crossed the tenant boundary
+**2026-08-10 · found by `/check` row 3 · FIXED**
+
+Invariant 5 says every read carries `WHERE repo_id`. `src/memory/recall.ts` had two
+reads and a filter on one of them. The `near` CTE was scoped; the join behind it —
+`LEFT JOIN intents i ON i.id = n.source_intent_id` — was not, and that shape is copied
+verbatim from `03` §4.1, which is also what U10's Agent Skill is due to ship.
+
+**Why it is reachable.** `findings.source_intent_id` carries no foreign key
+(`sql/001_init.sql`), so nothing structural stops a finding in repo A from naming an
+intent in repo B. The prior reasoning that consolidation only ever writes same-repo
+ids is exactly the "the rows happen to line up" argument invariant 5 exists to refuse.
+
+**Measured, not reasoned.** A test was written first, against the cluster named by
+`CORTEX_DSN` (`agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud`, CockroachDB
+CCL v26.2.5). A finding in repo A pointing at a *reverted* intent in repo B:
+
+```
+FAIL  test/recall.test.ts > recall — semantic read with outcome history (§4.1)
+      > never counts another repo's intent into this repo's history
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+```
+
+Repo A's recall counted repo B's revert. `lastTouched` came back as repo B's
+`closed_at` too.
+
+**What leaked, precisely.** No text. The join contributes only
+`count(i.id) FILTER (...)` and `max(i.closed_at)`. But `ORDER BY times_reverted DESC`
+is the ordering §4.1 exists for and is the claim the project puts on screen, so repo A
+was being handed an answer ranked by a tenant it cannot see — and the two aggregates
+are themselves an oracle over another repo's history.
+
+**Fix:** `ON i.id = n.source_intent_id AND i.repo_id = $2`. A strengthening — the
+predicate is added, no assertion was narrowed, and removing it turns the new test red
+again. Suite after: **117/117 green**, `npx tsc --noEmit` clean.
+
+**Recorded against the spec, not fixed in it.** `03` §4.1's published SQL still omits
+the predicate; the entry is in `docs/SPEC-DELTA.md`. It has to be settled before U10
+writes `SKILL.md`, because the skill pins this query byte-for-byte and would pin the
+gap with it.

@@ -132,6 +132,38 @@ describe('recall — semantic read with outcome history (§4.1)', () => {
     expect(fromB.map((f) => f.fact)).toEqual(['repo B knows this']);
   });
 
+  // §8 test 8 again, on the half the test above cannot see. That one proves the
+  // `near` CTE is scoped; this one proves the LEFT JOIN behind it is too.
+  //
+  // `findings.source_intent_id` has no foreign key (sql/001_init.sql), so nothing
+  // structural stops a finding in repo A from naming an intent in repo B. When it
+  // does, the join reads that row and its revert history is counted into repo A's
+  // ordering — the answer repo A receives is computed from a tenant it cannot see.
+  // Invariant 5 is not "no other tenant's text is returned", it is that every read
+  // carries the filter, precisely because reasoning about which rows happen to line
+  // up is what fails open.
+  it('never counts another repo\'s intent into this repo\'s history', async () => {
+    const repoA = freshRepo();
+    const repoB = freshRepo();
+    const query = vector(90);
+
+    const foreign = await closedIntent(
+      repoB,
+      'agent-b',
+      'rewrite the settlement reconciler',
+      'file:src/settle.ts',
+      91,
+      'reverted',
+    );
+
+    await insertFinding(repoA, 'repo A owns this fact', query, { sourceIntentId: foreign });
+
+    const findings = await recall({ repoId: repoA, embedding: query });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.timesReverted).toBe(0);
+    expect(findings[0]!.lastTouched).toBeNull();
+  });
+
   // The claim worth putting on screen: a reverted history outranks raw similarity.
   it('surfaces a previously reverted finding ahead of a nearer clean one', async () => {
     const repo = freshRepo();
