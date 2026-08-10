@@ -86,7 +86,39 @@ that description is prompt surface pinned verbatim against the spec by a test, a
 editing it to match the implementation is exactly the silent reconciliation the
 project rule forbids.
 
-## Corrected in the spec already — do not re-open
+### `05` §6 configures the managed MCP server with a URL and no credential
+
+§6 lists `CORTEX_MCP_ENDPOINT # https://cockroachlabs.cloud/mcp` and nothing else for
+the read plane, which reads as though the endpoint were all that is needed. It is not.
+The CockroachDB Cloud docs give the client configuration as:
+
+```json
+"cockroachdb-cloud": {
+  "url": "https://cockroachlabs.cloud/mcp",
+  "headers": {
+    "mcp-cluster-id": "{your-cluster-id}",
+    "Authorization": "Bearer {your-service-account-api-key}"
+  }
+}
+```
+
+So two values are missing from §6: the cluster id, and an API key belonging to a Cloud
+**service account** — which is a Cloud-level identity created in the Console, distinct
+from the SQL users `04` §3 talks about. §6 names no configuration key for either, and
+U10 cannot be started without them.
+
+Not invented here. The names `CORTEX_MCP_CLUSTER_ID` and `CORTEX_MCP_API_KEY` are
+proposed to Julian and go in `.env` only; §6 should gain them once they are settled.
+
+**A second, larger gap behind it.** `04` §2's argument is that reads go through the
+managed server so the agent's read access is "governed by Cloud RBAC" — but the docs
+retrieved say Cloud roles and SQL roles are managed independently and that `GRANT`
+does not apply to Cloud roles. Which SQL identity the managed server executes as, and
+therefore whether `cortex_reader`'s `SELECT`-only grant governs it at all, is **TBD**.
+It is answerable in one call once the API key exists — ask the server for
+`SELECT current_user` and then try a write — and it must be answered before U10's
+Agent Skill claims the read path is read-only. V9 is the precedent: the platform hands
+out `admin` by default, so the assumption to test is that this principal is over-privileged too.
 
 ### `05` §3 — `cortex_heartbeat` had prose and no JSON block *(corrected 2026-08-09)*
 

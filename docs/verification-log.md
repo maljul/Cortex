@@ -830,10 +830,26 @@ admin      julian         true
 admin      root           true
 ```
 
-**All three service accounts are members of `admin`, with the admin option.** Almost
-certainly because they were created through the CockroachDB Cloud console, which adds
-SQL users to `admin` by default. Nothing in `sql/001_init.sql` does this; the file's
-grants are correct and irrelevant, because inherited `ALL` outranks them.
+**All three service accounts are members of `admin`, with the admin option.** Nothing
+in `sql/001_init.sql` does this; the file's grants are correct and irrelevant, because
+inherited `ALL` outranks them.
+
+**The cause is documented, not surmised.** CockroachDB Cloud's own docs say it
+outright, in two places:
+
+> By default, a new SQL user created using the UI or Cloud API is granted the SQL
+> `admin` role. An `admin` SQL user has full privileges for all databases and tables
+> in the cluster, and can create additional SQL users and manage their privileges.
+> — `cockroachcloud/_includes/danger-console-sql-users.md`
+
+> Users created via the console or `ccloud` are granted the `admin` SQL role by
+> default, so it's crucial to modify this immediately to adhere to the principle of
+> least privilege. — `cockroachcloud/managing-access.md`
+
+So this is the platform's default and the documented remediation is exactly the revoke
+below. Any SQL user created through the Console from here on arrives as an admin —
+including whatever principal the managed MCP server ends up using. Check it the same
+way: attempt a write.
 
 **What this falsifies.**
 
