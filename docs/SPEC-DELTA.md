@@ -122,24 +122,27 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
-### `05` §6 documents `CORTEX_DEDUPE_THRESHOLD` and nothing reads it *(2026-08-11)*
-
-§6's configuration block lists it, so a reader takes it for a supported knob. The only
-consumer of the threshold is `DEFAULT_DEDUPE_THRESHOLD` in `src/memory/propose.ts`.
-`propose()` accepts an optional per-call `dedupeThreshold`, and nothing fills it from the
-environment — not `src/mcp/server.ts`, not the bench arms, not the scripts.
-
-**Annotated in §6 rather than fixed, deliberately.** The two available fixes are
-different decisions and neither is obviously right: wiring it up lets an operator move
-the mechanism's most sensitive constant without a commit, which after `03` §4.2 was
-closed on a published sweep is arguably a way to un-close it silently; deleting it from
-§6 gives up a knob that a real deployment might want. Julian's call.
-
-The reason this is a delta and not a nit: a documented knob that does nothing is the same
-class of defect as a comment asserting an invariant no test checks. Someone will set it,
-observe no change, and go looking for the bug somewhere real.
-
 ## Corrected in the spec already — do not re-open
+
+### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*
+
+**Closed by deleting it from §6**, which now says explicitly that the threshold is not
+configurable at run time and why.
+
+The reasoning, which is the part worth keeping: `03` §4.2's value was closed at 0.39 on a
+published sweep, with the sweep, the previous value and a re-run benchmark all committed
+under `bench/results/`. An environment variable that silently overrode the constant would
+let a deployment run a number the published evidence does not describe — un-closing that
+decision without a commit and without a re-run. Wiring it up was the other available fix
+and was rejected for that reason, not because it was harder.
+
+The original finding: §6's configuration block listed it, so a reader took it for a
+supported knob. The only consumer of the threshold was `DEFAULT_DEDUPE_THRESHOLD` in
+`src/memory/propose.ts`; `propose()` accepts an optional per-call `dedupeThreshold`, and
+nothing filled it from the environment — not `src/mcp/server.ts`, not the bench arms, not
+the scripts. A documented knob that does nothing is the same class of defect as a comment
+asserting an invariant no test checks: someone sets it, observes no change, and goes
+looking for the bug somewhere real.
 
 ### `03` §4.2 — `DEDUPE_THRESHOLD` was 0.28, below the band the corpus needs *(closed 2026-08-11 — 0.39)*
 

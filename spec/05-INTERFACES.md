@@ -257,20 +257,22 @@ CORTEX_MCP_API_KEY         # bearer token of a Cloud service account, not a SQL 
 CORTEX_REPO                # repo slug
 CORTEX_REPO_ROOT           # checkout to expand glob: keys against; unset means refuse
 CORTEX_LEASE_TTL           # default 10m
-CORTEX_DEDUPE_THRESHOLD    # NOT READ BY ANYTHING — see below. Mechanism default 0.39
 BEDROCK_REGION
 BEDROCK_EMBED_MODEL           # Titan Text Embeddings V2, 1024 dim
 BEDROCK_REASON_MODEL          # LIVE mode only
 ```
 
-**`CORTEX_DEDUPE_THRESHOLD` is documented here and read by nothing.** *(Found
-2026-08-11.)* The only consumer of the threshold is `DEFAULT_DEDUPE_THRESHOLD` in
-`src/memory/propose.ts`; `propose()` takes an optional per-call `dedupeThreshold`, and no
-code path fills it from the environment. Recorded rather than quietly wired up or quietly
-deleted, because the two fixes are different decisions: making it configurable means an
-operator can move the mechanism's most sensitive constant without a commit, which is a
-choice, not a bug fix. A documented knob that does nothing is the same class of defect as
-a comment asserting an invariant no test checks — it reads as a capability and is not one.
+**There is deliberately no `CORTEX_DEDUPE_THRESHOLD`.** *(Removed 2026-08-11; it was
+listed here and read by nothing.)* The dedupe threshold is `DEFAULT_DEDUPE_THRESHOLD` in
+`src/memory/propose.ts` and it is not configurable at run time. `propose()` still takes
+an optional per-call `dedupeThreshold`, which is what tests and a future sweep use.
+
+Not an oversight, and not merely tidying up a knob that never worked. `03` §4.2's value
+was closed at 0.39 on a published sweep, with the sweep, the previous value and the
+benchmark re-run all committed under `bench/results/`. An environment variable that
+silently overrode it would let a deployment run a number the published evidence does not
+describe — un-closing that decision without a commit and without a re-run. The value that
+ships is the value that was measured, and changing it costs a commit on purpose.
 
 **The three `CORTEX_MCP_*` values no longer configure the read path.** They are kept
 because `npm run probe:read` uses them to re-measure the managed server's reach, which
