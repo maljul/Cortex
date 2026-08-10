@@ -238,15 +238,32 @@ that fails open across tenants, and this is the one query that leaves the repo.
 re-derived, which is the U2 lesson. This is *not* a deferral — deferring is Julian's
 call, and the question is with him.
 
-Two blockers were found. **One is now cleared:** V9's `admin` membership was revoked
-with Julian's authorisation the same day, so the read plane really is read-only and
-`04` §3's argument holds. What remains:
+**Credentials arrived 2026-08-10 and STEP 1 ran — see V10.** `npm run probe:read`
+is the invoker; re-run it rather than re-deriving any of this.
 
-**No way to reach the managed MCP server.** `.env` has no `cortex_reader` DSN and no
-CockroachDB Cloud API credential; `CORTEX_MCP_ENDPOINT` holds only the public URL.
-The transport *is* the done-when — "without any bespoke client" means the managed
-server — so substituting a direct `pg` connection would prove something else and call
-it this. **Julian is adding the credentials; pick this up when they are in `.env`.**
+Cleared: V9's `admin` membership is revoked, and `CORTEX_READER_DSN` now connects as
+`cortex_reader` and is genuinely read-only, checked by attempting writes.
+
+**Still blocked, on two things, and the second one may reshape the unit:**
+
+1. **The Cloud service account has no roles.** `list_clusters` returns `{"rows":[]}`,
+   so every SQL tool answers `unauthorized`. Cloud's default for a new service account
+   is Organization Member, which "adds no permissions", and role assignment for
+   service accounts is Cloud-API-only, not a Console action. `CORTEX_MCP_CLUSTER_ID`
+   is also still unconfirmed — it cannot be told apart from the missing role until the
+   role exists.
+2. **The managed MCP server publishes `insert_rows`, `create_table` and
+   `create_database`.** `04` §2 sends agent reads there *because* the path is
+   governed; it is not a read plane, and cannot be made one by choosing which of its
+   tools to document. Whether those tools reach `claims` and `intents` is **TBD** —
+   unmeasurable while the principal is unauthorized — but if they do, the Agent Skill
+   would ship an unarbitrated write path beside the recall SQL, and every `03` §8
+   invariant is bypassed rather than broken.
+
+**Do not write `SKILL.md` until (2) is answered.** The skill's fourth section is "how
+to react to each decision" and its sixth is "never write directly to the database" —
+that instruction is not enforceable by a document if the same endpoint hands the agent
+`insert_rows`.
 
 What *was* established live, and does not need redoing: the recall SQL runs correctly
 under `cortex_reader`'s privileges and its plan uses `findings_semantic` with the

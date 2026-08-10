@@ -924,3 +924,104 @@ that has to be taken from.
 
 `CORTEX_DSN` authenticates as `julian` and was unaffected; the suite is green after
 the revoke.
+
+---
+
+## V10 — The managed MCP server is not a read plane, and its principal has no roles
+**2026-08-10 · U10 STEP 1 · PARTIAL — one half PASS, one half blocked, one design
+assumption in `04` §2 now looks wrong**
+
+Reproduce with `npm run probe:read`.
+
+### The reader DSN: PASS
+
+`cortex_reader` now has a password and a DSN, and the principal behaves as
+`04` §3 says it must — checked by attempting writes, per V9's lesson, not by reading
+a grant table:
+
+```
+=== CORTEX_READER_DSN — direct connection ===
+connected as: cortex_reader
+  SELECT findings      ALLOWED
+  INSERT findings      refused — user cortex_reader does not have INSERT privilege on relation findings
+  UPDATE claims        refused — user cortex_reader does not have UPDATE privilege on relation claims
+  DROP TABLE findings  refused — user cortex_reader does not have DROP privilege on relation findings
+```
+
+### The managed MCP server: it publishes write tools
+
+The connection and the handshake work — the API key is valid — and the server
+advertises twelve tools:
+
+```
+tools advertised (12):
+  create_database  <-- WRITE
+  create_table  <-- WRITE
+  explain_query
+  get_cluster
+  get_table_schema
+  insert_rows  <-- WRITE
+  list_clusters
+  list_databases
+  list_tables
+  select_query
+  show_running_queries
+  show_statement
+```
+
+**`04` §2 routes agent reads here on the argument that access is then "governed by
+Cloud RBAC and audit logging rather than by code you wrote".** Three of these tools
+write. So being a read plane is not a property of this server, and it cannot be: the
+split `05` §3 describes — writes on our server, reads on this one — is our
+architecture's split, not one the managed server observes or knows about.
+
+That matters more than it sounds. An agent given this endpoint to satisfy `03` §4.1
+recall is also handed `insert_rows` against the same cluster. If that reaches
+`claims` or `intents`, the agent can write memory without proposing, and every
+invariant in `03` §8 is bypassed rather than broken — no error, no conflict, no
+retry, just an unarbitrated write. The whole mechanism is opt-in at that point.
+
+**Whether it does reach them is TBD**, and deliberately recorded as TBD rather than
+assumed in either direction — see below for why it could not be measured yet.
+
+### The principal has no roles, so nothing SQL-shaped answered
+
+```
+what this principal can actually do:
+  list_clusters                OK      {"rows":[]}
+  get_cluster                  FAILED  cluster "34cc9fe0-…" not found: verify the cluster_id in your MCP configuration
+  list_databases               FAILED  list databases: unauthorized
+  select_query (identity)      FAILED  executing select query: unauthorized
+  select_query (recall shape)  FAILED  executing select query: unauthorized
+  insert_rows (write reach)    FAILED  insert rows: unauthorized
+```
+
+`list_clusters` returning `{"rows":[]}` is the diagnostic: the service account can see
+zero clusters, so every cluster-scoped call fails, and `get_cluster`'s "verify the
+cluster_id" is a consequence rather than a second fault. The docs say why:
+
+> When a user or service account is first added to an organization, they are assigned
+> the default Console role, **Organization Member**. This role indicates membership
+> but adds no permissions. — `cockroachcloud/authorization.md`
+
+And role assignment for service accounts is not a Console action:
+
+> Role management for service accounts must be done exclusively through the Cloud
+> API. — `cockroachcloud/ccloud-faq.md`
+
+So the API key is correct and unusable until the service account is given a
+cluster-scoped role. **Because the cluster id could not be independently confirmed
+while the account sees no clusters, it is also still unverified** — if it is wrong,
+that will surface as the same message after the role is granted.
+
+### What has to be answered before U10's Agent Skill is written
+
+1. Which SQL identity does the managed server execute as? V9 is the precedent:
+   CockroachDB Cloud grants the `admin` SQL role by default to users it creates, so
+   the assumption to test is that this one is over-privileged too.
+2. Does `insert_rows` reach `claims`, `intents`, `findings` and `action_ledger`?
+3. If it does, `04` §2's read-path decision needs revisiting, because the Agent Skill
+   would be shipping an unarbitrated write path alongside the recall SQL — while the
+   README claims every write goes through `cortex_propose`.
+
+`npm run probe:read` answers all three in one run the moment the role is assigned.

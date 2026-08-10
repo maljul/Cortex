@@ -14,7 +14,8 @@
     "db:check": "tsx scripts/check-db.mts",
     "env:doctor": "tsx scripts/env-doctor.mts",
     "contend": "tsx scripts/contend.mts",
-    "gate:contend": "tsx scripts/gate-contend.mts"
+    "gate:contend": "tsx scripts/gate-contend.mts",
+    "probe:read": "tsx scripts/probe-read-plane.mts"
   },
   "keywords": [],
   "author": "",

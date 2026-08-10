@@ -29,11 +29,16 @@ What does not belong in a unit list, and so lives here:
   which is not entitled on this account. Change it to
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nothing reads it yet, so nothing
   is broken today; LIVE mode would fail the moment it does.
-- **Action for Julian, blocking U10:** there is no `cortex_reader` DSN and no
-  CockroachDB Cloud API credential in `.env`, so the managed MCP read path cannot be
-  reached from here at all. `CORTEX_MCP_ENDPOINT` holds only the public URL, and
-  `CORTEX_REPO` is empty — which now matters, because U8 and U9 made the slug the
-  tenant boundary an agent supplies.
+- **Action for Julian, blocking U10:** the Cloud service account behind
+  `CORTEX_MCP_API_KEY` has no roles — `list_clusters` returns zero rows, so every SQL
+  tool answers `unauthorized` (V10). Cloud's default is Organization Member, which
+  adds no permissions, and service-account roles are **Cloud-API-only**, not a Console
+  action. Assign it a cluster-scoped role, then `npm run probe:read`.
+- **Open, and larger than U10:** the managed MCP server publishes `insert_rows`,
+  `create_table` and `create_database` (V10). `04` §2 routes reads there *because*
+  that path is supposed to be governed. Whether those tools reach `claims` and
+  `intents` is **TBD** until the role above exists. If they do, the read path is an
+  unarbitrated write path and `04` §2 needs rethinking, not documenting around.
 
 ---
 
