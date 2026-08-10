@@ -216,3 +216,45 @@ it, because a 75% loss rate with no explanation reads as a manufactured benchmar
 exactly the audience being addressed. The mechanism is one sentence: a whole-file
 rewrite from a stale snapshot leaves the file holding what the last saver happened to
 have seen.
+
+## 2026-08-10 — The judge scores at 0.40, and the mechanism keeps 0.28
+
+`06` §3 requires `duplicate_work_rate` to be computed by an offline judge that does not
+share code with the dedupe path. The judge therefore needs a threshold of its own, and
+there were two candidates: reuse `DEFAULT_DEDUPE_THRESHOLD` from
+`src/memory/propose.ts`, or pick one from the sweep.
+
+**Reusing the mechanism's constant was rejected.** It would score the CORTEX arm with
+the yardstick the arm was built from, so a threshold error would cancel out of the
+result and the arm would report a duplicate rate of 0 whatever the corpus actually
+contained. That is precisely the "measuring a mechanism with itself" §3 names, and it
+would survive review right up until someone noticed the two numbers were the same.
+
+**0.40 comes from the sweep.** The corpus separates at (0.3630, 0.4293) — every
+declared pair below, every undeclared pair above — measured by the judge's own cosine
+over the committed cassettes. 0.40 sits in the middle of the band where recall and
+precision are both 1.000.
+
+**The consequence was published rather than tuned away.** At the shipped 0.28 the
+mechanism catches four of six pairs, so the CORTEX arm's `duplicate_work_rate` is 0.08
+rather than 0.00, and the two residual duplicates are exactly the pairs 0.28 misses.
+Changing `propose.ts` to 0.40 would zero that row — and would be the benchmark editing
+the mechanism it scores, inside the unit that computes the score. `03` §4.2 marks the
+constant `[OPEN]` and empirical; closing it is Julian's call with the sweep in front of
+him, which is what the sweep is for.
+
+## 2026-08-10 — `goodput` is measured on the simulated clock
+
+`06` §3 defines `goodput` as "distinct completed tasks per wall-clock minute". Measured
+that way here, the NAIVE arm wins by roughly three orders of magnitude — it writes a
+local JSON file while the CORTEX arm makes ~120 sequential round trips to a cloud
+database. The number would be real and would mean nothing about coordination.
+
+**Goodput is therefore reported per *simulated* minute**, the timeline both arms share
+and the one the fleet's think-times and work durations are defined on. Stated in
+`summary.md`'s limitations rather than buried: wall-clock goodput would compare a file
+write against a network round trip and call the difference a result.
+
+**Distinct** is also doing work in the definition: the count is tasks present in the
+arm's final state that the judge does not consider duplicates. Work that was lost is
+not throughput, and work that repeated an earlier task is not distinct.

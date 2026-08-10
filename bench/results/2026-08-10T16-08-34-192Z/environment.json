@@ -1,0 +1,43 @@
+{
+  "recordedAt": "2026-08-10T16:08:34.192Z",
+  "cortexVersion": "1.0.0",
+  "runtime": {
+    "node": "v24.14.1",
+    "platform": "darwin",
+    "release": "25.4.0",
+    "arch": "arm64"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "pg": "^8.22.0",
+    "@types/node": "^26.1.2",
+    "@types/pg": "^8.20.2",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "cluster": {
+    "version": "CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00, go1.25.5)",
+    "user": "julian",
+    "database": "defaultdb",
+    "tierSource": "CockroachDB Cloud Basic, cluster agent-hack-30704, aws-us-east-1. Configuration, not observation: the tier is not reported over SQL. The version string above is the cluster speaking for itself."
+  },
+  "models": {
+    "embed": "amazon.titan-embed-text-v2:0",
+    "embedDimensions": 1024,
+    "reason": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "region": "us-east-1",
+    "mode": "replay"
+  },
+  "judge": {
+    "threshold": 0.4,
+    "distance": "cosine, computed in bench/judge.ts — not the operator the mechanism uses",
+    "groundTruth": "the `pair` labels in bench/tasks.json, written by hand before anything was measured"
+  },
+  "harness": {
+    "scheduler": "one step at a time on a simulated clock; agents start at staggered offsets",
+    "concurrency": "none — contention is real and deterministic, but two transactions never overlap, so serialization_retries is 0 by construction and claim latencies are uncontended. See docs/DECISIONS.md."
+  }
+}

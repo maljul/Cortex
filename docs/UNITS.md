@@ -319,12 +319,36 @@ so the three recall-dependent tasks understate CORTEX; and the naive arm loses 2
 28 acknowledged writes, which is what last-write-wins on a whole-file rewrite does and
 needs the mechanism published beside it.
 
-### U13 — Metrics, duplicate judge, results writer ⬜
+### U13 — Metrics, duplicate judge, results writer ✅ 2026-08-10 — **GATE PASSED**
 **Done when:** "`bench/results/` populated and committed." *(08 §4, 29–32h, verbatim)*
 **Specs:** `06`
 **Silent break:** a placeholder number reaching a results file. Write TBD.
 **End-of-day-two gate:** the summary table shows a real difference between the arms.
 From that moment the project is submittable even if everything else fails.
+**Evidence:** `bench/{judge,metrics,environment}.ts`, `src/db/identity.ts`,
+`scripts/bench-results.mts` (`npm run bench:results`), `bench/results/` committed with
+all five files `06` §6 asks for, and `test/bench-metrics.test.ts` — 12 tests. V20 has
+the table. Suite 168/168, `tsc` clean.
+**The gate, median of three runs:** `duplicate_work_rate` 0.21 → 0.08, `lost_writes`
+21 → 0, `conflicting_edits` 3 → 0, `wasted_tokens` 4000 → 1975, goodput 38.16 → 180.23
+tasks per simulated minute.
+**The named silent break is the load-bearing assertion,** and it needed a distinction
+the spec does not draw: `—` means this arm has no such thing to measure, `TBD` means
+nobody measured it, and a bare `0` for either is the failure. Mutating the rate to
+return 0 instead of TBD when there is no denominator fails one test and nothing else.
+**The judge cannot reach the mechanism.** `bench/judge.ts` imports nothing from `src/`
+and a test greps its import list. It reads the committed vectors off disk and computes
+its own cosine, so `duplicate_work_rate` is recomputable from a clean clone with
+nothing provisioned.
+**CORTEX is 0.08 rather than 0.00, and that is the useful half.** The shipped 0.28
+catches 4 of 6 declared pairs; the judge scores at 0.40, inside the band where recall
+and precision are both 1.000. The two residual duplicates are exactly the pairs 0.28
+misses. `src/memory/propose.ts` was **not** edited — `docs/SPEC-DELTA.md` against `03`
+§4.2, and the `[OPEN]` is Julian's to close.
+**Two metrics mean less than §3 implies, and say so in `summary.md`:**
+`serialization_retries` is 0 by construction under the serialised scheduler, and
+goodput is per simulated minute because wall-clock goodput would compare a local file
+write against a cloud round trip.
 
 ---
 

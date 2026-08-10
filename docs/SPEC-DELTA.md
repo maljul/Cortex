@@ -149,6 +149,23 @@ U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fi
 fixture is the wrong direction of fit. This is input to that sweep, not a decision.
 Numbers and the failed first draft are in V11.
 
+**The sweep exists now (U13, 2026-08-10) and it costs the mechanism a measurable
+amount.** `bench/results/<run>/threshold-sweep.md` reproduces U11's band to the digit —
+worst declared pair 0.3630, closest undeclared 0.4293 — measured this time by the
+offline judge's own distance function rather than by the mechanism's. Precision is
+1.000 everywhere up to 0.42 and falls to 0.750 at 0.44.
+
+What the benchmark then measures: at the shipped 0.28 the CORTEX arm's
+`duplicate_work_rate` is **0.08, not 0.00**, and the two duplicates the judge finds are
+exactly the two declared pairs 0.28 fails to catch. A threshold anywhere in
+(0.3630, 0.4293) would take that row to zero with no false positives on this corpus.
+
+**Still not changed, and now for a stronger reason than before.** The number that would
+improve is the headline number of the benchmark that produced the recommendation.
+Making that edit inside the same unit is the circularity `06` §3 exists to prevent, and
+`03` §4.2's `[OPEN]` is Julian's to close. The cost of leaving it is one published row
+that is worse than it needs to be, which is the cheaper of the two mistakes.
+
 ## Corrected in the spec already — do not re-open
 
 ### `04` §3 / `05` §3 — "governed by Cloud RBAC" did not describe the managed MCP server *(resolved 2026-08-10 — the route changed)*

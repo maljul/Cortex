@@ -16,6 +16,7 @@
     "contend": "tsx scripts/contend.mts",
     "gate:contend": "tsx scripts/gate-contend.mts",
     "bench": "tsx scripts/bench.mts",
+    "bench:results": "tsx scripts/bench-results.mts",
     "probe:read": "tsx scripts/probe-read-plane.mts",
     "probe:reason": "tsx scripts/probe-reason.mts"
   },

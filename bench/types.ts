@@ -116,6 +116,14 @@ export interface RunRecord {
     steps: StepTiming[];
     wallClockMs: number;
     totalVirtualMs: number;
+    /**
+     * `40001` retries during the run, read from `src/db/retry.ts`'s counter. Lives
+     * here, in the half that does not reproduce, because it is a property of how the
+     * transactions happened to interleave — and under this harness's serialised
+     * scheduler they do not interleave at all, so it is 0 by construction. `06` §3
+     * asks for it; `docs/DECISIONS.md` records why the number means what it means.
+     */
+    serializationRetries: number;
   };
 }
 

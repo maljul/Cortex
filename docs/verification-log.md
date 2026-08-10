@@ -1585,3 +1585,87 @@ depend on the coordination layer — and a later threshold change would open hol
 surface as a `CassetteMiss` weeks afterwards.
 
 Suite **156/156**, `npx tsc --noEmit` clean.
+
+---
+
+## V20 — The end-of-day-two gate: the arms separate, and the table is committed
+**2026-08-10 · U13 · `npm run bench:results` · PASS**
+
+`08` §4's end-of-day gate is "the summary table exists and shows a real difference
+between the arms. From this moment you have a submittable project even if everything
+else fails." It exists. Median of three runs per arm, seed 1729, 5 agents, 30 tasks,
+replayed cassettes:
+
+```
+| metric                | naive | cortex |
+|-----------------------|-------|--------|
+| duplicate_work_rate   |  0.21 |   0.08 |
+| lost_writes           |    21 |      0 |
+| conflicting_edits     |     3 |      0 |
+| wasted_tokens         |  4000 |   1975 |
+| goodput (tasks/min)   | 38.16 | 180.23 |
+| claim_p50 (ms)        |     — |    677 |
+| claim_p95 (ms)        |     — |    808 |
+| serialization_retries |     — |      0 |
+```
+
+Committed under `bench/results/2026-08-10T16-08-34-192Z/` with `naive.json`, `cortex.json`,
+`summary.md`, `threshold-sweep.md` and `environment.json`, per §6.
+
+**The spread across the three runs is zero on every row except the two latency rows.**
+That is the determinism doing its job rather than a coincidence, and `summary.md`
+prints the min/median/max so a reader can see it rather than take it on trust.
+`claim_p50` ranged 654–677 ms and `claim_p95` 780–808 ms across runs.
+
+**`—` and `TBD` are different claims and the renderer keeps them apart.** `—` means the
+arm has no such thing to measure — NAIVE has no arbitration transaction, so there is no
+latency to take a percentile of. `TBD` means nobody has measured it. Rendering the
+first as the second would imply someone still owes the reader a number; rendering
+either as `0` is U13's named silent break, and the mutation confirms the guard bites:
+
+```
+FAIL  test/bench-metrics.test.ts > no placeholder ever reaches a results file (§6, and 10 §62) > says TBD when a rate has no denominator, rather than reporting zero
+      Tests  1 failed | 11 passed (12)
+```
+
+**The judge is offline and provably not the mechanism.** `bench/judge.ts` imports
+nothing from `src/` — not the threshold, not the SQL, not the embedder — and a test
+greps its import list to keep it that way, because the rule is easy to honour today and
+easy to break later with a convenience import. It reads the committed vectors straight
+off disk and computes its own cosine, so anyone can recompute `duplicate_work_rate`
+from a clean clone with nothing provisioned.
+
+**The most useful number in the table is the one that is not zero.** CORTEX's
+`duplicate_work_rate` is 0.08. The mechanism ships a dedupe threshold of 0.28, which
+the sweep shows catching 4 of the 6 declared pairs; the judge scores at 0.40, inside the
+band where recall and precision are both 1.000. The two duplicates the judge finds in
+the CORTEX arm are exactly the two pairs 0.28 lets through. **The constant was not
+changed**: editing the mechanism to improve the benchmark that scores it, inside the
+unit that computes the score, is the circularity §3 exists to prevent. Recorded against
+`03` §4.2 in `docs/SPEC-DELTA.md`, where the `[OPEN]` is Julian's to close.
+
+**The separation band reproduces V11 to the digit** — worst declared pair 0.3630,
+closest undeclared 0.4293 — this time measured by the judge's own distance function
+rather than by the mechanism's. Two independent implementations agreeing on the corpus
+is worth more than either measurement alone.
+
+**What the table must not be read as saying**, all of it also in `summary.md` under a
+limitations heading written by the author rather than extracted by a reader:
+
+- `serialization_retries` is 0 **by construction**, not by measurement of a contended
+  system: the harness serialises so the run reproduces (V19, `docs/DECISIONS.md`).
+  `claim_p50`/`claim_p95` are uncontended latencies for the same reason.
+- `goodput` is per *simulated* minute. Per wall-clock minute the NAIVE arm wins by
+  three orders of magnitude, because it writes a local file while CORTEX makes ~120
+  sequential round trips to a cloud database — a real number that means nothing about
+  coordination.
+- The corpus is small, synthetic, and had its overlap chosen so the failure modes appear
+  at all (`06` §4). Less overlap, less difference.
+- CORTEX recall returns nothing, so the three recall-dependent tasks **understate** it.
+
+`environment.json` carries the cluster's own build string
+(`CockroachDB CCL v26.2.5`), Node v24.14.1, both model ids, the dependency versions and
+the judge's threshold. The one field that is configuration rather than observation — the
+Cloud tier — says so in the file, because CockroachDB does not report "Basic" over SQL.
+
+Suite **168/168**, `npx tsc --noEmit` clean.

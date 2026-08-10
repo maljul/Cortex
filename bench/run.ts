@@ -18,6 +18,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { getRetryCount, resetRetryCount } from '../src/db/retry.js';
 import { CassetteStore, type CassetteMode } from './cassettes.js';
 import { schedule } from './scheduler.js';
 import { TASKS, type BenchTask } from './tasks.js';
@@ -91,9 +92,11 @@ export async function runArm(options: RunOptions): Promise<RunRecord> {
       ? createCortexArm(ctx, options.repoId ?? randomUUID())
       : createNaiveArm(ctx, runDir);
 
+  resetRetryCount();
   const startedReal = performance.now();
   const scheduled = await schedule(arm.programs(fleet));
   const wallClockMs = performance.now() - startedReal;
+  const serializationRetries = getRetryCount();
 
   const finalState = await arm.finalState();
   const keys = store.keys;
@@ -117,6 +120,7 @@ export async function runArm(options: RunOptions): Promise<RunRecord> {
       steps: scheduled.timings,
       wallClockMs: Math.round(wallClockMs),
       totalVirtualMs: scheduled.totalVirtualMs,
+      serializationRetries,
     },
   };
 }

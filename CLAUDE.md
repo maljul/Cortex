@@ -28,7 +28,13 @@ What does not belong in a unit list, and so lives here:
   `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
   half is green, the demo half is red on a missing credential (below).
   `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
-  cannot read or write any of the six tables. **Suite 156/156.**
+  cannot read or write any of the six tables. **Suite 168/168.**
+- **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
+  submittable from this moment even if everything else fails.** The table is committed
+  under `bench/results/`, median of three runs: `duplicate_work_rate` 0.21 → 0.08,
+  `lost_writes` 21 → 0, `conflicting_edits` 3 → 0, `wasted_tokens` 4000 → 1975. Quote
+  it from that directory, never from memory, and quote the limitations with it —
+  `summary.md` carries them and they are load-bearing, not decoration.
 - Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
   probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer
@@ -55,6 +61,12 @@ What does not belong in a unit list, and so lives here:
   is therefore 0 by construction and `claim_p50` is an uncontended latency. Report them
   as what they measure. The real race is proven by `npm run gate:contend` (U6) and by
   `test/retry.test.ts` (V13); do not restate either as a benchmark result.
+- **The dedupe threshold is the one number the benchmark says to change, and it has not
+  been changed.** `src/memory/propose.ts` ships `0.28`, which catches 4 of the corpus's
+  6 declared pairs; the sweep puts the perfect band at (0.3630, 0.4293). That is why
+  CORTEX's `duplicate_work_rate` is 0.08 and not 0.00. Editing the constant inside the
+  unit that scores it is the circularity `06` §3 forbids — `03` §4.2's `[OPEN]` is
+  Julian's to close, with `bench/results/*/threshold-sweep.md` in front of him.
 - **`bench/cassettes/` is committed and is the reproducibility claim.** Replay reaches
   no network at all — the run record carries `liveCalls: {embed: 0, reason: 0}` and a
   cassette miss is a hard error, never a fall-through to Bedrock. Re-record with
