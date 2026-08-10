@@ -1432,3 +1432,52 @@ here.** Two options, both real:
    read-only property V15 asserts by attempting six writes and watching all six refuse
    with 42501. That is a *stronger* claim than `04` §2 was making, and it is already
    under test.
+
+---
+
+## V18 — LIVE reasoning is entitled and answers
+**2026-08-10 · `npm run probe:reason` · PASS**
+
+The only untested path in the project was scheduled to be first invoked during the
+video recording at 52–58h. It is invoked now instead. Actual output:
+
+```
+model   us.anthropic.claude-sonnet-4-5-20250929-v1:0
+region  us-east-1
+
+latency 2553 ms
+
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "id": "msg_bdrk_016QXeYgqRBsx7WqzZ4ywdDX",
+  "type": "message",
+  "role": "assistant",
+  "content": [ { "type": "text", "text": "{\"ok\": true, \"n\": 3}" } ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 31,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 14
+  }
+}
+```
+
+**What this closes.** The Bedrock entitlement entry earlier in this file recorded
+`anthropic.claude-sonnet-5` and `anthropic.claude-opus-5` as listed-but-not-entitled —
+the third spec claim this project falsified. `.env` was corrected to
+`us.anthropic.claude-sonnet-4-5-20250929-v1:0` earlier today on the strength of that
+entry, and nothing read the variable, so the correction itself was unverified until
+now. It is verified: the model is entitled, returns `end_turn`, and obeys the system
+instruction (JSON only, no fence).
+
+**It also pins the request envelope**, which is the part with a shelf life.
+`bench/reason.ts` sends the same `InvokeModel` shape — `anthropic_version:
+bedrock-2023-05-31`, a `messages` array of content blocks — and reads
+`usage.{input_tokens,output_tokens}` back. Those fields are present above. If Bedrock
+changes the envelope, this probe fails before the benchmark's cassette recorder does,
+and for a tenth of the cost.
+
+Report-only: writes nothing to the cluster, changes no state. Re-run it before the
+recording session rather than trusting this entry — an entitlement is an account fact
+and can change without the repository knowing.

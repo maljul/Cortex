@@ -29,10 +29,11 @@ What does not belong in a unit list, and so lives here:
   half is green, the demo half is red on a missing credential (below).
   `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
   cannot read or write any of the six tables. **Suite 144/144.**
-- Reason model: **resolved 2026-08-10.** `.env` now sets
-  `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which is the
-  entitled one; `npm run env:doctor` no longer warns. Nothing reads it yet, so LIVE
-  mode is still unproven end to end — that is day three's job, not this line's.
+- Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
+  `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
+  probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer
+  an untested path. Re-run the probe before the recording session — entitlement is an
+  account fact and can change without this repository knowing.
 - The Cloud service account is sorted: **Cluster Operator**, `CORTEX_MCP_CLUSTER_ID`
   confirmed, `select_query` runs the recall shape (V16, V17). Role assignment turned
   out to be a Console action, contrary to V10's reading of `ccloud-faq.md`.
