@@ -258,3 +258,50 @@ write against a network round trip and call the difference a result.
 **Distinct** is also doing work in the definition: the count is tasks present in the
 arm's final state that the judge does not consider duplicates. Work that was lost is
 not throughput, and work that repeated an earlier task is not distinct.
+
+## 2026-08-10 — Infrastructure as code is CDK, and the ten-minute rule did not decide it
+
+`04` §2 and `08` §8's D2 both left CDK-versus-SAM open and both proposed the same
+tiebreaker: whichever can be deployed reliably in under ten minutes, because deployment
+friction on day three is what kills submissions. Both were built and both were timed
+against this account (V22): identical four-resource stacks, the same pre-bundled Lambda
+artifact, cold and redeploy measured separately because a cold number is dominated by
+CloudFront distribution creation and by one-time toolchain cost that never recurs.
+
+CDK redeploys in **42s**, SAM in **33s**. Both are roughly fifteen times inside the bar.
+
+**So the criterion tied, and saying otherwise would have been the dishonest option.** A
+nine-second difference is not a measurement of anything, and picking SAM "because the
+redeploy column decides" — which is the rule agreed before measuring — would have dressed
+a coin toss as evidence. The rule was written expecting a separation that did not appear.
+
+CDK was chosen on the remaining question: what the source looks like for the resources
+still unbuilt. CloudFront with an origin access control is eight lines of CDK and about
+fifty of raw CloudFormation under SAM, including a managed cache-policy UUID that has to
+be looked up by hand. U14 adds a WebSocket API, EventBridge, a changefeed ingress,
+reserved concurrency and a budget alarm, and every one of those widens that gap. `08`
+§8's written fallback ("if that is neither, pick SAM") was not followed, deliberately: it
+addresses a tie on *familiarity*, and the tie that occurred was on speed.
+
+The cost of being wrong is bounded and known: the whole stack is 90 lines and redeploys
+in under a minute, so switching later costs an hour, not a day.
+
+## 2026-08-10 — The hosted DSN is a dynamic reference, not a Lambda environment value
+
+`05` §6 requires every DSN to be server side only, and the first version of the spike
+stack satisfied that reading — `process.env.CORTEX_READER_DSN` at synth time, set as a
+Lambda environment variable, nothing in the bundle and nothing in the SPA. It was still
+wrong, and V22 found it by grepping the artifact rather than by reasoning about it: the
+synthesized template carried the DSN inline, so the value sat in `cdk.out/` on disk and
+in CloudFormation's stored copy, readable by anyone holding `cloudformation:GetTemplate`.
+
+The stack now uses `SecretValue.secretsManager(...)`, which synthesizes
+`{{resolve:secretsmanager:cortex/reader-dsn:SecretString:::}}` and lets CloudFormation
+resolve it at deploy time. The secret is created out of band so its value passes from the
+shell to Secrets Manager without ever touching this repository.
+
+**Recorded because the near-miss is the useful part.** The rule as written in `05` §6 was
+obeyed and the credential still leaked into an artifact, because "server side" and "not
+in the repository" are not the same property as "not in the deployment template". The
+general form: a credential handling rule is satisfied by inspecting the outputs, not by
+inspecting the intent.

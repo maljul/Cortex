@@ -1724,3 +1724,150 @@ skill gives the Titan model id, `dimensions: 1024`, `normalize: true`, and an AW
 invocation — a standard client, consistent with §4's "without any bespoke client code".
 
 Suite **174/174**, `npx tsc --noEmit` clean.
+
+## V22 — A hello-world runs the full AWS pipeline, and Lambda reaches CockroachDB
+**2026-08-10 · B2 · `infra/` · PASS, with two findings**
+
+`08` §7 asked for this on day one evening and it did not happen. It happened now, and it
+answered `04` §2's `[OPEN]` with measured minutes — and then found something the
+`[OPEN]` was not about.
+
+### The stacks
+
+Four resources, built twice, identical in both tools and deployed from the same
+pre-bundled artifact so the comparison measures the tool and nothing else: one Lambda
+(nodejs22.x) behind an API Gateway HTTP `GET /identity`, one S3 bucket, one CloudFront
+distribution. `index.html` was uploaded with `aws s3 cp` outside both stacks, because
+SAM has no `BucketDeployment` equivalent and building one on the CDK side would have
+compared CDK's convenience against SAM's absence of it.
+
+The handler calls `clusterIdentity()` from `src/db/identity.ts` unchanged. A handler
+returning `"hello"` proves API Gateway reached Lambda; the risk worth burning down was
+**Lambda → CockroachDB Cloud**, and only the cluster's own build string proves that.
+
+### The measurement
+
+```
+                install   scaffold   bootstrap   cold deploy   redeploy
+CDK                 7s        21s         60s          357s        42s
+SAM                15s          —           —          489s        33s
+
+total cold, empty machine to live URL:   CDK 445s (7m25s)   SAM 504s (8m24s)
+```
+
+CloudFront distribution creation dominates both cold numbers and is identical either
+way, which is why the redeploy column was nominated as the deciding one before anything
+was measured.
+
+**The criterion did not decide.** `04` §2 asks for "under ten minutes" and both redeploy
+in well under one — 33s against 42s is noise, and calling a 9-second gap a decision would
+be dressing a coin toss as a measurement. Recorded as a tie, and decided on the next
+question instead; reasoning in `docs/DECISIONS.md`.
+
+### Lambda reaches the cluster. This was the actual risk.
+
+```
+$ curl https://j8twnjgmb0.execute-api.us-east-1.amazonaws.com/identity
+{
+  "cluster": {
+    "version": "CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00, go1.25.5)",
+    "user": "cortex_reader",
+    "database": "defaultdb"
+  },
+  "bundleRevision": 3,
+  "timing": { "queryMs": 692, "sinceModuleLoadMs": 8, "invocationsOnThisSandbox": 1 }
+}
+HTTP 200  total 1.498s
+```
+
+Warm, same sandbox: `queryMs 3`, total 0.536s, `invocationsOnThisSandbox 2`. The
+module-scope `Pool` in `src/db/pool.ts` survives between invocations, so the connection
+is paid for once per sandbox and not once per request.
+
+No custom CA, no VPC, no NAT, no `sslmode` change: the runtime's trust store accepts
+CockroachDB Cloud's certificate as-is. That is the assumption `08` §7 wanted tested at
+hour 44 rather than discovered there, and it holds.
+
+CloudFront served the static page at `https://d1xdu9otv5d691.cloudfront.net` — HTTP 200,
+0.580s, from outside the account. The SAM stack answered identically before teardown
+(`queryMs 714`, HTTP 200; CloudFront 0.584s), so both tools produced a working pipeline
+and the tie is a tie on function as well as on time.
+
+### Finding 1 — the account's Lambda concurrency limit is 10, not 1000
+
+Thirty concurrent requests:
+
+```
+10 × HTTP 200   (every one a fresh sandbox, invocationsOnThisSandbox = 1)
+20 × HTTP 503   {"message":"Service Unavailable"}
+
+$ aws lambda get-account-settings --query AccountLimit
+{ "ConcurrentExecutions": 10, "UnreservedConcurrentExecutions": 10 }
+```
+
+**The database was never the bottleneck.** Every request that got a sandbox succeeded;
+the slowest query under the burst was 1661ms and none failed. The connection-exhaustion
+worry the spike was written to check does not appear at this scale — a different limit
+binds first, and it binds at ten.
+
+This is load-bearing for day three, in two places:
+
+- `04` §5 requires **reserved concurrency of 2** on the LIVE function. Against an account
+  total of 10 that leaves 8 unreserved for the demo API, the WebSocket fan-out, the
+  changefeed sink and consolidation combined. Workable, but it is a budget to allocate
+  deliberately rather than a default to inherit.
+- `04` §5's degradation ladder, invariant 1: **no rung may present an error page.** A 503
+  under load is an error page, and it is reachable today by ten simultaneous visitors.
+  Rule B4 requires the demo to be available to judges without restriction. U17 must
+  either absorb overflow into a working page or the quota must be raised.
+
+**Action:** a Service Quotas increase on `L-B99A9384` (Lambda concurrent executions) has
+lead time and is Julian's to file. Logged here and in `08` §7's risk register rather than
+filed on his behalf.
+
+### Finding 2 — the first arrangement put the DSN in the CloudFormation template
+
+The stack initially read `process.env.CORTEX_READER_DSN` at synth time and set it as a
+Lambda environment variable. That is the arrangement `05` §6 permits — server side only,
+never in the bundle, never in the SPA — and it is still wrong, because the synthesized
+template is neither of those things:
+
+```
+$ grep -c sslmode infra/cdk-spike/cdk.out/CdkSpikeStack.template.json
+1
+```
+
+The value was in `cdk.out/` on disk and in CloudFormation's stored copy of the template,
+readable by anyone holding `cloudformation:GetTemplate`. Not caught by
+`scripts/gate-mechanical.sh`, which is correct — `cdk.out/` is build output and is not
+committed — but not caught by reasoning either. It was found by grepping the artifact,
+which is the only reason it is in this log rather than in the submission.
+
+Replaced with a CloudFormation dynamic reference. The secret was created out of band so
+its value passed from the shell to Secrets Manager without touching the repository:
+
+```
+$ aws secretsmanager create-secret --name cortex/reader-dsn --secret-string "$CORTEX_READER_DSN"
+arn:aws:secretsmanager:us-east-1:373468206278:secret:cortex/reader-dsn-4PpATB
+
+$ grep -c sslmode infra/cdk-spike/cdk.out/CdkSpikeStack.template.json
+0
+$ grep -o '{{resolve:secretsmanager:[^"]*}}' infra/cdk-spike/cdk.out/CdkSpikeStack.template.json
+{{resolve:secretsmanager:cortex/reader-dsn:SecretString:::}}
+```
+
+Redeployed in 45s and still answers 200 as `cortex_reader`. `.gitignore` now covers
+`infra/cdk-spike/cdk.out/`, `infra/lambda-dist/` and `.aws-sam/`.
+
+### What survives
+
+The CDK stack stays up; it is U14's skeleton. The SAM stack was deleted and
+`infra/sam-spike/` removed, so `04` §2's "a single CDK or SAM app in `infra/`" stays
+true. `npx tsc --noEmit` is clean with `infra/lambda/` inside the project's compilation
+— deliberately, since the handler imports `src/db/identity.ts` and reusing that function
+is only meaningful if the reuse is typechecked. `infra/cdk-spike` is excluded: it is a
+separate deployable with its own tsconfig and CommonJS resolution.
+
+**Worth screen-recording:** `curl` against the hosted route returning the cluster's own
+version string. It is the shortest possible demonstration that the hosted surface talks
+to a real CockroachDB cluster, and it fits in five seconds of the `07` §5 video.

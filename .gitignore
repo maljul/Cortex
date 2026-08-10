@@ -21,6 +21,14 @@ npm-debug.log*
 # scratch runs: the NAIVE arm's shared JSON file and one run record per arm.
 bench/runs/
 
+# Infrastructure build output. `infra/lambda-dist/` is the esbuild bundle, rebuilt by
+# `node infra/bundle.mjs` on every deploy; `cdk.out/` is CDK's synthesized template.
+# Neither is committed, and cdk.out in particular must not be: until V22 it carried the
+# reader DSN inline, which is the finding that moved the value into Secrets Manager.
+infra/lambda-dist/
+infra/cdk-spike/cdk.out/
+.aws-sam/
+
 # OS / editor
 .DS_Store
 .env

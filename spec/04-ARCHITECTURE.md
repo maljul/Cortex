@@ -49,10 +49,20 @@ No long-lived compute anywhere. The earlier idea of an ECS container holding an 
 core changefeed connection is rejected: it costs money continuously and adds an
 availability dependency for zero benefit.
 
-Infrastructure as code: a single CDK or SAM app in `infra/`. `[OPEN]` CDK gives
-better ergonomics and a nicer diagram story; SAM is smaller and faster to deploy. The
-implementer should pick based on which they can deploy reliably in under ten minutes,
-because deployment friction on day three is what kills hackathon submissions.
+Infrastructure as code: a single **CDK** app in `infra/`. *(Decided 2026-08-10 on the
+strength of V22; was `[OPEN]` between CDK and SAM.)* Both were built and both were
+timed, and the ten-minute criterion this section proposed **did not separate them** —
+each redeploys in well under a minute. CDK was chosen on what the source looked like
+rather than on the clock: CloudFront with an origin access control is eight lines of CDK
+and about fifty of raw CloudFormation under SAM, and the resources still to come — a
+WebSocket API, EventBridge, the changefeed sink, reserved concurrency, a budget alarm —
+widen that gap rather than close it. Numbers in `docs/verification-log.md` V22,
+reasoning in `docs/DECISIONS.md`.
+
+**The DSN is a CloudFormation dynamic reference, not an environment value.** V22 found
+the first arrangement writing the reader DSN into the synthesized template, where it sat
+in `cdk.out/` and in CloudFormation's stored copy. `{{resolve:secretsmanager:...}}`
+keeps it in Secrets Manager and out of both.
 
 ## 3. Privilege planes
 

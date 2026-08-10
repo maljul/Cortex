@@ -103,7 +103,8 @@ almost nothing; cutting from the bottom costs the submission.
 | Risk | Likelihood | Impact | Response |
 | --- | --- | --- | --- |
 | A verification item fails | medium | low | fallbacks are pre-specified; log and proceed |
-| Deployment eats day three | medium | **high** | deploy a hello-world through the full pipeline on day one evening, not on day three |
+| Deployment eats day three | medium | **high** | ~~deploy a hello-world through the full pipeline on day one evening~~ — **done 2026-08-10, V22.** CDK redeploys the whole stack in 42s and Lambda reaches the cluster with no TLS work. Risk retired |
+| **Lambda concurrency capped at 10 on this account** | **certain — measured** | **high** | Not the default 1000. Ten simultaneous visitors already produce `503`s, which `04` §5 invariant 1 forbids and rule B4 makes a submission risk. Raise `L-B99A9384` via Service Quotas, and have U17 absorb overflow into a working page rather than an error. V22 |
 | Benchmark shows no difference | low | **high** | it means task overlap is too low; increase the overlapping-task share and say so in the methodology |
 | Demo cost runs away | low | medium | three independent brakes; verify each fires |
 | Agents behave inconsistently in the video | medium | medium | record in scripted-agent mode, which is also the trademark mitigation |
@@ -127,11 +128,14 @@ overhead is exactly what runs out. My recommendation is Node everywhere, accepti
 slightly clumsier benchmark, because the install line is on the README's first screen
 and the benchmark is not.
 
-**D2 — Infrastructure tooling.** CDK produces a better architecture diagram almost for
-free and is pleasant for anything non-trivial; SAM deploys faster and has less to go
-wrong. The deciding question is not elegance but whether you can redeploy reliably in
-under ten minutes on day three under time pressure. Pick whichever you have actually
-used before, and if that is neither, pick SAM.
+**D2 — Infrastructure tooling. CLOSED 2026-08-10: CDK.** Both were built and timed
+against this account (V22). The deciding question proposed here — redeploy reliably in
+under ten minutes — turned out not to decide: CDK redeploys in 42s and SAM in 33s, both
+roughly fifteen times inside the bar, and a nine-second gap is not a finding. The
+fallback advice above ("if that is neither, pick SAM") was written for a tie on
+familiarity and was not followed, because the tie that actually occurred was on speed
+and the tiebreaker that remained was what the templates looked like for the resources
+still unbuilt. Reasoning in `docs/DECISIONS.md`.
 
 **D3 — Dedupe threshold.** Publishing a swept curve is a credibility artifact and
 costs perhaps two hours. Publishing a single untuned value and admitting it was not

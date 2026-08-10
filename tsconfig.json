@@ -4,7 +4,16 @@
   // what gives the tasks something to do — and typechecking it here would couple our
   // build to fixture content and make the corpus answer to our tsconfig rather than
   // look like an ordinary repository. Nothing imports it; `bench/` itself is checked.
-  "exclude": ["bench/fixtures"],
+  //
+  // `infra/cdk-spike` is a CDK app with its own `tsconfig.json`, its own
+  // `node_modules`, and CommonJS module resolution. It is a separate deployable that
+  // happens to live in this tree, not part of this project's compilation, and pulling
+  // it in here would make `npx tsc --noEmit` — the thing someone cloning the repo runs
+  // first (B1) — answer to CDK's generated scaffolding. `infra/lambda/` is deliberately
+  // NOT excluded: the handler imports `src/db/identity.ts` and must be typechecked
+  // against it, which is the whole point of reusing that function rather than
+  // reimplementing the query in a Lambda.
+  "exclude": ["bench/fixtures", "infra/cdk-spike", "infra/lambda-dist"],
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout

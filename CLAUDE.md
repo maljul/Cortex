@@ -18,6 +18,18 @@ What does not belong in a unit list, and so lives here:
   v5 reasoning models are **not entitled** on this account, so the reason model is
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
 - Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
+- **AWS is real and reachable, V22, 2026-08-10.** `infra/cdk-spike/` is deployed: Lambda
+  behind API Gateway HTTP returning `clusterIdentity()`, plus S3 + CloudFront. IaC is
+  **CDK** — `04` §2's `[OPEN]` is closed, and the ten-minute criterion tied rather than
+  decided (CDK 42s / SAM 33s redeploy). Lambda reaches CockroachDB Cloud with no TLS
+  work, no VPC: cold `queryMs` ~690, warm 3 on a reused pool. The DSN is a
+  `{{resolve:secretsmanager:...}}` dynamic reference, never a template value — the first
+  arrangement leaked it into `cdk.out/` and that is why. Rebuild the bundle with
+  `node infra/bundle.mjs` before every deploy; nothing does it automatically.
+- **This account's Lambda concurrency limit is 10, not 1000 (V22).** Ten simultaneous
+  visitors already get `503`, which `04` §5's ladder forbids and rule B4 makes a
+  submission risk. A Service Quotas increase on `L-B99A9384` is **Julian's to file** and
+  has lead time. U17 must not assume it landed.
 - Open: the `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed
   by V5 — it cannot rest on the vector index prefix. Since V9 it starts from zero
   privilege rather than from admin, which is the right direction to grant from.
