@@ -150,12 +150,34 @@ async function probeManagedMcp(): Promise<void> {
       database: 'defaultdb',
       query: "SELECT count(*) AS n FROM findings WHERE repo_id = '00000000-0000-0000-0000-000000000000'",
     }],
-    // Aimed at a table that does not exist on purpose: a permission failure and a
-    // missing-table failure are then distinguishable, and a real table is never
-    // written to whatever the answer turns out to be.
+    // Read-only signal first, so the write attempt below has something to contradict.
+    // `has_table_privilege` runs as the connected principal and answers directly.
+    ['privilege catalogue (claims)', 'select_query', {
+      database: 'defaultdb',
+      query:
+        "SELECT has_table_privilege('claims','INSERT') AS claims_insert, " +
+        "has_table_privilege('intents','INSERT') AS intents_insert, " +
+        "has_table_privilege('claims','DELETE') AS claims_delete",
+    }],
+    // The write attempt, against the REAL table `04` §2's argument is about.
+    //
+    // It aimed at a non-existent table until 2026-08-10, which could not answer the
+    // question. Once the principal is authorized at the API layer, a missing table
+    // resolves to "relation does not exist" *before* any privilege on a real table is
+    // consulted — so the check reported FAILED whether or not `insert_rows` reaches
+    // `claims`, and V16 nearly banked that as reassurance.
+    //
+    // All-NULL into NOT NULL columns cannot insert a row, and the privilege check runs
+    // ahead of constraint evaluation, so the SQLSTATE separates the two cases cleanly:
+    //   42501 -> no INSERT privilege. The read path is governed. `04` §2 survives.
+    //   23502 -> NOT NULL violation, meaning the INSERT was ALLOWED and only the row
+    //            was rejected. The managed server is an unarbitrated write path into
+    //            `claims`, and `04` §2 needs rethinking rather than documenting around.
     ['insert_rows (write reach)', 'insert_rows', {
       database: 'defaultdb',
-      query: "INSERT INTO cortex_probe_does_not_exist (k) VALUES ('x')",
+      query:
+        'INSERT INTO claims (repo_id, resource_key, intent_id, holder, expires_at) ' +
+        'VALUES (NULL, NULL, NULL, NULL, NULL)',
     }],
   ];
 
@@ -184,5 +206,9 @@ await probeManagedMcp();
 
 console.log('\nRead the write-tool lines and the write-reach line together: a read plane');
 console.log('has to be a property of the principal, because it is not one of the server.');
+console.log('\nOn the write-reach line, read the SQLSTATE and not the OK/FAILED:');
+console.log('  42501  no INSERT privilege on claims  -> governed, `04` §2 survives');
+console.log('  23502  NOT NULL violation             -> the INSERT was ALLOWED');
+console.log('A "relation does not exist" here means the probe missed its target.');
 
 process.exit(0);
