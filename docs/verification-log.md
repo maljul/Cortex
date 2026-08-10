@@ -2079,3 +2079,71 @@ now says so in those words.
 
 Suite **170/170** (down from 174: 13 blanket demo assertions became 9 sharper ones),
 `npx tsc --noEmit` clean.
+
+## V25 — Changefeeds reach a webhook sink on Basic, and `psql` is available
+**2026-08-11 · pre-U14 · PASS, with one thing deliberately not claimed**
+
+Two checks cleared before starting U14, both of which could have reshaped work later.
+
+### Changefeed to a webhook sink — U14's verify-live-first
+
+`04` §2 makes a changefeed into API Gateway the driver for the live memory stream and
+for beat 4 of the demo (`07` §3). Nothing here had ever created one, and Basic is the
+cheapest tier, so this was the item most likely to force a reshape.
+
+```
+=== 1. prerequisites ===
+rangefeed enabled : OK [{"kv.rangefeed.enabled":true}]
+enterprise licence: FAILED 42501 — Access to crdb_internal and system is restricted.
+current user      : OK [{"who":"julian"}]
+
+=== 2. is CHANGEFEED permitted at all? ===
+sinkless changefeed: OK — the statement was accepted and streamed
+
+=== 3. a webhook sink, which is what 04 §2 actually needs ===
+create webhook feed: OK [{"job_id":"1200407160811749377"}]
+  job status       : OK [{"status":"running","error":""}]
+  cancel           : OK []
+
+=== 4. any changefeed jobs left behind? ===
+remaining feeds   : OK []
+```
+
+`CREATE CHANGEFEED … INTO 'webhook-https://…'` is permitted, the job starts, and it is
+still `running` with an empty error eight seconds in. **U14 does not reshape.** The
+`crdb_internal` refusal is expected and unrelated — Basic restricts that schema, which is
+also why `bench/environment.json` records the tier as configuration rather than
+observation.
+
+**What this does NOT claim: that a message was delivered.** The sink was pointed at the
+existing spike route, which is GET-only, so deliveries would have met a 404 and the job
+would eventually have failed on retries. What is proven is the entitlement and job
+startup — that Basic permits webhook changefeeds at all, which is what the check was for.
+End-to-end delivery needs a receiver that accepts POST, and that receiver is U14's work,
+not a probe's. Recorded this way on purpose: a `running` job is not a delivered message,
+in the same family as a catalogue listing not being an entitlement.
+
+### `psql` is installed, and it reads real memory with no CORTEX code in the path
+
+U10 closed with a driver-level proof because this machine had no `psql`, and `docs/UNITS.md`
+carries "install `psql` before the session" as a U19 prerequisite. Done now rather than
+during the recording:
+
+```
+$ psql "$CORTEX_READER_DSN" -c "SELECT current_user, current_database();"
+ current_user  | current_database
+---------------+------------------
+ cortex_reader | defaultdb
+
+$ psql "$CORTEX_READER_DSN" -c "SELECT count(*) AS findings FROM findings;"
+ findings
+----------
+      329
+```
+
+Homebrew's `libpq` is keg-only, so `psql` is **not on `PATH`** by default. The recording
+session needs `export PATH="/opt/homebrew/opt/libpq/bin:$PATH"` first, which is exactly
+the kind of thing that is found at the worst moment if it is not written down here.
+
+This is `08` §4's "without any bespoke client" in its literal, command-line form: a stock
+Postgres client, a `SELECT`-only role, real rows. The take U19 wants.

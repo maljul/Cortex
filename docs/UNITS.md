@@ -420,11 +420,13 @@ Order of work: **U14 → U15 → U16 → U17 → U2 → U18 → U19 → U20.**
 ### U14 — Infrastructure as code, deploy, changefeed to WebSocket ⬜
 **Done when:** "hosted demo reachable anonymously." *(08 §5, 32–38h, verbatim)*
 **Specs:** `04` §2, `05` §5, `04` §5
-**Verify live first:** that a CockroachDB **changefeed** can reach an API Gateway HTTP
-webhook sink at all on Basic tier. `04` §2 lists it as the ingress and nothing in this
-repository has ever created one; a catalogue listing is not an entitlement. If Basic
-refuses changefeeds, beat 4 and the live stream both lose their driver and the unit
-reshapes — find out first, not at hour 37.
+**Verify live first: DONE 2026-08-11 (V25) — it works, and the unit does not reshape.**
+`CREATE CHANGEFEED … INTO 'webhook-https://…'` is permitted on Basic, the job reaches
+`running` with no error, and `kv.rangefeed.enabled` is already true. **What is not yet
+proven is delivery**: the probe's sink was the GET-only spike route, so this establishes
+the entitlement and job startup, not that a message arrived. Standing up a receiver that
+accepts POST and watching a row change come through is the first thing to build in this
+unit, before anything is designed on top of it.
 **Silent break:** promoting the spike's reader DSN into the write path. `infra/` today
 deploys `cortex_reader` because a spike has no business holding a write verb.
 `getPool()` reads one variable, `CORTEX_DSN`, so wiring a write Lambda by pointing that
@@ -553,9 +555,9 @@ the read plane as `cortex_reader` — the managed MCP server is not the route (V
 **Specs:** `07` §5, `02` §B
 **Verify live first:** `npm run probe:reason` immediately before the session. V18 proved
 entitlement on 2026-08-10, and entitlement is an account fact that can change without
-this repository knowing. Also install `psql` — U10's recall proof is currently
-driver-level because this machine has none, and the command-line form is both more
-convincing on camera and the literal reading of `08` §4's "without any bespoke client".
+this repository knowing. **`psql` is installed as of 2026-08-11 (V25)** and reads real
+memory as `cortex_reader` — but Homebrew's `libpq` is keg-only, so the take needs
+`export PATH="/opt/homebrew/opt/libpq/bin:$PATH"` first or `psql` is simply not found.
 **Silent break:** B9 — a third-party trademark in frame. Agent-vendor logos, tool
 branding in the terminal, or music that is not self-produced. Capture in scripted-agent
 mode, which `08` §7 names as the mitigation for both this and inconsistent behaviour.
