@@ -42,7 +42,16 @@ export interface Finding {
   lastTouched: Date | null;
 }
 
-const RECALL_SQL = `
+/**
+ * Exported so `skills/cortex-memory/SKILL.md` can be pinned against it.
+ *
+ * `05` §4 requires the skill to ship this query "pinned against `src/memory/recall.ts`
+ * rather than retyped, so the filter cannot drift out of it". A test holds the two
+ * byte-for-byte. Retyping is how a `repo_id` predicate goes missing, and per V5 a
+ * missing filter fails open rather than closed — the planner drops to a full scan and
+ * returns another tenant's rows.
+ */
+export const RECALL_SQL = `
 WITH near AS (
   SELECT id, fact, source_intent_id, confidence, contradictions,
          embedding <=> $1 AS dist

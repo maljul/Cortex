@@ -28,7 +28,7 @@ What does not belong in a unit list, and so lives here:
   `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
   half is green, the demo half is red on a missing credential (below).
   `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
-  cannot read or write any of the six tables. **Suite 168/168.**
+  cannot read or write any of the six tables. **Suite 174/174.**
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs: `duplicate_work_rate` 0.21 → 0.08,
@@ -50,10 +50,11 @@ What does not belong in a unit list, and so lives here:
   §3, §4 and `05` §3, §4, §6 are corrected in place. `CORTEX_MCP_*` remains in `.env`
   as diagnostics for `npm run probe:read` only — do not reintroduce that server as the
   route without re-running the probe.
-- U10 is **unblocked** and reshaped: the skill ships recall SQL against
-  `CORTEX_READER_DSN`, pinned byte-for-byte against `src/memory/recall.ts` by a test,
-  because both `repo_id` predicates must survive retyping (V14). It is still not the
-  critical path — `08` §4's end-of-day-two gate is U13's summary table.
+- U10 is **done** (V21): `skills/cortex-memory/SKILL.md` ships recall SQL against
+  `CORTEX_READER_DSN`, pinned byte-for-byte against `src/memory/recall.ts` — which now
+  exports `RECALL_SQL` for that purpose. Editing the query in either place fails
+  `test/skill.test.ts`; both `repo_id` predicates are asserted separately, because the
+  equality alone would pass if someone edited both files together (V14).
 - **The benchmark harness is deterministic by serialising, and that bounds what two of
   `06` §3's metrics can say** (V19, `docs/DECISIONS.md`). One step runs at a time on a
   simulated clock, so contention is real and reproducible — agent B genuinely finds

@@ -1669,3 +1669,58 @@ the judge's threshold. The one field that is configuration rather than observati
 Cloud tier — says so in the file, because CockroachDB does not report "Basic" over SQL.
 
 Suite **168/168**, `npx tsc --noEmit` clean.
+
+---
+
+## V21 — The Agent Skill's recall SQL is the implementation's, and it runs as `cortex_reader`
+**2026-08-10 · U10 · `test/skill.test.ts` · PASS**
+
+`skills/cortex-memory/SKILL.md` ships, with all six sections `05` §4 numbers. Six tests,
+all green.
+
+**The query is pinned, not copied.** `src/memory/recall.ts` now exports `RECALL_SQL`,
+and the test asserts the skill's single fenced `sql` block equals it byte-for-byte. A
+second, separate assertion requires both `repo_id` predicates to be present in the
+skill's text — separate on purpose, because the equality alone would still pass if
+somebody edited both files together, and the invariant is "both predicates exist", not
+"the two files agree".
+
+**The mutation.** Deleting `AND i.repo_id = $2` from the skill's join — V14's exact
+failure, the one that ranked repo A's recall on repo B's revert history — fails both:
+
+```
+FAIL  test/skill.test.ts > the recall SQL is pinned, not retyped (§4.2) > is byte-for-byte the query src/memory/recall.ts issues
+FAIL  test/skill.test.ts > the recall SQL is pinned, not retyped (§4.2) > carries both repo_id predicates
+      Tests  2 failed | 4 passed (6)
+```
+
+**"Without any bespoke client", and exactly how far that was taken.** The live test
+opens a plain `pg` `Client` on `CORTEX_READER_DSN`, lifts the query text **out of the
+published markdown**, passes the five parameters, and gets rows back — nothing from
+`src/memory/` is in the path. An empty tenant returns zero rows, which is a successful
+recall: the query parsed, the planner accepted it, and `cortex_reader` was permitted to
+read `findings` and `intents`. A privilege failure throws.
+
+**What that is not.** It is a driver-level proof, not a command-line one. `psql` is not
+installed on this machine, so the claim rests on a standard Postgres driver executing
+the shipped text rather than on a shell take. Nothing in the path is CORTEX code, which
+is the property that matters — but a `psql` run would be the more convincing thing to
+put on camera, and it is worth doing before the recording session.
+
+**Section coverage is parsed from the spec, not snapshotted.** The test slices `05` §4
+out of `spec/05-INTERFACES.md` at run time, extracts its six bold headings, and requires
+each to appear in the skill. Rewording the spec fails the test rather than silently
+disagreeing with it — the same shape as U7's tool-schema test.
+
+**Invariant 8 is asserted on the skill as a published surface.** No DSN, no `sslmode=`,
+no AWS key id, in an example or a comment or anywhere else. The skill names
+`CORTEX_READER_DSN` and `CORTEX_REPO` and carries the value of neither, and says in its
+own last paragraph that a credential appearing there is a defect to report.
+
+**One thing the skill has to tell an agent that the spec does not mention:** how to get
+`$1`. Recall is a distance query, so the agent needs its query text embedded by the same
+model at the same width as the stored vectors, or the distances are meaningless. The
+skill gives the Titan model id, `dimensions: 1024`, `normalize: true`, and an AWS CLI
+invocation — a standard client, consistent with §4's "without any bespoke client code".
+
+Suite **174/174**, `npx tsc --noEmit` clean.

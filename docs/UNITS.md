@@ -228,7 +228,7 @@ has wrong — already closed, unknown repo — comes back as `isError` with the
 explanation, which is what an agent can act on. Unlike `blocked` in U8, neither is a
 value an agent should proceed from.
 
-### U10 — Agent Skill over the `cortex_reader` read path ⬜ **UNBLOCKED 2026-08-10**
+### U10 — Agent Skill over the `cortex_reader` read path ✅ 2026-08-10
 **Done when:** "agent recalls without any bespoke client." *(08 §4, 20–23h, verbatim)*
 **Specs:** `05` §4, `03` §4.1
 **Silent break:** shipping recall SQL in the skill that drops a `repo_id` predicate.
@@ -263,6 +263,25 @@ by catalogue (V15).
 **Nothing here is blocked any more.** The `CORTEX_MCP_*` variables stay in `.env` as
 diagnostics for `npm run probe:read` only; do not reintroduce that server as the route
 without re-running the probe.
+
+**Evidence:** `skills/cortex-memory/SKILL.md` (all six sections `05` §4 numbers),
+`RECALL_SQL` now exported from `src/memory/recall.ts`, and `test/skill.test.ts` — 6
+tests. V21 has the output. Suite 174/174, `tsc` clean.
+**The SQL is pinned byte-for-byte**, with a *separate* assertion that both `repo_id`
+predicates are present — the equality alone would still pass if someone edited both
+files together. Deleting `AND i.repo_id = $2` from the skill, which is V14's exact
+failure, fails both tests.
+**"Without any bespoke client" was taken as far as this machine allows:** the live test
+opens a plain `pg` client on `CORTEX_READER_DSN`, lifts the query out of the published
+markdown, and gets rows — no `src/memory/` in the path. `psql` is not installed here, so
+this is a driver-level proof rather than a command-line one. **A `psql` take is worth
+recording for the video**; it is the more convincing form of the same claim.
+**Section coverage is parsed from `05` §4 at run time**, not snapshotted, so rewording
+the spec fails the test rather than silently disagreeing with it.
+**One thing the skill must say that §4 does not mention:** how to obtain `$1`. Recall is
+a distance query, so the agent needs its text embedded by the same model at the same
+width, or the distances mean nothing. The skill gives the Titan model id, the width, and
+an AWS CLI invocation.
 
 ### U11 — Benchmark fixtures and task list ✅ 2026-08-10
 **Done when:** the corpus and the overlapping-task share exist and are committed.
@@ -391,6 +410,11 @@ Not yet captured, worth screen-recording (`08` §5, 52–58h):
   record — the text transcript is the proof, the agent is the demo.
 - The two-terminal contention gate (U6) is already reproducible on demand via
   `npm run gate:contend`, but no take has been recorded.
+- **An agent recalling with `psql` and nothing else** — the skill's SQL pasted into a
+  standard client against `CORTEX_READER_DSN`, returning rows. `test/skill.test.ts`
+  proves the same thing at the driver level, but `psql` is not installed on this
+  machine, and the command-line form is both more convincing on camera and the literal
+  reading of `08` §4's "without any bespoke client". Install `psql` before the session.
 - **`npm run bench` printing both arms side by side**, with `live model calls embed 0,
   reason 0` visible on each. That line is the reproducibility claim made watchable: the
   numbers came off committed cassettes, not off a live sample. Run it twice in the take
