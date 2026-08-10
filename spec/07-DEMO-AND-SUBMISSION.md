@@ -100,7 +100,7 @@ twenty seconds. Front-load the proof.
 | 1:40–1:55 | the recall SQL on screen | "One query joining semantic similarity to structural outcome history. This is the query a vector database cannot run." |
 | 1:55–2:15 | beat 4, consolidation arriving over the change stream | "A closed task becomes durable knowledge, off the critical path, driven by CockroachDB's change feed." |
 | 2:15–2:30 | kill an agent, claims reclaimed, fleet continues | "Kill an agent and its claims expire on their own. Row-level TTL, not a supervisor." |
-| 2:30–2:50 | architecture diagram | "Managed MCP server as the agent's only read path. Agents hold no write credentials. Everything on AWS, everything in one cluster." |
+| 2:30–2:50 | architecture diagram | "Agents read as a SELECT-only SQL role and hold no write credentials — nine attempted writes, nine refusals, in the test suite. Everything on AWS, everything in one cluster." |
 
 Production notes: no third-party agent logos in frame, use the scripted agent mode for
 capture. Silent or self-produced audio. English captions. Terminal at a font size

@@ -53,7 +53,7 @@ npx cortex <command>
 
 | Command | Purpose | Notes |
 | --- | --- | --- |
-| `init` | provision a free cluster with ccloud, apply schema, create both service accounts, print the managed-MCP config snippet | the onboarding moment; must work from an empty machine |
+| `init` | provision a free cluster with ccloud, apply schema, create the service accounts with their distinct grants, print the `cortex-memory` skill's configuration | the onboarding moment; must work from an empty machine. It prints no credential (see below) |
 | `link` | register the current repository, compute `repo_id` from the git remote | idempotent |
 | `serve` | run the local CORTEX MCP server on stdio | what coding agents attach to |
 | `run -- <cmd>` | wrap an arbitrary agent process, injecting MCP config | for agents that support MCP config via environment |

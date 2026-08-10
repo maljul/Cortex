@@ -50,11 +50,25 @@ risk to monitor.
 
 Written to answer the question the form actually asks: *what did the agent do with it?*
 
-**1. CockroachDB Cloud Managed MCP Server** — the agent's **only** read path into its
-own memory. Semantic recall, prior-intent lookup and schema introspection are issued
-as read-only SQL through the managed endpoint under a service account with `SELECT`
-grants only. The agent holds no write credentials at any point. Cloud RBAC scoping
-and the server's audit log are the access-control story for the whole system.
+**1. Distributed SQL as the agent's read plane, under a `SELECT`-only role.** *(Corrected
+2026-08-10 — see the note at the end of this section.)* Semantic recall, prior-intent
+lookup and outcome history are issued as read-only SQL by `cortex_reader`, a SQL user
+granted `SELECT` on the six memory tables and no write verb anywhere. The agent holds no
+write credentials at any point; to change memory it must go through the typed
+`cortex_propose` / `cortex_close` tools, which is what makes arbitration unavoidable
+rather than advisory.
+
+That claim is not asked to be believed. `test/privilege-planes.test.ts` attempts nine
+writes as `cortex_reader` — an `INSERT` on each of the six tables, plus an `UPDATE`, a
+`DELETE` and a `DROP` — and requires every one to be refused with SQLSTATE 42501. It
+reads no catalogue, because `SHOW GRANTS` once answered truthfully while the account held
+`admin` through a role membership the question never asked about.
+
+**1b. Row-level security** confines the public demo's principal. `cortex_demo` holds
+ordinary DML, and every one of the six tables carries `FORCE ROW LEVEL SECURITY` with a
+policy admitting only rows belonging to an unexpired demo session scope. Real repository
+memory is unreachable to that principal — not filtered out of its queries, unreachable —
+and `03` §8's test 9 proves it by attempting the writes.
 
 **2. Distributed Vector Indexing** — `VECTOR INDEX (repo_id, embedding)` on both
 `intents` and `findings`. The prefix column partitions the index per repository, so
@@ -63,15 +77,32 @@ filter. This is what makes the deduplication check cheap enough to run before ev
 single agent action.
 
 **3. ccloud CLI** — `cortex init` provisions the user's own free cluster, applies
-the schema, creates the two service accounts with distinct grants, and prints the
-managed-MCP config snippet. `cortex doctor` reads cluster health and audit logs.
-Onboarding goes from empty terminal to working memory in one command.
+the schema, and creates the service accounts with distinct grants. `cortex doctor` reads
+cluster health. Onboarding goes from empty terminal to working memory in one command.
 
 **4. Agent Skills** — two directions. The agent consumes `cockroachlabs/cockroachdb-skills`
 for schema and query decisions. CORTEX publishes its own skill,
-`cortex-memory`, which carries the exact recall SQL templates and the rule for
-when an agent must declare an intent before touching a resource. That skill is what
-lets the read path work through the managed MCP server without bespoke client code.
+`cortex-memory`, which carries the exact recall SQL and the rule for
+when an agent must declare an intent before touching a resource. That skill is what lets
+an unmodified agent recall **without any bespoke client code**: the query in the skill is
+pinned byte-for-byte to the one the implementation issues, and a test lifts it out of the
+published markdown and runs it through a stock Postgres driver as `cortex_reader`.
+
+---
+
+*Note on the correction above, kept because B13 asks for honest feedback and this is the
+most useful thing we have to say.* Items 1, 3 and 4 originally routed the agent's reads
+through the **CockroachDB Cloud Managed MCP Server**, on the argument that read access
+would then be governed by Cloud RBAC and audit logging rather than by code we wrote. We
+measured it instead of assuming it (V10, V17). The server publishes `insert_rows`,
+`create_table` and `create_database` among its twelve tools, and it executes as SQL user
+`managed-mcp`, which holds INSERT and DELETE on `claims` — confirmed by invoking
+`insert_rows` and getting **23502**, a constraint violation, rather than **42501**: the
+privilege check passed and only the row was refused. An agent handed that endpoint for
+recall would have held an unarbitrated write path into the two tables arbitration exists
+to protect, bypassing every invariant in `03` §8 rather than breaking one, because it
+would never have called `cortex_propose` at all. We dropped the route rather than try to
+constrain its principal, and the read plane is a SQL grant we can test.
 
 ## D. AWS service utilisation — answer text for B11
 

@@ -149,10 +149,12 @@ at directory granularity; refusing is safer and is the default until measured.
 
 ## 4. The four memory operations
 
-### 4.1 RECALL — read path, through the managed MCP server
+### 4.1 RECALL — read path, as `cortex_reader`
 
-Runs before an agent starts work. Read-only, no transaction needed, executed as SQL
-through the CockroachDB Cloud Managed MCP Server under the read-only service account.
+Runs before an agent starts work. Read-only, no transaction needed, issued as SQL over
+`CORTEX_READER_DSN` by `cortex_reader`, which holds `SELECT` on the six tables and no
+write verb. *(Changed 2026-08-10: this ran through the CockroachDB Cloud Managed MCP
+Server until V17 measured that server writing to `claims`. See `04` §3.)*
 
 ```sql
 WITH near AS (

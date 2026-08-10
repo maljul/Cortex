@@ -62,7 +62,7 @@ loser prints the winner's identity. If this does not work, day two does not star
 | Block | Work | Done when |
 | --- | --- | --- |
 | 16–20h | CORTEX MCP server, three write tools, stdio transport | a real coding agent attaches and successfully proposes |
-| 20–23h | Agent Skill with recall SQL; read path through the managed MCP server verified end to end | agent recalls without any bespoke client |
+| 20–23h | Agent Skill with recall SQL; read path as `cortex_reader` verified end to end | agent recalls without any bespoke client |
 | 23–29h | benchmark harness: fixtures, task list, five-agent runner, cassettes | `cortex bench` runs both arms deterministically |
 | 29–32h | metrics, offline duplicate judge, results writer | `bench/results/` populated and committed |
 

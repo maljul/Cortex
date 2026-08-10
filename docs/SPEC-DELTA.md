@@ -201,9 +201,23 @@ real for a day, was that a reader of §2 could think the question was live and r
 rather than try to constrain its principal. Reads are now issued as `cortex_reader`
 over `CORTEX_READER_DSN`, whose read-only property `test/privilege-planes.test.ts`
 asserts by attempting nine writes and requiring all nine to refuse with 42501.
-`04` §1, §3 and §4 and `05` §3, §4 and §6 are corrected in place; reasoning in
-`docs/DECISIONS.md`, measurement in V17. `CORTEX_MCP_*` survives in `.env` as
-diagnostics for `npm run probe:read` and is labelled as such.
+Reasoning in `docs/DECISIONS.md`, measurement in V17. `CORTEX_MCP_*` survives in `.env`
+as diagnostics for `npm run probe:read` and is labelled as such.
+
+**The correction reached five more sections a day later (2026-08-11), and the gap is the
+part worth remembering.** The first pass corrected `04` §1, §3, §4 and `05` §3, §4, §6 —
+the sections *about* the read path. It missed every section that merely *mentioned* it:
+`02` §C (the B10 answer text, which still called the managed server "the agent's **only**
+read path" and said `cortex init` prints its config snippet), `03` §4.1's own heading,
+`05` §2's CLI table, `07` §5's closing video line, and `08` §4's block description. All
+five are corrected in place now, found by grepping the whole of `spec/` for the term
+rather than by re-reading the sections that had already been fixed.
+
+`02` §C is the one that mattered: B10 asks what the agent actually *did*, so an answer
+describing an abandoned route is a false statement to a judge rather than a stale
+document. Its corrected text now carries the measurement as the story — a `SELECT`-only
+role with nine attempted writes and nine refusals is a stronger claim than Cloud RBAC
+was, and it is one a judge can run.
 
 *(Filed under `04` §2 until this entry was closed; the governance claim actually lives
 in `04` §3's privilege-plane table and `05` §3's preamble, which is where the
