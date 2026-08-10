@@ -21,10 +21,16 @@ What does not belong in a unit list, and so lives here:
 - Open: the `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed
   by V5 — it cannot rest on the vector index prefix. Since V9 it starts from zero
   privilege rather than from admin, which is the right direction to grant from.
-- Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09.** Reader
-  reads and cannot write; writer writes and cannot `DROP`; `cortex_demo` can do
-  nothing. Do not re-check this with `SHOW GRANTS` — that is the narrow question whose
-  true answer hid the admin membership. Attempt the write.
+- Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09; under
+  test since V15.** Reader reads and cannot write; writer writes and cannot `DROP`;
+  `cortex_demo` can do nothing. Do not re-check this with `SHOW GRANTS` — that is the
+  narrow question whose true answer hid the admin membership. Attempt the write.
+  `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
+  half is green, the demo half is red on a missing credential (below).
+- **Action for Julian:** add `CORTEX_DEMO_DSN` to `.env`. `cortex_demo` exists on the
+  cluster with no grants, but no connection string for it exists here, so 13 tests
+  fail by design. That red is deliberate — a skipped privilege test reports green over
+  an unasserted boundary — so do not silence it by skipping the block.
 - Reason model: **resolved 2026-08-10.** `.env` now sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which is the
   entitled one; `npm run env:doctor` no longer warns. Nothing reads it yet, so LIVE
@@ -32,8 +38,13 @@ What does not belong in a unit list, and so lives here:
 - **Action for Julian, blocking U10:** the Cloud service account behind
   `CORTEX_MCP_API_KEY` has no roles — `list_clusters` returns zero rows, so every SQL
   tool answers `unauthorized` (V10). Cloud's default is Organization Member, which
-  adds no permissions, and service-account roles are **Cloud-API-only**, not a Console
-  action. Assign it a cluster-scoped role, then `npm run probe:read`.
+  adds no permissions. Assign it a cluster-scoped role, then `npm run probe:read`.
+  **Try the Console first.** V10 recorded this as Cloud-API-only on the strength of
+  `ccloud-faq.md` ("Role management for service accounts must be done exclusively
+  through the Cloud API"), but `managing-access.md` documents a Console flow —
+  Access Management → the service account → Edit roles — with a scope of either
+  Organization or a named cluster. The two docs contradict each other; the Console
+  costs thirty seconds, so settle it by trying rather than by reading.
 - **Open, and larger than U10:** the managed MCP server publishes `insert_rows`,
   `create_table` and `create_database` (V10). `04` §2 routes reads there *because*
   that path is supposed to be governed. Whether those tools reach `claims` and
