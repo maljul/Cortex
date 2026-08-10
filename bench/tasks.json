@@ -1,0 +1,215 @@
+{
+  "$comment": [
+    "The seeded task list for the CORTEX benchmark. spec/06-BENCHMARK-SPEC.md §4.",
+    "Composition is enforced by test/bench-fixtures.test.ts, not by this comment.",
+    "Every resourceKey must name a file that exists in bench/fixtures, and every",
+    "declared pair must embed closer than any combination that is not a pair — a pair",
+    "that only looks equivalent to a human produces a benchmark showing no difference,",
+    "which is 08 §7's named failure mode. The recall-dependent tasks are the hard",
+    "negatives on purpose: they are related to their dependency without duplicating it."
+  ],
+  "corpus": "bench/fixtures",
+  "tasks": [
+    {
+      "id": "I1",
+      "kind": "independent",
+      "statement": "Switch the logger to structured JSON output with a request id on every line",
+      "resourceKeys": ["file:src/lib/logger.ts"]
+    },
+    {
+      "id": "I2",
+      "kind": "independent",
+      "statement": "Replace the hand-rolled date parsing with ISO 8601 helpers",
+      "resourceKeys": ["file:src/lib/dates.ts"]
+    },
+    {
+      "id": "I3",
+      "kind": "independent",
+      "statement": "Store monetary amounts as integer minor units instead of floating point",
+      "resourceKeys": ["file:src/lib/money.ts"]
+    },
+    {
+      "id": "I4",
+      "kind": "independent",
+      "statement": "Retry outbound SMS notifications when the carrier reports a delivery failure",
+      "resourceKeys": ["file:src/notify/sms.ts"]
+    },
+    {
+      "id": "I5",
+      "kind": "independent",
+      "statement": "Expose carrier tracking events through a paginated endpoint",
+      "resourceKeys": ["file:src/shipping/tracking.ts"]
+    },
+    {
+      "id": "I6",
+      "kind": "independent",
+      "statement": "Raise the password hashing cost factor and rehash on next sign-in",
+      "resourceKeys": ["file:src/auth/password.ts"]
+    },
+    {
+      "id": "I7",
+      "kind": "independent",
+      "statement": "Add a migration runner that records which schema versions have been applied",
+      "resourceKeys": ["file:src/db/migrations.ts"]
+    },
+    {
+      "id": "I8",
+      "kind": "independent",
+      "statement": "Apply a five second timeout to every outbound HTTP request",
+      "resourceKeys": ["file:src/lib/http.ts"]
+    },
+
+    {
+      "id": "P1a",
+      "kind": "duplicate",
+      "pair": "P1",
+      "statement": "Add rate limiting to the login endpoint",
+      "resourceKeys": ["file:src/auth/login.ts"]
+    },
+    {
+      "id": "P1b",
+      "kind": "duplicate",
+      "pair": "P1",
+      "statement": "Rate limit repeated failed sign-in attempts on the login endpoint",
+      "resourceKeys": ["file:src/auth/login.ts"]
+    },
+    {
+      "id": "P2a",
+      "kind": "duplicate",
+      "pair": "P2",
+      "statement": "Cache inventory availability lookups for thirty seconds",
+      "resourceKeys": ["file:src/inventory/repository.ts"]
+    },
+    {
+      "id": "P2b",
+      "kind": "duplicate",
+      "pair": "P2",
+      "statement": "Add a thirty second cache to inventory stock level lookups",
+      "resourceKeys": ["file:src/inventory/repository.ts"]
+    },
+    {
+      "id": "P3a",
+      "kind": "duplicate",
+      "pair": "P3",
+      "statement": "Make the payment charge call idempotent using the request key",
+      "resourceKeys": ["file:src/payments/charge.ts"]
+    },
+    {
+      "id": "P3b",
+      "kind": "duplicate",
+      "pair": "P3",
+      "statement": "Add idempotency to the payment charge call so a retry does not bill twice",
+      "resourceKeys": ["file:src/payments/charge.ts"]
+    },
+    {
+      "id": "P4a",
+      "kind": "duplicate",
+      "pair": "P4",
+      "statement": "Validate the shipping address before creating a label",
+      "resourceKeys": ["file:src/shipping/label.ts"]
+    },
+    {
+      "id": "P4b",
+      "kind": "duplicate",
+      "pair": "P4",
+      "statement": "Check the shipping address is complete before a shipping label is created",
+      "resourceKeys": ["file:src/shipping/label.ts"]
+    },
+    {
+      "id": "P5a",
+      "kind": "duplicate",
+      "pair": "P5",
+      "statement": "Expire idle sessions after thirty minutes of inactivity",
+      "resourceKeys": ["file:src/auth/session.ts"]
+    },
+    {
+      "id": "P5b",
+      "kind": "duplicate",
+      "pair": "P5",
+      "statement": "Time out sessions that have been idle for thirty minutes",
+      "resourceKeys": ["file:src/auth/middleware.ts"]
+    },
+    {
+      "id": "P6a",
+      "kind": "duplicate",
+      "pair": "P6",
+      "statement": "Send an order confirmation email when an order is placed",
+      "resourceKeys": ["file:src/notify/email.ts"]
+    },
+    {
+      "id": "P6b",
+      "kind": "duplicate",
+      "pair": "P6",
+      "statement": "Email an order confirmation to the customer once the order is placed",
+      "resourceKeys": ["file:src/notify/templates.ts"]
+    },
+
+    {
+      "id": "C1",
+      "kind": "contended",
+      "statement": "Add pagination to the order list endpoint",
+      "resourceKeys": ["file:src/orders/list.ts", "file:src/orders/repository.ts"]
+    },
+    {
+      "id": "C2",
+      "kind": "contended",
+      "statement": "Record a status transition history for every order",
+      "resourceKeys": ["file:src/orders/status.ts", "file:src/orders/repository.ts"]
+    },
+    {
+      "id": "C3",
+      "kind": "contended",
+      "statement": "Refuse order creation when the requested quantity exceeds available stock",
+      "resourceKeys": ["file:src/orders/create.ts", "file:src/orders/repository.ts"]
+    },
+    {
+      "id": "C4",
+      "kind": "contended",
+      "statement": "Add a database index for looking up orders by customer",
+      "resourceKeys": ["file:src/orders/repository.ts", "file:src/db/pool.ts"]
+    },
+    {
+      "id": "C5",
+      "kind": "contended",
+      "statement": "Allow an order to be cancelled within one hour of being placed",
+      "resourceKeys": ["file:src/orders/cancel.ts", "file:src/orders/repository.ts"]
+    },
+
+    {
+      "id": "R1",
+      "kind": "recall",
+      "dependsOn": "C4",
+      "statement": "Build a customer order history view on top of the customer lookup index",
+      "resourceKeys": ["file:src/orders/get.ts"]
+    },
+    {
+      "id": "R2",
+      "kind": "recall",
+      "dependsOn": "P3a",
+      "statement": "Extend the refund path with the same request key handling the charge path uses",
+      "resourceKeys": ["file:src/payments/refund.ts"]
+    },
+    {
+      "id": "R3",
+      "kind": "recall",
+      "dependsOn": "I3",
+      "statement": "Convert stored shipping quotes to the new integer minor unit representation",
+      "resourceKeys": ["file:src/shipping/quote.ts"]
+    },
+
+    {
+      "id": "A1",
+      "kind": "abandoned",
+      "statement": "Migrate the payment provider integration to their version three API",
+      "resourceKeys": ["file:src/payments/provider.ts"],
+      "abandonReason": "The provider's v3 API is not available on this account, so the work cannot be completed."
+    },
+    {
+      "id": "A2",
+      "kind": "abandoned",
+      "statement": "Replace the bearer token store with the vendor's hosted session service",
+      "resourceKeys": ["file:src/auth/token.ts"],
+      "abandonReason": "The vendor's hosted service has no migration path for existing tokens."
+    }
+  ]
+}

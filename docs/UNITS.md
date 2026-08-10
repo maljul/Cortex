@@ -275,11 +275,32 @@ above cannot drift out of it — was deliberately **not** started, because how t
 is parameterised through the managed server is exactly the thing that cannot be
 checked from here, and writing it from recall is what STEP 1 forbids.
 
-### U11 — Benchmark fixtures and task list ⬜
+### U11 — Benchmark fixtures and task list ✅ 2026-08-10
 **Done when:** the corpus and the overlapping-task share exist and are committed.
 **Specs:** `06`
 **Silent break:** too little task overlap. `08` §7 names this: a benchmark showing no
 difference means overlap is too low, not that the mechanism does not work.
+**Evidence:** `bench/fixtures/` (40 source files, a small orders service),
+`bench/tasks.json` (30 tasks), `bench/tasks.ts`, `test/bench-fixtures.test.ts` — 13
+tests. Measured overlap: **13/30 contending (43.3%), 6/30 redundant (20.0%)**. V11
+has the numbers.
+**The silent break happened, and was caught by measurement on the first run.** The
+six "semantically equivalent" pairs were written, then embedded: all six landed
+between 0.4380 and 0.7068, with the closest non-pair at 0.4293 — nothing separated,
+and a benchmark built on that draft would have reported that arbitrated memory does
+not reduce duplicate work. They had been reworded *adversarially*, sharing no
+vocabulary; rewritten as ordinary rephrasings they separate at (0.3630, 0.4293).
+Reading them aloud never revealed it.
+**The test asserts separability, not the 0.28 constant** — deliberately. `03` §4.2
+marks the threshold `[OPEN]` and empirical, so a fixture asserted against today's
+value would be tuned to the mechanism it exists to measure. What it does assert at
+the shipped value is **precision**: a false positive means the CORTEX arm skips work
+that needed doing and books the saving as a win.
+**Finding for U13:** `0.28` sits below the band and catches 4/6 pairs with 0 false
+positives. Something in (0.3630, 0.4293) catches all six. Nothing was changed in
+`src/memory/propose.ts` — picking it is the sweep's job, in `docs/SPEC-DELTA.md`.
+**Spec contradiction found and corrected:** §4 said 24 tasks while its own bullets
+summed to 30. Julian settled it in favour of the bullets; `06` §4 now says 30.
 
 ### U12 — Five-agent runner and cassettes ⬜
 **Done when:** "`cortex bench` runs both arms deterministically." *(08 §4, 23–29h, verbatim)*

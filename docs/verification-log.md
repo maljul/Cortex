@@ -1025,3 +1025,95 @@ that will surface as the same message after the role is granted.
    README claims every write goes through `cortex_propose`.
 
 `npm run probe:read` answers all three in one run the moment the role is assigned.
+
+---
+
+## V11 — The benchmark corpus separates, and 0.28 is below the band
+**2026-08-10 · U11 · PASS, with a measured finding for `03` §4.2's `[OPEN]`**
+
+Reproduce with `npx vitest run test/bench-fixtures.test.ts`. Every number here is
+Titan Text Embeddings V2 on the live endpoint, 1024 dimensions, cosine distance.
+
+**Composition and overlap**, measured from `bench/tasks.json` rather than asserted
+in prose:
+
+```
+overlap: 13/30 contending (43.3%), 6/30 redundant (20.0%)
+```
+
+`contending` is tasks naming a resource key some other task also names — the share
+`08` §7 says to raise if the benchmark shows no difference. `redundant` counts one
+member of each duplicate pair: the ceiling `duplicate_work_rate` can reach in the
+naive arm, and the floor the CORTEX arm should push toward zero.
+
+**The declared pairs, worst first, against the closest combinations that are not
+pairs:**
+
+```
+  P3 P3a/P3b   0.3630
+  P1 P1a/P1b   0.3203
+  P2 P2a/P2b   0.2058
+  P4 P4a/P4b   0.2056
+  P5 P5a/P5b   0.1812
+  P6 P6a/P6b   0.0610
+closest five that are not pairs:
+  C4/R1     0.4293
+  I3/R3     0.4293
+  P3a/R2    0.5160
+  C2/R1     0.5793
+  I6/P1b    0.6889
+separating band: (0.3630, 0.4293)
+```
+
+The corpus separates: the worst true pair is closer than the closest false one, so a
+threshold exists that classifies all thirty tasks perfectly. That is the property the
+test asserts, deliberately instead of asserting "inside 0.28" — §4.2 marks the
+threshold `[OPEN]` and empirical, and a fixture asserted against the current constant
+would be a fixture tuned to the mechanism it exists to measure.
+
+Note what the three closest non-pairs are: `C4/R1`, `I3/R3` and `P3a/R2` are exactly
+the recall-dependency pairs. They are related by construction and are not duplicates,
+so they are the corpus's hard negatives — the band above is narrow because they are
+there, which is what makes it worth measuring.
+
+### The finding: the shipped threshold is below the band
+
+```
+at DEDUPE_THRESHOLD 0.28: 4/6 pairs caught, 0 false positives
+```
+
+`0.28` sits under the worst true pair, so it misses P1 (0.3203) and P3 (0.3630):
+recall 4/6, precision 6/6. A threshold anywhere in (0.3630, 0.4293) — 0.40, say —
+catches all six with no false positive on this corpus.
+
+**Nothing was changed in `src/memory/propose.ts`.** Picking the value is U13's sweep
+(`bench/results/threshold-sweep.md`), and moving a constant in the mechanism to fit a
+fixture is the wrong direction of fit. Recorded in `docs/SPEC-DELTA.md` as input to
+that sweep.
+
+### The first draft failed, which is why the test exists
+
+The pairs were written first and measured second, and the first six were **all**
+outside any usable band — 0.4380 to 0.7068, with the closest non-pair at 0.4293, so
+worst-true (0.7068) sat well above closest-false and nothing separated:
+
+```
+  P1  P1a/P1b  0.4799
+  P2  P2a/P2b  0.6266
+  P3  P3a/P3b  0.7068
+  P4  P4a/P4b  0.4380
+  P5  P5a/P5b  0.3835
+  P6  P6a/P6b  0.4355
+separated: NO
+```
+
+They read as obviously equivalent — "Add rate limiting to the login endpoint" against
+"Throttle repeated sign-in attempts so the login route cannot be brute forced". The
+cause was that they had been reworded *adversarially*, sharing almost no vocabulary,
+which is not how two people filing the same ticket write. Rewritten as ordinary
+rephrasings that keep the domain words, they separate.
+
+This is the unit's silent break, caught by measurement on the first run. Nothing about
+reading those statements aloud reveals a 0.48; a benchmark built on the first draft
+would have reported that arbitrated memory does not reduce duplicate work, and the
+fixture would have been the reason.

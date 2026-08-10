@@ -1,4 +1,10 @@
 {
+  // `bench/fixtures` is the benchmark's subject, not this project's source: a small
+  // service that agents are asked to modify. It is deliberately imperfect — that is
+  // what gives the tasks something to do — and typechecking it here would couple our
+  // build to fixture content and make the corpus answer to our tsconfig rather than
+  // look like an ordinary repository. Nothing imports it; `bench/` itself is checked.
+  "exclude": ["bench/fixtures"],
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout

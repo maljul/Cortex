@@ -120,6 +120,41 @@ It is answerable in one call once the API key exists — ask the server for
 Agent Skill claims the read path is read-only. V9 is the precedent: the platform hands
 out `admin` by default, so the assumption to test is that this principal is over-privileged too.
 
+**Answered in part by V10.** The managed server does publish `insert_rows`,
+`create_table` and `create_database`, so it is not a read plane whatever its SQL
+identity turns out to be. The identity itself is still TBD: the service account has no
+roles, so every SQL tool answers `unauthorized`. `npm run probe:read` settles it.
+
+### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
+
+Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
+for a sweep. U11 produced the first measurement, and it says the default is too tight.
+On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
+
+- worst genuinely-duplicate pair: **0.3630**
+- closest combination that is *not* a duplicate: **0.4293**
+- so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
+- at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
+
+The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
+U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
+fixture is the wrong direction of fit. This is input to that sweep, not a decision.
+Numbers and the failed first draft are in V11.
+
+## Corrected in the spec already — do not re-open
+
+### `06` §4 said 24 tasks while its own composition summed to 30 *(corrected 2026-08-10)*
+
+§4 asked for "a seeded task list of 24 tasks", then listed 8 independent + 6 pairs + 5
+overlapping + 3 recall-dependent + 2 abandoned. Six pairs is twelve tasks, so the
+bullets sum to 30; only reading "6 pairs" as six *tasks* in three pairs reaches 24.
+
+Settled by Julian in favour of the bullets, and §4 now says 30. The reasoning: `08` §7
+ranks "benchmark shows no difference" as low-likelihood and high-impact and prescribes
+raising the overlapping-task share, and the duplicate pairs are that share. Twelve of
+thirty duplicates gives `duplicate_work_rate` room to separate the arms; six of
+twenty-four does not.
+
 ### `05` §3 — `cortex_heartbeat` had prose and no JSON block *(corrected 2026-08-09)*
 
 §3 published `inputSchema` blocks for `cortex_propose` and `cortex_close` and only two

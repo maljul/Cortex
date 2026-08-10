@@ -51,7 +51,7 @@ benchmarks like this become worthless, and a database-company judge will look fo
 ## 4. Workload
 
 A fixture repository committed under `bench/fixtures/`, roughly 40 source files
-implementing a small service, with a seeded task list of 24 tasks.
+implementing a small service, with a seeded task list of 30 tasks.
 
 Task list composition, chosen so the failure modes are guaranteed to appear:
 
