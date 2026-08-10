@@ -1010,9 +1010,9 @@ And role assignment for service accounts is not a Console action:
 > API. — `cockroachcloud/ccloud-faq.md`
 
 So the API key is correct and unusable until the service account is given a
-cluster-scoped role. **Because the cluster id could not be independently confirmed
-while the account sees no clusters, it is also still unverified** — if it is wrong,
-that will surface as the same message after the role is granted.
+cluster-scoped role. The cluster id could not be independently confirmed while the
+account saw no clusters, so it was unverified here — **V16 confirms it is correct**,
+and the role was the whole fault.
 
 ### What has to be answered before U10's Agent Skill is written
 
@@ -1265,7 +1265,7 @@ byte-for-byte alongside the query.
 ---
 
 ## V15 — The privilege planes now have a test, and it is red where it should be
-**2026-08-10 · asserted by attempting writes · READER PASS, DEMO UNASSERTED**
+**2026-08-10 · asserted by attempting writes · BOTH PLANES PASS, 27/27**
 
 V9's finding — all three service accounts were members of `admin` — lived only in this
 log, which does not fail when someone re-grants. `test/privilege-planes.test.ts` is the
@@ -1288,17 +1288,23 @@ nothing about privilege. Write attempts run inside a transaction that is always 
 back, so the case this exists to catch — an unexpected success — fails the assertion
 without leaving a row behind.
 
-**The demo plane: 13 failures, all one missing credential.**
+**The demo plane: 13/13 green, once Julian supplied `CORTEX_DEMO_DSN`.**
 
 ```
-Error: CORTEX_DEMO_DSN is not set in .env, so this privilege plane is unasserted.
+✓ connects as cortex_demo and not as someone else
+✓ cannot read  repos · agents · claims · intents · findings · action_ledger
+✓ cannot write repos · agents · claims · intents · findings · action_ledger
 ```
 
-Deliberately a failure and not `it.skip`. `cortex_demo` exists on the cluster with no
-grants (`sql/001_init.sql` withholds them pending `04` §3's `[OPEN]`), but nothing in
-this repository can prove that without a connection string for it. A skipped privilege
-test reports green over an unasserted boundary, which is the shape of the "N/N passed"
-that let V9 survive three checks.
+So V9's claim that `cortex_demo` "can do nothing" is now measured rather than
+remembered, on all six tables in both directions, each refusal on 42501.
+
+It was written to *fail* rather than `it.skip` while the DSN was missing, and it did —
+13 red for one absent credential. That is the point: `cortex_demo` had no grants
+(`sql/001_init.sql` withholds them pending `04` §3's `[OPEN]`), but nothing in this
+repository could prove it without a connection string. A skipped privilege test reports
+green over an unasserted boundary, which is the shape of the "N/N passed" that let V9
+survive three checks.
 
 **This is not `03` §8 test 9, and the file says so.** Test 9 asks that `cortex_demo`
 cannot write outside a *live demo session scope*. What is asserted is the weaker
@@ -1306,6 +1312,55 @@ current state: no privilege at all. When `04` §3 is decided and the principal g
 scoped grants, the demo block stops being true and fails — which is the intended
 behaviour, not a defect. Rewrite it into test 9 proper at that point.
 
-**Action for Julian:** add `CORTEX_DEMO_DSN` to `.env`. `cortex_demo` exists but its
-password is not in this repository; mint one with `npm run sql` as the admin user, or
-from the Cloud Console. Until then the suite is red by design and the row is honest.
+**Closed 2026-08-10.** `CORTEX_DEMO_DSN` is in `.env`; suite 144/144.
+
+---
+
+## V16 — Cluster Developer reaches the cluster metadata and no SQL at all
+**2026-08-10 · `npm run probe:read` after the role was assigned · PARTIAL**
+
+Julian assigned the service account a **Cluster Developer** role scoped to
+`agent-hack`. The probe moved, and stopped short of the question that matters.
+
+**What changed from V10.** `list_clusters` returned `{"rows":[]}` there; it now returns
+the cluster, and `get_cluster` succeeds:
+
+```
+list_clusters   OK   {"rows":[{"id":"34cc9fe0-172d-42bd-af7e-01b122c3662e","name":"agent-hack",
+                     "cockroach_version":"v26.2.5","cloud_provider":"AWS","state":"CREATED","plan":"BASIC",…
+get_cluster     OK   {"id":"34cc9fe0-172d-42bd-af7e-01b122c3662e","name":"agent-hack",…
+```
+
+**`CORTEX_MCP_CLUSTER_ID` is confirmed correct.** V10 could not tell a wrong id from a
+missing role because both produce "cluster not found"; the id in `.env` matches what
+`get_cluster` returns. That TBD is closed.
+
+**Every SQL-shaped tool is still refused, including the write.**
+
+```
+list_databases               FAILED  MCP error 0: list databases: unauthorized
+select_query (identity)      FAILED  MCP error 0: executing select query: unauthorized
+select_query (recall shape)  FAILED  MCP error 0: executing select query: unauthorized
+insert_rows (write reach)    FAILED  MCP error 0: insert rows: unauthorized
+```
+
+So Cluster Developer buys Cloud-API metadata and nothing that touches data. The
+distinction is sharp and worth keeping: the tools that succeeded are *Cloud* API calls
+about the cluster; every tool that executes SQL against it fails identically.
+
+**The two questions U10 is blocked on are still TBD, and neither can be faked from
+here.** Which SQL identity the managed server executes as is unknown — `select_query
+(identity)` is the probe that would answer it and it does not run. Whether `insert_rows`
+reaches `claims` and `intents` is unknown for the same reason. Note that
+`insert_rows` failing here is **not** evidence the read path is safe: it failed because
+*nothing* SQL-shaped is authorized, not because writes specifically are refused. Reading
+it as reassurance would be exactly the catalogue-versus-invocation error V9 punished.
+
+**Next escalation, and what to expect from it.** The remaining Cloud roles are Cluster
+Operator and Cluster Admin. The docs do not state which one the MCP SQL tools require,
+so this is measured, not predicted. The outcome that matters is the *asymmetric* one:
+if a role makes `select_query` work while `insert_rows` stays refused, `04` §2's read
+path survives. If the same role turns both on — which is the likelier shape, since
+nothing in the server's design separates them — then the governed read path is only
+reachable by a principal that can also write, and `04` §2 needs rethinking rather than
+documenting around. `docs/SPEC-DELTA.md` already carries that entry.

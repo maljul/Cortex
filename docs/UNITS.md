@@ -248,12 +248,15 @@ Cleared: V9's `admin` membership is revoked, and `CORTEX_READER_DSN` now connect
 
 **Still blocked, on two things, and the second one may reshape the unit:**
 
-1. **The Cloud service account has no roles.** `list_clusters` returns `{"rows":[]}`,
-   so every SQL tool answers `unauthorized`. Cloud's default for a new service account
-   is Organization Member, which "adds no permissions", and role assignment for
-   service accounts is Cloud-API-only, not a Console action. `CORTEX_MCP_CLUSTER_ID`
-   is also still unconfirmed — it cannot be told apart from the missing role until the
-   role exists.
+1. **The Cloud service account's role is not strong enough for SQL.** *(updated
+   2026-08-10, V16.)* It now holds **Cluster Developer** scoped to `agent-hack`, and
+   that changed the Cloud-API half only: `list_clusters` and `get_cluster` succeed,
+   which **confirms `CORTEX_MCP_CLUSTER_ID` is correct** — that sub-question is closed.
+   Every tool that executes SQL still answers `unauthorized`, `insert_rows` included.
+   Next: escalate to Cluster Operator, then Cluster Admin, re-running
+   `npm run probe:read` after each. Do not read `insert_rows` failing today as evidence
+   the read path is safe — *nothing* SQL-shaped is authorized, so it says nothing about
+   writes specifically.
 2. **The managed MCP server publishes `insert_rows`, `create_table` and
    `create_database`.** `04` §2 sends agent reads there *because* the path is
    governed; it is not a read plane, and cannot be made one by choosing which of its

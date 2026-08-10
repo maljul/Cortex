@@ -27,29 +27,28 @@ What does not belong in a unit list, and so lives here:
   narrow question whose true answer hid the admin membership. Attempt the write.
   `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
   half is green, the demo half is red on a missing credential (below).
-- **Action for Julian:** add `CORTEX_DEMO_DSN` to `.env`. `cortex_demo` exists on the
-  cluster with no grants, but no connection string for it exists here, so 13 tests
-  fail by design. That red is deliberate — a skipped privilege test reports green over
-  an unasserted boundary — so do not silence it by skipping the block.
+  `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
+  cannot read or write any of the six tables. **Suite 144/144.**
 - Reason model: **resolved 2026-08-10.** `.env` now sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`, which is the
   entitled one; `npm run env:doctor` no longer warns. Nothing reads it yet, so LIVE
   mode is still unproven end to end — that is day three's job, not this line's.
-- **Action for Julian, blocking U10:** the Cloud service account behind
-  `CORTEX_MCP_API_KEY` has no roles — `list_clusters` returns zero rows, so every SQL
-  tool answers `unauthorized` (V10). Cloud's default is Organization Member, which
-  adds no permissions. Assign it a cluster-scoped role, then `npm run probe:read`.
-  **Try the Console first.** V10 recorded this as Cloud-API-only on the strength of
-  `ccloud-faq.md` ("Role management for service accounts must be done exclusively
-  through the Cloud API"), but `managing-access.md` documents a Console flow —
-  Access Management → the service account → Edit roles — with a scope of either
-  Organization or a named cluster. The two docs contradict each other; the Console
-  costs thirty seconds, so settle it by trying rather than by reading.
+- **Action for Julian, blocking U10:** the service account behind `CORTEX_MCP_API_KEY`
+  now holds **Cluster Developer**, which reaches the Cloud API and no SQL — every
+  SQL-shaped tool still answers `unauthorized` (V16). It did confirm
+  `CORTEX_MCP_CLUSTER_ID` is correct, closing that sub-question. Escalate to Cluster
+  Operator, then Cluster Admin, re-running `npm run probe:read` after each. Role
+  assignment turned out to be a Console action after all, contrary to V10's reading of
+  `ccloud-faq.md`.
 - **Open, and larger than U10:** the managed MCP server publishes `insert_rows`,
   `create_table` and `create_database` (V10). `04` §2 routes reads there *because*
   that path is supposed to be governed. Whether those tools reach `claims` and
-  `intents` is **TBD** until the role above exists. If they do, the read path is an
-  unarbitrated write path and `04` §2 needs rethinking, not documenting around.
+  `intents` is **still TBD** — `insert_rows` is refused today only because *nothing*
+  SQL-shaped is authorized, which says nothing about writes specifically, and reading
+  it as reassurance is the catalogue-versus-invocation error V9 punished. If a role
+  turns `select_query` and `insert_rows` on together — the likelier shape — the read
+  path is an unarbitrated write path and `04` §2 needs rethinking, not documenting
+  around.
 
 ---
 
