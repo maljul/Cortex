@@ -61,17 +61,6 @@ task they attempt, so the embedding sets are **equal**; and CORTEX's reasoning k
 strict **subset** of NAIVE's, which covers all 30 tasks. Same library, fewer draws — the
 attributability §5 wants, stated in a form that can be checked.
 
-### `05` §2 — the Node-versus-Python `[OPEN]` is answered in practice, still marked open
-
-§2 leaves the CLI runtime open with a mild preference for Node. Everything in the
-repository is Node and TypeScript, and B1 committed to one module system across all
-of it with `npx tsc --noEmit` clean. Choosing Python now would mean adding a
-toolchain, not picking between two.
-
-**Not edited, deliberately.** Closing an `[OPEN]` is Julian's call and was not made as
-a side effect of a build fix. Reasoning in `docs/DECISIONS.md`. The cost of leaving it
-is that a reader of §2 may think the question is live and re-open it.
-
 ### `11` §2 and §6 — the six-command ship loop is now three commands
 
 §2 specifies `lh-next.md`, `lh-work.md`, `lh-gate.md` and `lh-log.md`, and §6 adds
@@ -167,6 +156,19 @@ Making that edit inside the same unit is the circularity `06` §3 exists to prev
 that is worse than it needs to be, which is the cheaper of the two mistakes.
 
 ## Corrected in the spec already — do not re-open
+
+### `05` §2 — the Node-versus-Python `[OPEN]` *(closed 2026-08-10 — Node)*
+
+**Closed by Julian, not by drift.** §2 now states Node and gives the reasoning: `npx`
+with zero install is on the README's first screen and the benchmark is not, and the
+shorter Python path to the embedding code is the weaker side, accepted.
+
+The entry existed because the question had been answered in practice long before it was
+answered on paper — every line of `src/`, `bench/`, `scripts/` and `test/` is Node and
+TypeScript, and B1 committed the whole tree to one module system with `npx tsc --noEmit`
+clean. It was deliberately left open anyway, because closing an `[OPEN]` is Julian's call
+and must not happen as a side effect of a build fix. The cost of leaving it, which was
+real for a day, was that a reader of §2 could think the question was live and re-open it.
 
 ### `04` §3 / `05` §3 — "governed by Cloud RBAC" did not describe the managed MCP server *(resolved 2026-08-10 — the route changed)*
 

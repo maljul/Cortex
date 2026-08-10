@@ -71,11 +71,18 @@ Requirements:
   blocked and deduped let shell-driven agents branch without parsing output.
 - No command may print a credential.
 
-`[OPEN]` Node or Python for the CLI. Node gives `npx` with zero install, which
-materially affects star conversion and judge friction. Python gives a shorter path to
-the embedding and benchmark code. A split (Node CLI, Python bench) is legitimate but
-doubles the toolchain. The implementer should pick one runtime for everything and
-accept the weaker side, with a mild preference for Node because of `npx`.
+**Node, everywhere.** *(Decided 2026-08-10; was `[OPEN]` between Node and Python.)* Node
+gives `npx` with zero install, which materially affects star conversion and judge
+friction, and the install line is on the README's first screen where the benchmark is
+not. Python would have given a shorter path to the embedding and benchmark code; that is
+the weaker side, and it is accepted. A split runtime was legitimate on paper and doubles
+the toolchain on a three-day budget.
+
+By the time the question was formally closed it was not really a choice any more: every
+line of `src/`, `bench/`, `scripts/` and `test/` is Node and TypeScript, and B1 committed
+the whole tree to one module system with `npx tsc --noEmit` clean. Picking Python here
+would have meant *adding* a toolchain rather than choosing between two. Reasoning in
+`docs/DECISIONS.md`.
 
 ## 3. CORTEX MCP server — the write plane
 
