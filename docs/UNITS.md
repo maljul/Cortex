@@ -56,8 +56,9 @@ it is day three's README-and-first-run value, not day two's proof. Day two's gat
 (`08` §4) is a benchmark showing a difference between the arms, and U2 moves that
 zero distance.
 
-**Pick it up at day three, with infra and deploy.** If day three runs short, `08` §6
-does *not* list it as cuttable, so it comes before the demo SPA polish, not after.
+**Scheduled in day three, after U17 and before U18.** See its entry in that section for
+the placement reasoning. If day three runs short, `08` §6 does *not* list it as cuttable,
+so it comes before the demo SPA polish, not after.
 
 ### U3 — Retry helper ✅
 **Done when:** "forced `40001` retries and commits, covered by a test." *(08 §3, 5–9h, verbatim)*
@@ -130,6 +131,31 @@ level with no runtime change:
   tests already make.
 **Do not let this regress.** `npx tsc --noEmit` belongs in whatever CI day three sets
 up; it is cheap and it caught nothing for weeks because nobody could run it.
+
+### B2 — Deploy spike: a hello-world through the full AWS pipeline ✅ 2026-08-10
+**Done when:** a Lambda deployed by IaC answers over API Gateway with the cluster's own
+build string, and a CloudFront URL serves a page, both reachable from outside the account.
+**Why it was a unit:** `08` §7 prescribes this for day one evening and it did not happen.
+"Deployment eats day three" was the medium-likelihood, high-impact risk in the register.
+**Evidence:** `infra/` — `lambda/identity.ts`, `bundle.mjs`, `cdk-spike/`, `site/`. V22
+has the output. Suite 174/174, `tsc` clean.
+**`04` §2's `[OPEN]` is closed: CDK.** Both tools were built and timed. The section's own
+tiebreaker — redeploy under ten minutes — **tied**: CDK 42s, SAM 33s, both ~15× inside
+the bar. Decided instead on what the templates look like for U14's remaining resources.
+**The risk it was written to burn down did not fire.** Lambda reaches CockroachDB Cloud
+with no custom CA, no VPC and no `sslmode` change; the module-scope pool survives between
+invocations, so a warm request queries in 3ms.
+**Two findings that did fire, and both matter more than the `[OPEN]`:**
+- **Lambda concurrency is capped at 10 on this account**, not 1000. Thirty concurrent
+  requests returned twenty `503`s and the database was never the bottleneck. This is a
+  constraint on U17 and a risk to rule B4; the quota increase is Julian's to file.
+- **The first stack put the reader DSN in the synthesized template**, satisfying `05` §6
+  as written while leaving the credential in `cdk.out/` and in CloudFormation's stored
+  copy. Now a `{{resolve:secretsmanager:...}}` dynamic reference. Found by grepping the
+  artifact, not by reasoning about the rule.
+**For whoever deploys next:** `node infra/bundle.mjs` before every `cdk deploy`. Nothing
+runs it automatically, and a stale bundle deploys silently — which is why the handler
+carries a `BUNDLE_REVISION` you bump by hand.
 
 ---
 
@@ -371,52 +397,189 @@ write against a cloud round trip.
 
 ---
 
-## Day three — the surface (decompose at the start of day three)
+## Day three — the surface
 
-Coarse on purpose. In `08` §5 order: infra and deploy (32–38h) · demo SPA (38–44h) ·
-guardrails and all four degradation rungs (44–47h) · README and disclosure (47–52h) ·
-video (52–58h) · Devpost (58–60h).
+Decomposed 2026-08-10 from `08` §5 and §6, at the start of day three as the previous
+version of this section instructed. Every done-when below is **verbatim from `08` §5**;
+where a unit needs a condition §5 does not give, it is marked as added and why.
 
-Three things carried forward that must not be forgotten:
+`U` numbers are not reused or renumbered — `docs/UNITS.md`'s own rule is that the numbers
+the specs refer to keep their meaning. **U2 keeps its number and is scheduled here**, in
+the position its dependencies put it, rather than being renamed into the day-three run.
 
-- **§8 test 9** — `cortex_demo` cannot write outside a live session scope. Blocked on
-  the `04` §3 `[OPEN]`, and V5 narrowed it: confinement cannot rest on the index
-  prefix, so it has to come from the principal's grants.
-  **Partly guarded since 2026-08-10 (V15).** `test/privilege-planes.test.ts` asserts
-  the planes by attempting writes rather than reading grants, which is what V9's
-  hidden `admin` membership requires. The reader half is green — 14 assertions, every
-  refusal on SQLSTATE 42501. The demo half is **red pending `CORTEX_DEMO_DSN`**, which
-  is a credential this repository does not hold; that is deliberate, because a skipped
-  privilege test reports green over an unasserted boundary. What it will assert is
-  still weaker than test 9 — "no privilege at all" rather than "none outside a live
-  session scope" — and it is written to fail, not to keep passing, once `04` §3 is
-  decided and scoped grants exist.
-- **The video is recorded in LIVE mode** at 52–58h, and LIVE reasoning now runs on a
-  4-5 model. Confirm that path end to end before the recording session, not during it.
-- **`08` §7 says deploy a hello-world through the full pipeline on day one evening**,
-  not on day three. Deployment eating day three is the medium-likelihood, high-impact
-  risk in the register.
-- **U2 `cortex init` lands here**, deferred from day one — see its entry above for
-  why, and do not let it drift further than day three.
+Order of work: **U14 → U15 → U16 → U17 → U2 → U18 → U19 → U20.**
 
-Not yet captured, worth screen-recording (`08` §5, 52–58h):
+### U14 — Infrastructure as code, deploy, changefeed to WebSocket ⬜
+**Done when:** "hosted demo reachable anonymously." *(08 §5, 32–38h, verbatim)*
+**Specs:** `04` §2, `05` §5, `04` §5
+**Verify live first:** that a CockroachDB **changefeed** can reach an API Gateway HTTP
+webhook sink at all on Basic tier. `04` §2 lists it as the ingress and nothing in this
+repository has ever created one; a catalogue listing is not an entitlement. If Basic
+refuses changefeeds, beat 4 and the live stream both lose their driver and the unit
+reshapes — find out first, not at hour 37.
+**Silent break:** promoting the spike's reader DSN into the write path. `infra/` today
+deploys `cortex_reader` because a spike has no business holding a write verb.
+`getPool()` reads one variable, `CORTEX_DSN`, so wiring a write Lambda by pointing that
+variable at `cortex_writer` silently gives the *read* Lambda write privileges too. The
+write path needs its own pool or a DSN parameter — that is this unit's scope, and B2
+deliberately left it undone rather than guess.
+**Starting point:** `infra/cdk-spike/` is deployed and working (B2, V22). Rename it to
+`infra/cdk/` here; `04` §2 says a single app in `infra/` and "spike" stops being true.
+**Budget the concurrency.** 10 account-wide (V22). `04` §5 reserves 2 for LIVE. Decide
+and write down what the other 8 are for before adding functions that quietly compete.
 
-- **An unmodified third-party agent attaching to `npm run serve`, listing the three
-  tools, and proposing.** The whole prompt-surface argument in `05` §3 is that no
-  bespoke client is needed, and that is far more convincing seen than described.
-  **Now worth recording:** U8 makes `cortex_propose` decide, and the verification log
-  carries a granted / blocked / deduped transcript from a client with no MCP SDK.
-  What is still not captured is a real coding agent driving it, which is the take to
-  record — the text transcript is the proof, the agent is the demo.
-- The two-terminal contention gate (U6) is already reproducible on demand via
-  `npm run gate:contend`, but no take has been recorded.
+### U15 — `cortex_demo` confinement, and `03` §8 test 9 ⬜
+**Done when:** `cortex_demo` cannot read or write any row outside a live demo session
+scope, asserted by attempting the writes against the real principal. *(Added: `08` §5
+has no block for this, because it is `04` §3's `[OPEN]` rather than a build step. It
+gates U16, which writes as this principal.)*
+**Specs:** `04` §3, `03` §7, `03` §8
+**Verify live first:** that Row-Level Security works on Basic tier — enable it on a
+scratch table, attach a policy, and confirm a non-owner is actually filtered. `04` §3
+requires real memory to be **unreachable to the principal**, not filtered out of its
+queries, and a table-level `GRANT` cannot give that. If RLS is unavailable, **stop**:
+the alternative is a second cluster and that is a decision, not a fallback.
+**Silent break:** granting the DML and forgetting `FORCE ROW LEVEL SECURITY`, or
+enabling RLS without a policy on one of the six tables. Either leaves a table wide open
+while the other five look correct, and `test/privilege-planes.test.ts` iterates all six
+precisely so that a per-table miss cannot hide behind a passing suite.
+**Note on the existing test:** its demo block asserts the *weaker* current state —
+"`cortex_demo` holds no privilege at all" — and its header says it is written to fail
+loudly once scoped grants exist. **That failure is the signal to rewrite it into test 9,
+not a regression to undo.**
+**Schema:** `repos` has no demo-scope marker. It needs one (`03` §7 also requires demo
+rows to carry a TTL), added `IF NOT EXISTS` so U1's idempotence survives.
+
+### U16 — Demo SPA: three panels, naive toggle, show-SQL ⬜
+**Done when:** "the four beats read clearly to someone who has not seen it."
+*(08 §5, 38–44h, verbatim)*
+**Specs:** `07` §2, `07` §3, `05` §5
+**Verify live first:** the four beats end to end against the deployed stack, in the
+order `07` §3 gives them. Beat 4 is consolidation arriving over the change stream, and
+`03` §4.4 is **not built** — see the note under U12. Either this unit builds enough
+consolidation to make beat 4 true, or beat 4 is cut and `07` §3 is corrected. Do not
+animate a beat the system does not perform: rule A7 requires the project to function as
+depicted.
+**Silent break:** a credential field. `02` B3 and `05` §5 forbid one *anywhere* in the
+UI — under any name, on any path, behind an advanced panel, commented out, or feature
+flagged off. That is invariant 8, and the SPA is the surface it was written about.
+**Second silent break:** the show-SQL panel printing SQL the system did not run. It is
+the "prove it" panel; a hand-written sample there is worse than no panel.
+
+### U17 — Guardrails and all four degradation rungs ⬜
+**Done when:** "each rung forced deliberately and each produces a working page; each
+brake fired deliberately and the demo stayed reachable; no credential field anywhere in
+the UI; demo loads in a private window on a machine that never touched the project."
+*(08 §5, 44–47h, verbatim)*
+**Specs:** `04` §5, `05` §5, `02` §B
+**Verify live first:** **rung 2 is reachable in REPLAY**, not only in LIVE — `04` §5 says
+so explicitly and calls it the rung most likely to fire unnoticed, because REPLAY caches
+reasoning but not embeddings. Force that one first; it is the one that will be assumed
+safe.
+**Silent break:** a brake scoped wider than the LIVE reasoning function. `04` §5 is
+explicit that a budget action disabling the API, the SPA, the read path or the cluster
+converts a cost control into a **rules violation**, because B4 requires availability
+until 2026-09-15. Fire each brake deliberately and confirm the demo stayed up.
+**Carry V22's finding in:** at 10 account-wide Lambda concurrency, a `503` is reachable
+by ten simultaneous visitors and a `503` is an error page, which rung invariant 1
+forbids. This unit either absorbs overflow into a working page or depends on a quota
+increase that may not have landed. **Do not assume it landed.**
+**The last clause of the done-when is a separate act:** a private window, on a machine
+that never touched this project. Not localhost, not a logged-in browser.
+
+### U2 — `cortex init` ⬜ *(deferred from day one; see its entry above for why)*
+**Done when:** "`cortex init` produces a working cluster twice in a row." *(08 §3, verbatim)*
+**Specs:** `05` §2, `03` §2
+**Verify live first:** that `ccloud` can provision, and that a second run is a no-op.
+**Silent break:** printing a credential. `05` §2: no command may print one, and `doctor`
+must fail loudly if a DSN appears in a tracked file.
+**Placed here, before U18, on purpose.** `08` §6 does **not** list it as cuttable, so it
+comes before SPA polish rather than after; and `docs/SPEC-DELTA.md`'s "`cortex bench` vs
+`npm run bench`" entry closes when this lands, which the README then has to publish
+correctly. A README documenting a command that does not exist is worse than a README
+documenting a differently-named one.
+
+### U18 — README, architecture diagram, licence, third-party disclosure ⬜
+**Done when:** "a clean clone reproduces the benchmark." *(08 §5, 47–52h, verbatim)*
+**Specs:** `09` §1, `07` §7, `02` §B
+**Verify live first:** the clean clone itself — clone to a fresh directory and run the
+published command. `bench/results/*/summary.md` already claims everything except
+re-running needs no prerequisites; that claim is either true from an empty directory or
+it is not, and only trying it settles which.
+**Silent break:** a licence that GitHub's About section does not detect. `02` B2 asks
+for **detectable and visible**, which is a repo-settings act as well as a `LICENSE` file.
+**Diagram:** `02` B12 calls it free marks on Technological Implementation. It must show
+the read plane as `cortex_reader` — the managed MCP server is not the route (V17).
+
+### U19 — Video, recorded in LIVE mode ⬜
+**Done when:** "uploaded, public, captioned." *(08 §5, 52–58h, verbatim)*
+**Specs:** `07` §5, `02` §B
+**Verify live first:** `npm run probe:reason` immediately before the session. V18 proved
+entitlement on 2026-08-10, and entitlement is an account fact that can change without
+this repository knowing. Also install `psql` — U10's recall proof is currently
+driver-level because this machine has none, and the command-line form is both more
+convincing on camera and the literal reading of `08` §4's "without any bespoke client".
+**Silent break:** B9 — a third-party trademark in frame. Agent-vendor logos, tool
+branding in the terminal, or music that is not self-produced. Capture in scripted-agent
+mode, which `08` §7 names as the mitigation for both this and inconsistent behaviour.
+**Second silent break:** narrating a capability the footage does not show. B7 requires
+the video to show the project **functioning**, and A7 requires it to function as depicted.
+
+**Takes to capture, carried forward from the previous version of this section:**
+- **An unmodified third-party agent attaching to `npm run serve`**, listing the three
+  tools, and proposing. The whole prompt-surface argument in `05` §3 is that no bespoke
+  client is needed, and that is far more convincing seen than described. The verification
+  log already carries a granted / blocked / deduped transcript from a client with no MCP
+  SDK — the text is the proof, the agent is the demo.
+- **The two-terminal contention gate** (U6), reproducible on demand via
+  `npm run gate:contend`. No take recorded yet.
 - **An agent recalling with `psql` and nothing else** — the skill's SQL pasted into a
-  standard client against `CORTEX_READER_DSN`, returning rows. `test/skill.test.ts`
-  proves the same thing at the driver level, but `psql` is not installed on this
-  machine, and the command-line form is both more convincing on camera and the literal
-  reading of `08` §4's "without any bespoke client". Install `psql` before the session.
+  standard client against `CORTEX_READER_DSN`, returning rows.
 - **`npm run bench` printing both arms side by side**, with `live model calls embed 0,
-  reason 0` visible on each. That line is the reproducibility claim made watchable: the
-  numbers came off committed cassettes, not off a live sample. Run it twice in the take
-  so the figures repeat — the determinism is the point, and a still frame cannot show
-  it. The CORTEX arm takes ~45s of real time against the cluster; cut or speed it.
+  reason 0` visible on each. Run it twice in the take so the figures repeat: the
+  determinism is the point and a still frame cannot show it. The CORTEX arm takes ~45s
+  of real time against the cluster; cut or speed it.
+- **`curl` against the hosted API route returning the cluster's own version string**
+  (new, from V22). Five seconds, and it is the shortest demonstration that the hosted
+  surface talks to a real CockroachDB cluster.
+
+### U20 — Devpost description, B10 and B11 answers, feedback field ⬜
+**Done when:** "walk the checklist in `02` §F." *(08 §5, 58–60h, verbatim)*
+**Specs:** `07` §6, `02` §C, `02` §D
+**Verify live first:** re-fetch the rules and diff them. `08` §7 lists "rules amended" as
+low-likelihood and high-impact with exactly that response, and `02` §F is dated 2026-08-17.
+**Silent break:** shipping `02` §C's answer text as written. Three of its four items still
+describe the managed MCP server as the agent's read path, which V17 falsified. **B10 asks
+what the agent actually did**, so an answer describing a route the project abandoned is a
+false statement to a judge, not a stale doc.
+**The feedback field (B13) is not optional in practice.** `08` §5 and `02` B13 both say
+almost nobody fills it. `docs/verification-log.md` is written to be that answer.
+
+---
+
+## Cut list — `08` §6, verbatim
+
+Copied here so a future session under time pressure drops the right things rather than
+improvising. Ranked by what to abandon first: cutting from the top costs almost nothing,
+cutting from the bottom costs the submission.
+
+1. Time-travel panel
+2. OpenTelemetry export
+3. `cortex run` process wrapper, keep `serve`
+4. Glob expansion beyond a fixed depth
+5. Threshold sweep, publish a single value and say it was not tuned
+6. Heartbeat and lease extension, use a longer fixed lease
+7. Live mode entirely, ship replay only and record the video locally. This does not
+   endanger rule B4: a replay-only demo is still a working project available free and
+   without restriction, because REPLAY runs fully live database behaviour. What would
+   endanger B4 is shipping LIVE without its degradation rung
+8. **Never cut:** the arbitration transaction, the benchmark, the naive toggle, the
+   README first screen, the video, and anonymous zero-setup access to the demo
+
+Two notes on this list as it stands today, neither of which changes its order:
+
+- **Items 3, 4 and 6 are already banked.** Heartbeat was decided against at U9, glob
+  expansion is bounded by `CORTEX_REPO_ROOT`, and there is no `cortex run`.
+- **Item 5 has already been paid for.** The sweep exists and is committed
+  (`bench/results/*/threshold-sweep.md`), so cutting it now saves nothing. What it bought
+  is a published value with a measurement behind it instead of an untuned one.
