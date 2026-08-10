@@ -1261,3 +1261,51 @@ invariant 5 both already required it — rather than a design question, which is
 was settled immediately rather than left open. The `docs/SPEC-DELTA.md` entry has moved
 to Corrected. Had it stayed open past U10, `SKILL.md` would have pinned the gap
 byte-for-byte alongside the query.
+
+---
+
+## V15 — The privilege planes now have a test, and it is red where it should be
+**2026-08-10 · asserted by attempting writes · READER PASS, DEMO UNASSERTED**
+
+V9's finding — all three service accounts were members of `admin` — lived only in this
+log, which does not fail when someone re-grants. `test/privilege-planes.test.ts` is the
+regression guard. It reads no catalogue: `SHOW GRANTS ON TABLE claims` answered V9's
+narrow question truthfully while the account held everything through a role membership
+the question never asked about. Every claim here is made by issuing the statement.
+
+**The reader plane: 14/14 green against the real cluster.**
+
+```
+✓ connects as cortex_reader and not as someone else
+✓ can SELECT repos · agents · claims · intents · findings · action_ledger
+✓ cannot INSERT into repos · agents · claims · intents · findings · action_ledger
+✓ cannot UPDATE, DELETE or DROP
+```
+
+Every refusal is asserted on SQLSTATE **42501** specifically, not on "it threw". A test
+that accepts any error passes when the statement is malformed, which would assert
+nothing about privilege. Write attempts run inside a transaction that is always rolled
+back, so the case this exists to catch — an unexpected success — fails the assertion
+without leaving a row behind.
+
+**The demo plane: 13 failures, all one missing credential.**
+
+```
+Error: CORTEX_DEMO_DSN is not set in .env, so this privilege plane is unasserted.
+```
+
+Deliberately a failure and not `it.skip`. `cortex_demo` exists on the cluster with no
+grants (`sql/001_init.sql` withholds them pending `04` §3's `[OPEN]`), but nothing in
+this repository can prove that without a connection string for it. A skipped privilege
+test reports green over an unasserted boundary, which is the shape of the "N/N passed"
+that let V9 survive three checks.
+
+**This is not `03` §8 test 9, and the file says so.** Test 9 asks that `cortex_demo`
+cannot write outside a *live demo session scope*. What is asserted is the weaker
+current state: no privilege at all. When `04` §3 is decided and the principal gains
+scoped grants, the demo block stops being true and fails — which is the intended
+behaviour, not a defect. Rewrite it into test 9 proper at that point.
+
+**Action for Julian:** add `CORTEX_DEMO_DSN` to `.env`. `cortex_demo` exists but its
+password is not in this repository; mint one with `npm run sql` as the admin user, or
+from the Cloud Console. Until then the suite is red by design and the row is honest.

@@ -330,6 +330,15 @@ Three things carried forward that must not be forgotten:
 - **§8 test 9** — `cortex_demo` cannot write outside a live session scope. Blocked on
   the `04` §3 `[OPEN]`, and V5 narrowed it: confinement cannot rest on the index
   prefix, so it has to come from the principal's grants.
+  **Partly guarded since 2026-08-10 (V15).** `test/privilege-planes.test.ts` asserts
+  the planes by attempting writes rather than reading grants, which is what V9's
+  hidden `admin` membership requires. The reader half is green — 14 assertions, every
+  refusal on SQLSTATE 42501. The demo half is **red pending `CORTEX_DEMO_DSN`**, which
+  is a credential this repository does not hold; that is deliberate, because a skipped
+  privilege test reports green over an unasserted boundary. What it will assert is
+  still weaker than test 9 — "no privilege at all" rather than "none outside a live
+  session scope" — and it is written to fail, not to keep passing, once `04` §3 is
+  decided and scoped grants exist.
 - **The video is recorded in LIVE mode** at 52–58h, and LIVE reasoning now runs on a
   4-5 model. Confirm that path end to end before the recording session, not during it.
 - **`08` §7 says deploy a hello-world through the full pipeline on day one evening**,
