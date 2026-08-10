@@ -85,7 +85,39 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
-### `04` §2 — "governed by Cloud RBAC" does not describe the managed MCP server
+### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
+
+Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
+for a sweep. U11 produced the first measurement, and it says the default is too tight.
+On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
+
+- worst genuinely-duplicate pair: **0.3630**
+- closest combination that is *not* a duplicate: **0.4293**
+- so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
+- at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
+
+The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
+U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
+fixture is the wrong direction of fit. This is input to that sweep, not a decision.
+Numbers and the failed first draft are in V11.
+
+## Corrected in the spec already — do not re-open
+
+### `04` §3 / `05` §3 — "governed by Cloud RBAC" did not describe the managed MCP server *(resolved 2026-08-10 — the route changed)*
+
+**Closed by decision, not by wording.** Julian chose to drop the managed-MCP read path
+rather than try to constrain its principal. Reads are now issued as `cortex_reader`
+over `CORTEX_READER_DSN`, whose read-only property `test/privilege-planes.test.ts`
+asserts by attempting nine writes and requiring all nine to refuse with 42501.
+`04` §1, §3 and §4 and `05` §3, §4 and §6 are corrected in place; reasoning in
+`docs/DECISIONS.md`, measurement in V17. `CORTEX_MCP_*` survives in `.env` as
+diagnostics for `npm run probe:read` and is labelled as such.
+
+*(Filed under `04` §2 until this entry was closed; the governance claim actually lives
+in `04` §3's privilege-plane table and `05` §3's preamble, which is where the
+corrections landed.)*
+
+The original entry, kept because the measurement is what decided it:
 
 §2 routes agent reads through the CockroachDB Cloud Managed MCP Server on the argument
 that the agent's read access is then "governed by Cloud RBAC and audit logging rather
@@ -111,41 +143,17 @@ the memory the whole mechanism exists to arbitrate. Every `03` §8 invariant is 
 rather than broken: the agent never calls `cortex_propose`, so there is no transaction
 to violate.
 
-Not reconciled in the spec, deliberately — this is the one entry here that cannot be
-closed by editing wording. Either §2 gains a constraint on the principal that makes the
-claim true, or the read path is not this server. **Julian's decision, and U10 does not
-start until it is made**; `SKILL.md`'s sixth section is "never write directly to the
-database", which no document can enforce against an endpoint that publishes
-`insert_rows`.
-
-Two options, both real:
+This was the one entry here that could not be closed by editing wording — either the
+spec gained a constraint on the principal that made the claim true, or the read path
+was not this server. Two options were put to Julian:
 
 1. **Constrain the principal** — map `managed-mcp` to a `SELECT`-only SQL identity, if
-   Cloud exposes that control. Keeps §2's argument intact. Whether it is exposed at all
-   is itself TBD; nothing measured so far suggests the SQL identity is configurable.
+   Cloud exposes that control. Would have kept the argument intact. Whether it is
+   exposed at all was itself TBD, and nothing measured suggested the SQL identity is
+   configurable, so its best case was arriving where option 2 already stood.
 2. **Drop the managed-MCP read path**, serving recall through `cortex_reader` instead.
-   Its read-only property is asserted in `test/privilege-planes.test.ts` by attempting
-   six writes and watching all six refuse with 42501 — a *stronger* claim than §2 was
-   making, and already under test. The cost is that "governed by Cloud RBAC" leaves the
-   architecture story and is replaced by "governed by a SQL grant, and here is the test".
 
-### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
-
-Still `[OPEN]` in the spec, correctly — §4.2 says the right value is empirical and asks
-for a sweep. U11 produced the first measurement, and it says the default is too tight.
-On the committed corpus, Titan Text Embeddings V2 at 1024 dimensions:
-
-- worst genuinely-duplicate pair: **0.3630**
-- closest combination that is *not* a duplicate: **0.4293**
-- so any threshold in **(0.3630, 0.4293)** classifies all thirty tasks perfectly
-- at the shipped **0.28**: 4 of 6 pairs caught, 0 false positives
-
-The constant in `src/memory/propose.ts` has **not** been changed. Picking it belongs to
-U13's `bench/results/threshold-sweep.md`; moving the mechanism's threshold to fit a
-fixture is the wrong direction of fit. This is input to that sweep, not a decision.
-Numbers and the failed first draft are in V11.
-
-## Corrected in the spec already — do not re-open
+**Option 2, chosen 2026-08-10.** Reasoning in `docs/DECISIONS.md`.
 
 ### `03` §4.1 — the published recall SQL scoped the CTE and not the join *(corrected 2026-08-10)*
 

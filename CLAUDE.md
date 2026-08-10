@@ -36,18 +36,18 @@ What does not belong in a unit list, and so lives here:
 - The Cloud service account is sorted: **Cluster Operator**, `CORTEX_MCP_CLUSTER_ID`
   confirmed, `select_query` runs the recall shape (V16, V17). Role assignment turned
   out to be a Console action, contrary to V10's reading of `ccloud-faq.md`.
-- **DECISION FOR JULIAN, blocking U10 — `04` §2 is falsified (V17).** The managed MCP
-  server executes as `managed-mcp`, which holds INSERT and DELETE on `claims` and
-  INSERT on `intents`. Confirmed by invoking `insert_rows`: **23502**, a NOT NULL
-  violation, not **42501** — the privilege check passed and only the row was refused.
-  So `04` §2's "governed by Cloud RBAC" is false, and the read path is an unarbitrated
-  write path into the two tables arbitration exists to protect. Either constrain the
-  principal to a `SELECT`-only identity (if Cloud exposes that), or drop the
-  managed-MCP read path for `cortex_reader`, whose read-only property is under test.
-  Options in `docs/SPEC-DELTA.md`. **Do not write `SKILL.md` until this is settled.**
-- **U10 is not the critical path.** `08` §4's end-of-day-two gate is U13's summary
-  table, and `docs/UNITS.md` says the project is submittable from that moment. U12 is
-  the next workable unit and does not depend on any of the above.
+- **The read path is `cortex_reader`, not the managed MCP server. Decided 2026-08-10,
+  and it is settled** — reasoning in `docs/DECISIONS.md`, measurement in V17. That
+  server executes as `managed-mcp`, which holds INSERT and DELETE on `claims`;
+  confirmed by invoking `insert_rows` and getting **23502**, not **42501**. `04` §1,
+  §3, §4 and `05` §3, §4, §6 are corrected in place. `CORTEX_MCP_*` remains in `.env`
+  as diagnostics for `npm run probe:read` only — do not reintroduce that server as the
+  route without re-running the probe.
+- U10 is **unblocked** and reshaped: the skill ships recall SQL against
+  `CORTEX_READER_DSN`, pinned byte-for-byte against `src/memory/recall.ts` by a test,
+  because both `repo_id` predicates must survive retyping (V14). It is still not the
+  critical path — `08` §4's end-of-day-two gate is U13's summary table, and U12 is the
+  next workable unit.
 
 ---
 

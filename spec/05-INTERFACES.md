@@ -80,9 +80,15 @@ accept the weaker side, with a mild preference for Node because of `npx`.
 ## 3. CORTEX MCP server — the write plane
 
 Exposed over stdio locally, and over API Gateway for the hosted demo. **Write
-operations only.** Reads deliberately do not live here; they go through the
-CockroachDB Cloud Managed MCP Server so that the agent's read access is governed by
-Cloud RBAC and audit logging rather than by code you wrote.
+operations only.** Reads deliberately do not live here; they are issued as
+`cortex_reader`, a principal that holds `SELECT` on the six tables and no write verb,
+so the agent's read access is bounded by a grant rather than by code you wrote.
+
+*(Changed 2026-08-10.)* Reads went through the CockroachDB Cloud Managed MCP Server
+until V17 measured that server writing to `claims`. See `04` §3; the short version is
+that it executes as a principal holding `INSERT` and `DELETE` there, and publishes
+`insert_rows` as a tool. "Governed by Cloud RBAC" was the argument for that route and
+it did not survive being invoked.
 
 ### `cortex_propose`
 
@@ -171,13 +177,17 @@ an unmodified third-party agent behave correctly. Two rules:
 ## 4. Agent Skill — `skills/cortex-memory/SKILL.md`
 
 Published in the repository, installable through the standard skills tooling. It is
-what lets an agent use the managed MCP read path without any bespoke client code.
+what lets an agent use the read path without any bespoke client code.
 
 Contents:
 
 1. **When to recall.** Before planning any task touching more than one file.
-2. **The exact recall SQL**, parameterised, to issue through the managed MCP server.
-   Shipping the query in the skill is what makes the read path work.
+2. **The exact recall SQL**, parameterised, to issue as `cortex_reader`. Shipping the
+   query in the skill is what makes the read path work. It MUST carry **both**
+   `repo_id` predicates that `03` §4.1 specifies — the one in the CTE and the one on
+   the join — and it must be pinned against `src/memory/recall.ts` rather than
+   retyped, so the filter cannot drift out of it. V14 measured what a missing join
+   predicate does: repo A's recall ranked on repo B's revert history.
 3. **When to propose.** Before any side effect, without exception.
 4. **How to react to each decision.** `granted` proceed; `deduped` adopt the prior
    outcome and stop; `blocked` re-plan around the contested keys, never poll.
@@ -228,7 +238,7 @@ Contracts on this surface, all of which follow from rule B4:
 CORTEX_DSN                 # write-plane connection string, server side only
 CORTEX_READER_DSN          # read-plane connection string, cortex_reader, SELECT only
 CORTEX_DEMO_DSN            # hosted demo only, cortex_demo principal, server side only
-CORTEX_MCP_ENDPOINT        # https://cockroachlabs.cloud/mcp
+CORTEX_MCP_ENDPOINT        # diagnostics only since V17 — NOT the read path
 CORTEX_MCP_CLUSTER_ID      # the mcp-cluster-id header; from the Console cluster URL
 CORTEX_MCP_API_KEY         # bearer token of a Cloud service account, not a SQL user
 CORTEX_REPO                # repo slug
@@ -240,13 +250,20 @@ BEDROCK_EMBED_MODEL           # Titan Text Embeddings V2, 1024 dim
 BEDROCK_REASON_MODEL          # LIVE mode only
 ```
 
-The endpoint alone does not reach the managed MCP server. Its client configuration is
-the URL plus an `mcp-cluster-id` header and an `Authorization: Bearer` token, and that
-token belongs to a **Cloud service account** — an organization-level identity created
-in the Console, distinct from the SQL users in `04` §3, and governed by Cloud roles
-rather than by `GRANT`. A new service account starts as Organization Member, which
-carries no permissions at all; until it is given a cluster-scoped role every SQL tool
-answers `unauthorized` and `list_clusters` returns nothing. See V10.
+**The three `CORTEX_MCP_*` values no longer configure the read path.** They are kept
+because `npm run probe:read` uses them to re-measure the managed server's reach, which
+is worth being able to repeat, and because the demo narrative may still show it. The
+read path is `CORTEX_READER_DSN`. Do not reintroduce the managed server as the route
+without re-running that probe — V17 is why.
+
+For the probe, the endpoint alone reaches nothing. Its client configuration is the URL
+plus an `mcp-cluster-id` header and an `Authorization: Bearer` token, and that token
+belongs to a **Cloud service account** — an organization-level identity created in the
+Console, distinct from the SQL users in `04` §3, and governed by Cloud roles rather
+than by `GRANT`. A new service account starts as Organization Member, which carries no
+permissions at all; until it is given a cluster-scoped role every SQL tool answers
+`unauthorized` and `list_clusters` returns nothing (V10). At **Cluster Operator** the
+SQL tools run, and what they can then do is V17.
 
 `CORTEX_REPO_ROOT` is what makes the `glob:` half of §3's `resource_keys` grammar
 usable. `03` §3 requires a glob to be claimed as one row per matched file plus a row

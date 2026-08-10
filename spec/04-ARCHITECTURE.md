@@ -10,8 +10,8 @@ coding agents  ──MCP(write)──►  API Gateway HTTP
  Codex, scripted)                   ▼
       │                     Lambda: memory-write ──SQL(rw sa)──────────►  cluster
       │                            │                                      ├ claims
-      └──MCP(read)───────────────────────────────────────────────────►   ├ intents
-         CockroachDB Cloud Managed MCP Server (read-only sa)              ├ findings
+      └──SQL(cortex_reader, SELECT only)──────────────────────────────►   ├ intents
+         the Agent Skill's recall query, §3                               ├ findings
                                                                           └ action_ledger
 cortex CLI ──ccloud CLI──► CockroachDB Cloud control plane                  │
                                                                                │ changefeed
@@ -61,7 +61,7 @@ accounts, two capabilities, no overlap.
 
 | Plane | Principal | Grants | Route |
 | --- | --- | --- | --- |
-| **Read** | `cortex_reader` | `SELECT` on all six tables, and no write verb | agents → CockroachDB Cloud Managed MCP Server (read-only mode, audit logged) |
+| **Read** | `cortex_reader` | `SELECT` on all six tables, and no write verb | agents → `CORTEX_READER_DSN` → SQL (the Agent Skill's recall query) |
 | **Write** | `cortex_writer` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
 | **Demo write** | `cortex_demo` | `INSERT`, `UPDATE`, `DELETE` confined to demo session scopes, nothing else | anonymous browser → API Gateway → demo Lambda → SQL |
 
@@ -77,13 +77,28 @@ rather than by reasoning about them:
 - **Six tables, not four.** There are four memory tiers but six tables: `repos`
   and `agents` are identity, and both planes need them to resolve a claim to its
   holder. Earlier drafts said "four" by counting tiers.
+- **The read route is `cortex_reader` directly, not the CockroachDB Cloud Managed
+  MCP Server.** *(Changed 2026-08-10 on the strength of V17.)* That server was the
+  route here until it was measured. It executes as SQL user `managed-mcp`, which
+  holds `INSERT` and `DELETE` on `claims` and `INSERT` on `intents` — confirmed by
+  invoking `insert_rows` and getting **23502**, a constraint violation, rather than
+  **42501**: the privilege check passed and only the row was refused. It also
+  publishes `insert_rows`, `create_table` and `create_database` as tools. An agent
+  given that endpoint for recall would hold an unarbitrated write path into the two
+  tables arbitration exists to protect, and would bypass every `03` §8 invariant
+  rather than break one, because it would never call `cortex_propose` at all.
 
 Properties that follow, and that you should state explicitly:
 
 - The agent never holds write credentials. A prompt-injected agent cannot corrupt the
   fleet's memory, because it has no verb with which to do so.
-- Every read the agent performs is audited by the managed MCP server, not by
-  application code you wrote and could have got wrong.
+- The read plane's read-only property is enforced by a SQL grant and **asserted by
+  test**: `test/privilege-planes.test.ts` attempts an `INSERT` on all six tables as
+  `cortex_reader`, plus an `UPDATE`, a `DELETE` and a `DROP`, and requires every one
+  to refuse with SQLSTATE 42501. It reads no catalogue — V9 found all three service
+  accounts holding `admin` through a role membership that `SHOW GRANTS ON TABLE`
+  answered truthfully without revealing. State this as the claim, and state that it
+  is a claim you can run rather than one you are asked to believe.
 - The write surface is a small, typed, parameterised set of operations. No arbitrary
   SQL is reachable from any agent-controlled input.
 
@@ -128,9 +143,10 @@ pick, state which, and write the test named in `03-MEMORY-MODEL.md` §8 either w
 
 ## 4. Data flows
 
-**Flow A — agent starts a task.** Agent calls RECALL through the managed MCP server →
+**Flow A — agent starts a task.** Agent issues the recall query as `cortex_reader` →
 receives up to eight findings ordered by prior failure count → incorporates them into
-its plan. No write occurs.
+its plan. No write occurs, and none is possible: the principal holds no write verb
+(§3).
 
 **Flow B — agent wants to act.** Agent calls `cortex.propose` on the CORTEX MCP
 server → Lambda embeds the intent via Bedrock Titan → runs the single arbitration

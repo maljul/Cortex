@@ -228,64 +228,41 @@ has wrong — already closed, unknown repo — comes back as `isError` with the
 explanation, which is what an agent can act on. Unlike `blocked` in U8, neither is a
 value an agent should proceed from.
 
-### U10 — Agent Skill and the managed-MCP read path ⬜ **BLOCKED — question outstanding with Julian**
+### U10 — Agent Skill over the `cortex_reader` read path ⬜ **UNBLOCKED 2026-08-10**
 **Done when:** "agent recalls without any bespoke client." *(08 §4, 20–23h, verbatim)*
 **Specs:** `05` §4, `03` §4.1
-**Verify live first:** that the managed MCP server accepts the recall SQL under
-`cortex_reader`.
-**Silent break:** shipping recall SQL in the skill that omits `WHERE repo_id`. Per V5
-that fails open across tenants, and this is the one query that leaves the repo.
+**Silent break:** shipping recall SQL in the skill that drops a `repo_id` predicate.
+There are **two** — the one in the `near` CTE and the one on the `LEFT JOIN` — and V14
+measured what losing the second does: repo A's recall ranked on repo B's revert
+history. Per V5 a missing filter fails open rather than failing closed, and this is the
+one query that leaves the repository.
 
-**Attempted 2026-08-09 and stopped at STEP 0.** Written down rather than left to be
-re-derived, which is the U2 lesson. This is *not* a deferral — deferring is Julian's
-call, and the question is with him.
+**The unit was reshaped by a decision, not merely unblocked.** It was
+"Agent Skill and the managed-MCP read path" until 2026-08-10. V17 measured the managed
+MCP server writing to `claims` — it executes as `managed-mcp`, which holds INSERT and
+DELETE there, confirmed by invoking `insert_rows` and getting **23502** rather than
+**42501**. Julian chose to drop that route rather than try to constrain its principal.
+Reads are now issued directly as `cortex_reader`. Reasoning in `docs/DECISIONS.md`;
+`04` §1, §3 and §4 and `05` §3, §4 and §6 are corrected in place.
 
-**Credentials arrived 2026-08-10 and STEP 1 ran — see V10.** `npm run probe:read`
-is the invoker; re-run it rather than re-deriving any of this.
+**So the skill ships SQL against `CORTEX_READER_DSN`,** and the "governed by Cloud
+RBAC" argument is replaced by "governed by a SQL grant, and `test/privilege-planes.test.ts`
+attempts nine writes as that principal and requires all nine to refuse with 42501".
+That is a stronger claim and it is already under test.
 
-Cleared: V9's `admin` membership is revoked, and `CORTEX_READER_DSN` now connects as
-`cortex_reader` and is genuinely read-only, checked by attempting writes.
+**Pin the SQL, do not retype it.** `skills/cortex-memory/SKILL.md` must carry the
+recall query byte-for-byte from `src/memory/recall.ts`, with a test holding the two
+together the way `test/mcp.test.ts` holds the tool schemas against `05` §3. Retyping is
+how a predicate goes missing, and the failure is silent.
 
-**Still blocked, on two things, and the second one may reshape the unit:**
+**Established live and not needing redoing:** the recall SQL runs correctly under
+`cortex_reader`'s privileges, and its plan uses `findings_semantic` with the tenant
+prefix bounding the search (V9). `cortex_reader` is read-only by attempted write, not
+by catalogue (V15).
 
-1. **The Cloud service account's role is not strong enough for SQL.** *(updated
-   2026-08-10, V16.)* It now holds **Cluster Developer** scoped to `agent-hack`, and
-   that changed the Cloud-API half only: `list_clusters` and `get_cluster` succeed,
-   which **confirms `CORTEX_MCP_CLUSTER_ID` is correct** — that sub-question is closed.
-   Every tool that executes SQL still answers `unauthorized`, `insert_rows` included.
-   Next: escalate to Cluster Operator, then Cluster Admin, re-running
-   `npm run probe:read` after each. Do not read `insert_rows` failing today as evidence
-   the read path is safe — *nothing* SQL-shaped is authorized, so it says nothing about
-   writes specifically.
-2. **The managed MCP server can write to `claims`. Answered 2026-08-10, V17 — and it
-   is the bad answer.** `04` §2 sends agent reads there *because* the path is governed.
-   It is not: the server executes as `managed-mcp`, which holds INSERT and DELETE on
-   `claims` and INSERT on `intents`. Confirmed by invoking `insert_rows` and getting
-   **23502**, a constraint violation, rather than **42501** — the privilege check
-   passed and only the row was refused. The Agent Skill would ship an unarbitrated
-   write path beside the recall SQL, and every `03` §8 invariant is bypassed rather
-   than broken, because the agent never calls `cortex_propose` at all.
-
-   **This is now a decision, not an investigation.** Either constrain the principal to
-   a `SELECT`-only SQL identity (if Cloud exposes that), or drop the managed-MCP read
-   path and serve recall through `cortex_reader`, whose read-only property
-   `test/privilege-planes.test.ts` already asserts by attempting writes. Options and
-   trade-offs in `docs/SPEC-DELTA.md`. Julian's call.
-
-**Do not write `SKILL.md` until (2) is answered.** The skill's fourth section is "how
-to react to each decision" and its sixth is "never write directly to the database" —
-that instruction is not enforceable by a document if the same endpoint hands the agent
-`insert_rows`.
-
-What *was* established live, and does not need redoing: the recall SQL runs correctly
-under `cortex_reader`'s privileges and its plan uses `findings_semantic` with the
-tenant prefix bounding the search. That half is in V9.
-
-The half that needs no credential — writing `skills/cortex-memory/SKILL.md` with the
-recall SQL pinned byte-for-byte against `src/memory/recall.ts`, so the `WHERE repo_id`
-above cannot drift out of it — was deliberately **not** started, because how the SQL
-is parameterised through the managed server is exactly the thing that cannot be
-checked from here, and writing it from recall is what STEP 1 forbids.
+**Nothing here is blocked any more.** The `CORTEX_MCP_*` variables stay in `.env` as
+diagnostics for `npm run probe:read` only; do not reintroduce that server as the route
+without re-running the probe.
 
 ### U11 — Benchmark fixtures and task list ✅ 2026-08-10
 **Done when:** the corpus and the overlapping-task share exist and are committed.

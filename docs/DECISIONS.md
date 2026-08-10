@@ -109,3 +109,49 @@ actual fault.
 
 The same rule will apply to `release`, and would have applied to `heartbeat` had it
 not been cut.
+
+## 2026-08-10 — Recall is issued as `cortex_reader`, not through the managed MCP server
+
+`04` §3's read plane routed agent reads through the CockroachDB Cloud Managed MCP
+Server. It no longer does. Reads are issued directly as `cortex_reader` over
+`CORTEX_READER_DSN`.
+
+**What forced it.** V17. That server executes as SQL user `managed-mcp`, which holds
+`INSERT` and `DELETE` on `claims` and `INSERT` on `intents`. Confirmed by invoking
+`insert_rows` against `claims` and getting **23502**, a NOT NULL violation, rather than
+**42501** — the privilege check ran ahead of the constraint and passed. It also
+publishes `insert_rows`, `create_table` and `create_database` as tools, so being a read
+plane could never have been a property of the server; it had to be a property of the
+principal, and it is not.
+
+The failure this avoids is worse than a broken invariant. An agent holding that
+endpoint does not violate the arbitration transaction — it never enters it. It writes
+`claims` directly, and all eight `03` §8 invariants are bypassed rather than broken.
+`05` §4's Agent Skill would have shipped that endpoint next to the recall SQL, under a
+section reading "never write directly to the database", which no document can enforce
+against a tool named `insert_rows`.
+
+**The option not taken** was constraining `managed-mcp` to a `SELECT`-only SQL
+identity. Nothing measured suggests that identity is configurable — the Cloud service
+account is an organization-level principal that `GRANT` does not apply to, and the SQL
+user it maps to was not chosen by this project. Its best case was arriving where the
+alternative already stood.
+
+**What is given up, stated plainly.** "Governed by Cloud RBAC and audit logging rather
+than by code you wrote" leaves the architecture story. It was the more impressive
+sentence. It was also false, and a judge can run `npm run probe:read` and find that out
+in thirty seconds.
+
+**What replaces it is stronger, and that is the actual argument.** The read plane's
+read-only property is now a SQL grant asserted by `test/privilege-planes.test.ts`,
+which attempts an `INSERT` on all six tables as `cortex_reader` plus an `UPDATE`, a
+`DELETE` and a `DROP`, and requires all nine to refuse with 42501. It reads no
+catalogue, because V9 found every service account holding `admin` through a role
+membership `SHOW GRANTS ON TABLE` answered truthfully without revealing. "Here is a
+test you can run" beats "the platform handles it".
+
+**Consequences.** `04` §1, §3 and §4 and `05` §3, §4 and §6 are corrected in place.
+`CORTEX_MCP_*` stays in `.env` for `npm run probe:read` only, labelled as diagnostics.
+U10 is unblocked and its shape changes: the skill ships the recall SQL against
+`cortex_reader`, pinned byte-for-byte against `src/memory/recall.ts` so both `repo_id`
+predicates cannot drift out of it (V14).
