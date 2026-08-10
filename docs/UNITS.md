@@ -257,13 +257,20 @@ Cleared: V9's `admin` membership is revoked, and `CORTEX_READER_DSN` now connect
    `npm run probe:read` after each. Do not read `insert_rows` failing today as evidence
    the read path is safe — *nothing* SQL-shaped is authorized, so it says nothing about
    writes specifically.
-2. **The managed MCP server publishes `insert_rows`, `create_table` and
-   `create_database`.** `04` §2 sends agent reads there *because* the path is
-   governed; it is not a read plane, and cannot be made one by choosing which of its
-   tools to document. Whether those tools reach `claims` and `intents` is **TBD** —
-   unmeasurable while the principal is unauthorized — but if they do, the Agent Skill
-   would ship an unarbitrated write path beside the recall SQL, and every `03` §8
-   invariant is bypassed rather than broken.
+2. **The managed MCP server can write to `claims`. Answered 2026-08-10, V17 — and it
+   is the bad answer.** `04` §2 sends agent reads there *because* the path is governed.
+   It is not: the server executes as `managed-mcp`, which holds INSERT and DELETE on
+   `claims` and INSERT on `intents`. Confirmed by invoking `insert_rows` and getting
+   **23502**, a constraint violation, rather than **42501** — the privilege check
+   passed and only the row was refused. The Agent Skill would ship an unarbitrated
+   write path beside the recall SQL, and every `03` §8 invariant is bypassed rather
+   than broken, because the agent never calls `cortex_propose` at all.
+
+   **This is now a decision, not an investigation.** Either constrain the principal to
+   a `SELECT`-only SQL identity (if Cloud exposes that), or drop the managed-MCP read
+   path and serve recall through `cortex_reader`, whose read-only property
+   `test/privilege-planes.test.ts` already asserts by attempting writes. Options and
+   trade-offs in `docs/SPEC-DELTA.md`. Julian's call.
 
 **Do not write `SKILL.md` until (2) is answered.** The skill's fourth section is "how
 to react to each decision" and its sixth is "never write directly to the database" —

@@ -98,15 +98,36 @@ property of this endpoint, so it has to come from the principal — and §2 does
 which principal, because the Cloud service account that authenticates to it is an
 organization-level identity that `GRANT` does not apply to.
 
-**Whether its writes reach `claims` and `intents` is TBD**, and is the question that
-matters: an agent handed this endpoint for recall would also hold an unarbitrated
-write path into the memory the whole mechanism exists to arbitrate. It could not be
-measured because the service account has no roles — see V10 — and `npm run probe:read`
-answers it in one run once it does.
+**Its writes reach `claims` and `intents`. Measured 2026-08-10, V17.** This was TBD
+until the service account had a role; it now has one, and the answer is the bad one.
+The server executes as SQL user `managed-mcp`, which holds INSERT and DELETE on
+`claims` and INSERT on `intents`. Confirmed by invoking, not by reading the catalogue:
+an `insert_rows` call against `claims` came back **23502** — a NOT NULL violation, the
+row rejected — rather than **42501**. The privilege check ran ahead of the constraint
+and passed.
 
-Not reconciled in the spec, deliberately. Either §2 gains a constraint on the
-principal that makes the claim true, or the read path is not this server; that is an
-architecture decision and Julian's, not a wording fix.
+So an agent handed this endpoint for recall also holds an unarbitrated write path into
+the memory the whole mechanism exists to arbitrate. Every `03` §8 invariant is bypassed
+rather than broken: the agent never calls `cortex_propose`, so there is no transaction
+to violate.
+
+Not reconciled in the spec, deliberately — this is the one entry here that cannot be
+closed by editing wording. Either §2 gains a constraint on the principal that makes the
+claim true, or the read path is not this server. **Julian's decision, and U10 does not
+start until it is made**; `SKILL.md`'s sixth section is "never write directly to the
+database", which no document can enforce against an endpoint that publishes
+`insert_rows`.
+
+Two options, both real:
+
+1. **Constrain the principal** — map `managed-mcp` to a `SELECT`-only SQL identity, if
+   Cloud exposes that control. Keeps §2's argument intact. Whether it is exposed at all
+   is itself TBD; nothing measured so far suggests the SQL identity is configurable.
+2. **Drop the managed-MCP read path**, serving recall through `cortex_reader` instead.
+   Its read-only property is asserted in `test/privilege-planes.test.ts` by attempting
+   six writes and watching all six refuse with 42501 — a *stronger* claim than §2 was
+   making, and already under test. The cost is that "governed by Cloud RBAC" leaves the
+   architecture story and is replaced by "governed by a SQL grant, and here is the test".
 
 ### `03` §4.2 — `DEDUPE_THRESHOLD` 0.28 is below the band the corpus needs
 

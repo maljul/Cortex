@@ -1364,3 +1364,71 @@ path survives. If the same role turns both on — which is the likelier shape, s
 nothing in the server's design separates them — then the governed read path is only
 reachable by a principal that can also write, and `04` §2 needs rethinking rather than
 documenting around. `docs/SPEC-DELTA.md` already carries that entry.
+
+---
+
+## V17 — The managed MCP server can write to `claims`. `04` §2 is falsified.
+**2026-08-10 · `npm run probe:read` at Cluster Operator · FAIL, and it is an
+architecture finding rather than a bug**
+
+The question `04` §2 has been blocked on since V10 is answered. It is the bad answer.
+
+**Identity, first.** The managed server executes as SQL user `managed-mcp`:
+
+```
+select_query (identity)      OK  {"rows":[{"who":"managed-mcp"}]}
+select_query (recall shape)  OK  {"rows":[{"n":0}]}
+```
+
+So the recall query shape runs under it — the read half of `04` §2 works.
+
+**The catalogue said it could write:**
+
+```
+privilege catalogue (claims) OK  {"rows":[{"claims_insert":true,"intents_insert":true,"claims_delete":true}]}
+```
+
+**And the invocation confirmed it**, which is the only reason this is written as a
+result rather than a suspicion:
+
+```
+insert_rows (write reach)    FAILED  MCP error 0: insert rows: executing stmt 1:
+                                     run-query-via-api: null value in column "repo_id"
+                                     violates not-null constraint
+```
+
+That is SQLSTATE **23502**, a constraint violation — not **42501**. The privilege check
+ran *ahead* of constraint evaluation and passed. `managed-mcp` is permitted to INSERT
+into `claims`; the statement was rejected only because the probe deliberately supplied
+values no row could take. No row was written.
+
+**What this falsifies.** `04` §2 routes agent reads through the CockroachDB Cloud
+Managed MCP Server on the argument that access is then "governed by Cloud RBAC and
+audit logging rather than by code you wrote". Measured, that principal holds INSERT and
+DELETE on `claims` and INSERT on `intents`. An agent handed this endpoint for recall is
+handed an unarbitrated write path into the two tables the whole arbitration mechanism
+exists to protect. Every `03` §8 invariant is bypassed rather than broken: the agent
+never calls `cortex_propose`, so there is no transaction to violate.
+
+**The probe that reported this could not have reported it yesterday.** Until 2026-08-10
+the write-reach check aimed `insert_rows` at a table that does not exist. While the
+principal was `unauthorized` that was decisive; once the role landed, a missing table
+resolves before any privilege on a real table is consulted, so the line read `FAILED`
+either way. V16 recorded that as still-TBD and nearly recorded it as reassurance. Same
+lesson as V13 — a check that cannot fail for the reason it names covers nothing — and
+the fourth spec claim this project has falsified only by invoking it.
+
+**Do not write `SKILL.md`.** Its sixth section is "never write directly to the
+database". That instruction is not enforceable by a document if the same endpoint hands
+the agent `insert_rows`.
+
+**The decision is Julian's and it is recorded in `docs/SPEC-DELTA.md`, not resolved
+here.** Two options, both real:
+
+1. Constrain the principal — if Cloud permits mapping `managed-mcp` to a `SELECT`-only
+   SQL identity. Keeps `04` §2's argument intact. Whether Cloud exposes that control is
+   itself TBD; nothing measured so far suggests the SQL identity is configurable.
+2. Drop the managed-MCP read path and serve recall through `cortex_reader`, whose
+   read-only property V15 asserts by attempting six writes and watching all six refuse
+   with 42501. That is a *stronger* claim than `04` §2 was making, and it is already
+   under test.
