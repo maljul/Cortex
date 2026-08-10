@@ -19,24 +19,17 @@ What does not belong in a unit list, and so lives here:
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
 - Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
 - Open: the `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed
-  by V5 — it cannot rest on the vector index prefix. **V9 changed what this costs:
-  `cortex_demo` is not merely unconfined pending that decision, it is a cluster
-  admin today.**
-- **BLOCKING, found by V9:** `cortex_reader`, `cortex_writer` and `cortex_demo` are
-  all members of `admin`, so the read plane can write and `04` §3's prompt-injection
-  argument is false as things stand. The table grants in `001_init.sql` are correct
-  and irrelevant — inherited `ALL` outranks them. Nothing on the cluster has been
-  changed; see the Action below.
+  by V5 — it cannot rest on the vector index prefix. Since V9 it starts from zero
+  privilege rather than from admin, which is the right direction to grant from.
+- Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09.** Reader
+  reads and cannot write; writer writes and cannot `DROP`; `cortex_demo` can do
+  nothing. Do not re-check this with `SHOW GRANTS` — that is the narrow question whose
+  true answer hid the admin membership. Attempt the write.
 - **Action for Julian:** `.env` still sets `BEDROCK_REASON_MODEL=anthropic.claude-sonnet-5`,
   which is not entitled on this account. Change it to
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. Nothing reads it yet, so nothing
   is broken today; LIVE mode would fail the moment it does.
-- **Action for Julian, blocking U10:** confirm
-  `REVOKE admin FROM cortex_reader, cortex_writer, cortex_demo;` (V9). Not run — it
-  is access control on your cluster and could break anything authenticating as those
-  principals. Afterwards re-check by *attempting a write and being refused*, not with
-  `SHOW GRANTS`; the grant tables were never wrong.
-- **Action for Julian, also blocking U10:** there is no `cortex_reader` DSN and no
+- **Action for Julian, blocking U10:** there is no `cortex_reader` DSN and no
   CockroachDB Cloud API credential in `.env`, so the managed MCP read path cannot be
   reached from here at all. `CORTEX_MCP_ENDPOINT` holds only the public URL, and
   `CORTEX_REPO` is empty — which now matters, because U8 and U9 made the slug the

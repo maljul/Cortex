@@ -238,16 +238,15 @@ that fails open across tenants, and this is the one query that leaves the repo.
 re-derived, which is the U2 lesson. This is *not* a deferral — deferring is Julian's
 call, and the question is with him.
 
-The unit's own "verify live first" cannot be done here, for two independent reasons:
+Two blockers were found. **One is now cleared:** V9's `admin` membership was revoked
+with Julian's authorisation the same day, so the read plane really is read-only and
+`04` §3's argument holds. What remains:
 
-1. **No way to reach the managed MCP server.** `.env` has no `cortex_reader` DSN and
-   no CockroachDB Cloud API credential; `CORTEX_MCP_ENDPOINT` holds only the public
-   URL. The transport is the done-when — "without any bespoke client" *is* the
-   managed server — so it cannot be substituted with a direct `pg` connection without
-   proving something else.
-2. **The read plane is not read-only.** V9: `cortex_reader` is a member of `admin`,
-   so it can write. Building the skill on top of that would ship a document whose
-   security argument is false, and `04` §3's prompt-injection claim rests on it.
+**No way to reach the managed MCP server.** `.env` has no `cortex_reader` DSN and no
+CockroachDB Cloud API credential; `CORTEX_MCP_ENDPOINT` holds only the public URL.
+The transport *is* the done-when — "without any bespoke client" means the managed
+server — so substituting a direct `pg` connection would prove something else and call
+it this. **Julian is adding the credentials; pick this up when they are in `.env`.**
 
 What *was* established live, and does not need redoing: the recall SQL runs correctly
 under `cortex_reader`'s privileges and its plan uses `findings_semantic` with the

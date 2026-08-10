@@ -788,9 +788,9 @@ Demo rows deleted; `SELECT count(*) FROM repos` returns 0.
 
 ---
 
-## V9 — The three service accounts are all members of `admin`
-**2026-08-09 · found while scoping U10 · FAIL, and nothing has been changed on the
-cluster — this needs Julian's decision**
+## V9 — The three service accounts were all members of `admin`
+**2026-08-09 · found while scoping U10 · FAIL, then FIXED the same day with Julian's
+authorisation — see "Resolution" at the end of this entry**
 
 **What was being checked.** U10's entry says to verify live, first, that the managed
 MCP server accepts the recall SQL under `cortex_reader`. There is no `cortex_reader`
@@ -852,22 +852,59 @@ what was granted *directly*; they say nothing about what is inherited. The proje
 already has a rule for this exact shape — a catalogue listing is not an entitlement —
 and it was applied to Bedrock and not to RBAC.
 
-**The fix is one statement**, and it has deliberately **not** been run:
+**Stray rows from the probe** (`fact = 'x'` in `findings`) were deleted.
+
+### Resolution — authorised by Julian, run 2026-08-09
 
 ```sql
 REVOKE admin FROM cortex_reader, cortex_writer, cortex_demo;
 ```
 
-It is not run because it changes access control on Julian's cluster and could break
-anything that authenticates as those principals expecting admin. `cortex_writer` would
-fall back to the table grants in `001_init.sql`, which cover everything the write plane
-does; `cortex_demo` would fall back to nothing, which is what `04` §3 wants until the
-confinement decision is made. Both need confirming rather than assuming.
+`SHOW GRANTS ON ROLE` afterwards leaves only the two accounts that should be there:
 
-**Re-verification after any revoke must be the probe above, not `SHOW GRANTS`.**
-The grant tables were never wrong. Attempting a write and being refused is the check;
-`RESET ROLE` afterwards, and note that `SET ROLE` from an admin session is a valid
-stand-in only because it genuinely dropped to the target principal's privileges —
-which the ALLOWED lines prove, since they are that principal's, inherited.
+```
+role_name  member  is_admin
+admin      julian  true
+admin      root    true
+```
 
-**Stray rows from the probe** (`fact = 'x'` in `findings`) were deleted.
+**Re-verified by attempting writes and being refused, not with `SHOW GRANTS`** — the
+grant tables were never wrong, so re-reading them would have re-confirmed the same
+true-but-narrow answer that hid this in the first place. Each principal was assumed
+with `SET ROLE` and told to do five things:
+
+```
+=== cortex_reader ===
+  SELECT findings: ALLOWED
+  INSERT findings: refused — user cortex_reader does not have INSERT privilege on relation findings
+  UPDATE claims: refused — user cortex_reader does not have UPDATE privilege on relation claims
+  DELETE intents: refused — user cortex_reader does not have DELETE privilege on relation intents
+  DROP TABLE: refused — user cortex_reader does not have DROP privilege on relation findings
+
+=== cortex_writer ===
+  SELECT findings: ALLOWED
+  INSERT findings: ALLOWED
+  UPDATE claims: ALLOWED
+  DELETE intents: ALLOWED
+  DROP TABLE: refused — user cortex_writer does not have DROP privilege on relation findings
+
+=== cortex_demo ===
+  SELECT findings: refused — user cortex_demo does not have SELECT privilege on relation findings
+  INSERT findings: refused — user cortex_demo does not have INSERT privilege on relation findings
+  UPDATE claims: refused — user cortex_demo does not have SELECT privilege on relation claims
+  DELETE intents: refused — user cortex_demo does not have SELECT privilege on relation intents
+  DROP TABLE: refused — user cortex_demo does not have DROP privilege on relation findings
+```
+
+That is the shape `04-ARCHITECTURE.md` §3 describes, now measured rather than assumed:
+the read plane reads and cannot write, the write plane writes and cannot change schema,
+and `cortex_demo` can do nothing at all. §3's prompt-injection argument holds again.
+
+**What is still open is what was open before, and no more:** `cortex_demo`'s
+confinement mechanism (§3's `[OPEN]`, narrowed by V5). It now starts from zero
+privilege rather than from admin, which is the right direction to grant from — §8 test
+9 can be written against a principal that has to be given something, instead of one
+that has to be taken from.
+
+`CORTEX_DSN` authenticates as `julian` and was unaffected; the suite is green after
+the revoke.
