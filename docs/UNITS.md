@@ -436,7 +436,7 @@ deliberately left it undone rather than guess.
 **Budget the concurrency.** 10 account-wide (V22). `04` §5 reserves 2 for LIVE. Decide
 and write down what the other 8 are for before adding functions that quietly compete.
 
-### U15 — `cortex_demo` confinement, and `03` §8 test 9 ⬜
+### U15 — `cortex_demo` confinement, and `03` §8 test 9 ✅ 2026-08-11
 **Done when:** `cortex_demo` cannot read or write any row outside a live demo session
 scope, asserted by attempting the writes against the real principal. *(Added: `08` §5
 has no block for this, because it is `04` §3's `[OPEN]` rather than a build step. It
@@ -457,6 +457,35 @@ loudly once scoped grants exist. **That failure is the signal to rewrite it into
 not a regression to undo.**
 **Schema:** `repos` has no demo-scope marker. It needs one (`03` §7 also requires demo
 rows to carry a TTL), added `IF NOT EXISTS` so U1's idempotence survives.
+
+**Evidence:** `sql/001_init.sql` (`repos.demo_expires_at`, `is_current_demo_scope()`,
+grants, `FORCE ROW LEVEL SECURITY` and 18 policies), `test/privilege-planes.test.ts`
+rewritten — 23 tests, 9 of them test 9. V24 has the output. Migration applies **61/61
+twice in a row**. Suite 170/170, `tsc` clean.
+**RLS was verified live before a line was written**, and both obvious spellings of the
+policy were refused: CockroachDB policy expressions cannot contain a subquery
+(`EXISTS (SELECT … FROM repos …)` → 42P01, `IN (SELECT …)` → 42703). A `STABLE` function
+is the way through. Not `LEAKPROOF` — this cluster requires leakproof to be `IMMUTABLE`.
+**The named silent break happened in a form not anticipated.** The unit predicted
+"forgetting `FORCE`, or missing a policy on one of six tables". What actually bit was
+`CREATE POLICY IF NOT EXISTS`: it **silently skips** when the name exists, so adding the
+session condition applied cleanly to a fresh cluster and did nothing to the live one —
+the migration reported success while the cluster kept the old rule. Every policy is now
+DROP-then-CREATE so the file converges rather than skips.
+**Three mutations were run, and the second one is why this unit is worth reading.**
+Stripping the session condition from both layers fails 3 tests. Stripping the *demo
+scope* condition — the more important one — initially failed **only** the expiry test:
+every other assertion scoped the connection to a legitimate session and then reached
+elsewhere, so the session predicate alone refused them. The suite could not distinguish
+"confined to demo scopes" from "confined to the named session". A test was added for the
+case that actually matters — a compromised or buggy write path naming a **real
+repository as its own session** — and it now fails on that mutation. `demo_expires_at IS
+NOT NULL` is what holds there, and nothing had been checking it.
+**What this does not claim.** Session-versus-session isolation is defence at the write
+path, not at the account boundary: every visitor is the same SQL user and there is no
+SQL role per anonymous visitor to be had. What it buys is failing **closed** — no
+`cortex.demo_session` set, nothing visible — which is V5's failure mode inverted. Said
+plainly in `04` §3 rather than left for a reader to infer.
 
 ### U16 — Demo SPA: three panels, naive toggle, show-SQL ⬜
 **Done when:** "the four beats read clearly to someone who has not seen it."

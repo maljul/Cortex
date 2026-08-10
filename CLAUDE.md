@@ -30,17 +30,23 @@ What does not belong in a unit list, and so lives here:
   visitors already get `503`, which `04` §5's ladder forbids and rule B4 makes a
   submission risk. A Service Quotas increase on `L-B99A9384` is **Julian's to file** and
   has lead time. U17 must not assume it landed.
-- Open: the `cortex_demo` confinement mechanism (`04-ARCHITECTURE.md` §3), narrowed
-  by V5 — it cannot rest on the vector index prefix. Since V9 it starts from zero
-  privilege rather than from admin, which is the right direction to grant from.
+- **`cortex_demo` confinement is decided and built (U15, V24, 2026-08-11): row-level
+  security on the one cluster.** `04` §3's `[OPEN]` is closed. Every one of the six
+  tables carries `FORCE ROW LEVEL SECURITY` plus a policy admitting only rows whose repo
+  is an unexpired demo scope **and** the scope named by `cortex.demo_session` on that
+  connection. `03` §8 **test 9 exists** and asserts it by attempting the statements.
+  Two things to know before touching it: policy expressions on this cluster **cannot
+  contain a subquery** (42P01/42703 — that is why `is_current_demo_scope()` exists), and
+  every policy is DROP-then-CREATE rather than `IF NOT EXISTS`, because the latter
+  silently skips and an edited predicate would never reach a live cluster.
 - Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09; under
   test since V15.** Reader reads and cannot write; writer writes and cannot `DROP`;
-  `cortex_demo` can do nothing. Do not re-check this with `SHOW GRANTS` — that is the
-  narrow question whose true answer hid the admin membership. Attempt the write.
-  `test/privilege-planes.test.ts` is now the guard rather than the log; the reader
-  half is green, the demo half is red on a missing credential (below).
-  `CORTEX_DEMO_DSN` arrived 2026-08-10 and the demo half is green too: `cortex_demo`
-  cannot read or write any of the six tables. **Suite 174/174.**
+  `cortex_demo` reaches its own live demo scope and nothing else. Do not re-check this
+  with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
+  hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
+  guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
+  the weaker "no privilege at all". **Suite 170/170** — it dropped from 174 because 13
+  blanket demo assertions became 9 sharper ones, not because anything was removed.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the

@@ -73,7 +73,7 @@ accounts, two capabilities, no overlap.
 | --- | --- | --- | --- |
 | **Read** | `cortex_reader` | `SELECT` on all six tables, and no write verb | agents → `CORTEX_READER_DSN` → SQL (the Agent Skill's recall query) |
 | **Write** | `cortex_writer` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, nothing else | agents → CORTEX MCP tools → Lambda → SQL |
-| **Demo write** | `cortex_demo` | `INSERT`, `UPDATE`, `DELETE` confined to demo session scopes, nothing else | anonymous browser → API Gateway → demo Lambda → SQL |
+| **Demo write** | `cortex_demo` | `SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, every one confined by row-level security to a live demo session scope | anonymous browser → API Gateway → demo Lambda → SQL |
 
 Two clarifications, both learned by applying the grants against a live cluster
 rather than by reasoning about them:
@@ -142,14 +142,43 @@ Invariants, in descending order of what a breach costs you:
   even when a statement is wrong. That is a constraint on the `[OPEN]` decision
   below, not a property already in hand.
 
-`[OPEN]` How that confinement is enforced. A dedicated cluster for the demo gives
-isolation you do not have to reason about, but it is a second free-tier cluster to
-keep alive through judging, which doubles the surface of the longevity risk that is
-already the most likely way this submission fails after submission. Demo-scoped
-`repo_id`s in the one cluster keep a single thing alive and keep the architecture
-story honest — one cluster, as the whole thesis claims — but then the confinement
-rests on the write path rather than on the account boundary. The implementer should
-pick, state which, and write the test named in `03-MEMORY-MODEL.md` §8 either way.
+**How that confinement is enforced: row-level security on the one cluster.** *(Decided
+2026-08-11 on the strength of V24; was `[OPEN]` between this and a dedicated cluster.)*
+
+A dedicated demo cluster would have given isolation nobody has to reason about, at the
+price of a second free-tier cluster to keep alive through judging — which doubles the
+surface of the longevity risk that `08` §7 already ranks as the most likely way this
+submission fails *after* submission, and makes the one-cluster claim false. Demo-scoped
+`repo_id`s in the one cluster keep a single thing alive and keep the architecture story
+honest; the objection was that confinement would then rest on the write path rather than
+on the account boundary. **Row-level security removes that objection**, because the
+predicate is attached to the principal by the database and holds when the application is
+wrong.
+
+`cortex_demo` holds table-level DML on the six tables, and every one of them carries
+`FORCE ROW LEVEL SECURITY` with a policy admitting only rows whose repository is (a) a
+demo scope that has not expired and (b) the scope named by this connection. Both halves
+are in `sql/001_init.sql`, and `03` §8's test 9 asserts them by attempting the statements.
+
+Three properties worth stating precisely, because they are not equally strong:
+
+- **Real repository memory is unreachable, full stop.** `demo_expires_at IS NOT NULL` is
+  false for every real repository, so no value the write path supplies — including a real
+  repository's own id, offered as though it were a session — makes one reachable. That is
+  the case test 9 turns on, and it is the one a compromised or simply buggy demo Lambda
+  produces.
+- **Expiry is enforced at read time, not by a cleanup job.** A scope goes dark the
+  instant `demo_expires_at` passes; reclaiming the rows afterwards is housekeeping. A
+  demo that must survive unattended until 2026-09-15 should not have its security
+  boundary depend on a job having run.
+- **Session-versus-session isolation is defence at the write path, and says so.** Every
+  visitor connects as the same SQL user, so there is no account boundary to put between
+  two sessions — you cannot create a SQL role per anonymous visitor. What the policy adds
+  is that the scoping predicate **fails closed**: with no session set on the connection,
+  `current_setting` returns NULL and the demo reads and writes nothing. Per V5 the
+  dangerous failure is a forgotten scope filter failing *open*; this is the same mistake
+  made to fail shut. The ordering of the invariants above already puts this below the
+  real-memory boundary, and it stays there.
 
 ## 4. Data flows
 

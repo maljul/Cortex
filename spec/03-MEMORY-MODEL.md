@@ -359,8 +359,15 @@ The hosted demo writes as `cortex_demo`, not as `cortex_writer`. See
   same scoping every other read and write already carries. Note that this is a
   scoping mechanism, not a confinement mechanism: per V5 in
   `docs/verification-log.md`, a query that forgets its `repo_id` filter fails open.
-  Keeping `cortex_demo` off real repository memory is the job of its grants, per
-  `04-ARCHITECTURE.md` §3.
+  Keeping `cortex_demo` off real repository memory is the job of its **row-level
+  security policies**, per `04-ARCHITECTURE.md` §3 — grants alone give it whole tables.
+- A demo session's `repo_id` is marked by `repos.demo_expires_at`. NULL means a real
+  repository and is the condition that makes it unreachable to `cortex_demo`; a
+  timestamp makes the scope live until it passes. This one column is the whole boundary.
+- **The demo write path MUST set `cortex.demo_session` on the connection** before any
+  statement, to the session's `repo_id`. Unset, the policies match nothing and the demo
+  reads and writes nothing — deliberately, so that forgetting to scope a statement fails
+  closed rather than open.
 - Demo rows MUST carry a TTL and be reclaimed automatically. No manual cleanup
   between now and 2026-09-15.
 - The demo write path MUST enforce a per-session row cap. Reaching it makes that

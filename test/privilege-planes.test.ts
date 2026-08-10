@@ -12,15 +12,15 @@
  * Until now that finding lived only in `docs/verification-log.md`, which does not
  * fail when someone re-grants. This is the regression guard.
  *
- * **This is not §8 test 9.** Test 9 asks that `cortex_demo` cannot write outside a
- * *live demo session scope*, which needs the confinement mechanism `04` §3 leaves
- * `[OPEN]`. What is asserted here is the weaker, current state: `cortex_demo` holds
- * no privilege at all. When §3 is decided and the principal gains scoped grants,
- * the demo block below stops being true and must be rewritten into test 9 proper —
- * it is designed to fail loudly at that moment rather than quietly keep passing.
+ * **The second half IS `03` §8 test 9**, as of 2026-08-11. It used to assert the weaker
+ * interim state — "`cortex_demo` holds no privilege at all" — and said so, and said it
+ * was written to fail loudly once `04` §3's `[OPEN]` was decided and scoped grants
+ * existed. That is what happened: the mechanism is row-level security keyed on a live
+ * demo session scope (V24), the old assertions went red, and they were rewritten here
+ * rather than relaxed.
  */
 import { Client } from 'pg';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { vector } from './helpers/vectors.js';
 
@@ -158,28 +158,295 @@ describe('the reader plane reads and cannot write (`04` §3)', () => {
   });
 });
 
-describe('the demo principal holds no privilege at all (`04` §3 `[OPEN]`)', () => {
+/**
+ * `03` §8 test 9: "The `cortex_demo` principal cannot write to a `repo_id` that is not a
+ * live demo session scope, and cannot read or write another session's rows. Assert
+ * against the real principal with its real grants; asserting against application code
+ * proves nothing."
+ *
+ * So nothing below goes through `src/`. Fixtures are made by the write plane, and every
+ * assertion is a statement issued on a `cortex_demo` connection.
+ *
+ * **Read the two refusal shapes**, because they are different and both are correct:
+ *   - a row the policy hides is INVISIBLE — SELECT returns nothing, UPDATE and DELETE
+ *     report `rowCount` 0. There is no error, and expecting 42501 here would be testing
+ *     a misunderstanding of RLS rather than the boundary.
+ *   - a row the policy forbids you to CREATE is REFUSED — INSERT raises 42501, because
+ *     WITH CHECK is evaluated against the row you are trying to write.
+ * A test that only looked for thrown errors would pass while the demo silently read
+ * every repository in the cluster.
+ */
+describe('`03` §8 test 9 — cortex_demo is confined to a live demo session scope', () => {
+  const demoDsn = () => dsn('CORTEX_DEMO_DSN');
+
+  /** Repo ids created for this file, torn down in `afterAll`. */
+  const scopes: { real: string; sessionA: string; sessionB: string; expired: string } = {
+    real: '',
+    sessionA: '',
+    sessionB: '',
+    expired: '',
+  };
+
+  /** A `cortex_demo` connection already scoped to one session, as the demo path scopes it. */
+  async function asSession<T>(sessionId: string | null, run: (client: Client) => Promise<T>): Promise<T> {
+    const client = new Client({ connectionString: demoDsn(), connectionTimeoutMillis: 10_000 });
+    await client.connect();
+    try {
+      if (sessionId !== null) await client.query(`SET cortex.demo_session = '${sessionId}'`);
+      return await run(client);
+    } finally {
+      await client.end();
+    }
+  }
+
+  async function tryStatement(
+    client: Client,
+    sql: string,
+    values: unknown[] = [],
+  ): Promise<{ allowed: boolean; code?: string | undefined; rowCount: number; message: string }> {
+    try {
+      const { rowCount } = await client.query(sql, values);
+      return { allowed: true, rowCount: rowCount ?? 0, message: '' };
+    } catch (error) {
+      const failure = error as { code?: string; message: string };
+      return { allowed: false, code: failure.code, rowCount: 0, message: failure.message };
+    }
+  }
+
+  beforeAll(async () => {
+    const admin = new Client({ connectionString: dsn('CORTEX_DSN'), connectionTimeoutMillis: 10_000 });
+    await admin.connect();
+    try {
+      const make = async (slug: string, expires: string | null): Promise<string> => {
+        const { rows } = await admin.query(
+          `INSERT INTO repos (slug, demo_expires_at) VALUES ($1, $2)
+             ON CONFLICT (slug) DO UPDATE SET demo_expires_at = excluded.demo_expires_at
+           RETURNING id`,
+          [slug, expires],
+        );
+        return (rows[0] as { id: string }).id;
+      };
+
+      scopes.real = await make('test9/real-repository', null);
+      scopes.sessionA = await make('test9/demo-session-a', new Date(Date.now() + 3_600_000).toISOString());
+      scopes.sessionB = await make('test9/demo-session-b', new Date(Date.now() + 3_600_000).toISOString());
+      scopes.expired = await make('test9/demo-expired', new Date(Date.now() - 60_000).toISOString());
+
+      // One finding per scope, so "can this principal see it" has something to answer.
+      const embedding = `[${vector(1).join(',')}]`;
+      for (const [name, id] of Object.entries(scopes)) {
+        await admin.query(
+          `INSERT INTO findings (repo_id, fact, embedding) VALUES ($1, $2, '${embedding}')`,
+          [id, `test9 fixture: ${name}`],
+        );
+      }
+    } finally {
+      await admin.end();
+    }
+  }, 60_000);
+
+  afterAll(async () => {
+    const admin = new Client({ connectionString: dsn('CORTEX_DSN'), connectionTimeoutMillis: 10_000 });
+    await admin.connect();
+    try {
+      const ids = Object.values(scopes).filter(Boolean);
+      if (ids.length > 0) {
+        await admin.query('DELETE FROM findings WHERE repo_id = ANY($1::UUID[])', [ids]);
+        await admin.query('DELETE FROM repos WHERE id = ANY($1::UUID[])', [ids]);
+      }
+    } finally {
+      await admin.end();
+    }
+  }, 60_000);
+
   it('connects as cortex_demo and not as someone else', async () => {
-    expect(await currentUser(dsn('CORTEX_DEMO_DSN'))).toBe('cortex_demo');
+    expect(await currentUser(demoDsn())).toBe('cortex_demo');
   });
 
-  it.each(TABLES)('cannot read %s', async (table) => {
-    const result = await attempt(dsn('CORTEX_DEMO_DSN'), `SELECT count(*) FROM ${table}`, false);
-    expect(result.allowed, `SELECT ${table} was ALLOWED — cortex_demo can read memory`).toBe(
-      false,
-    );
-    expect(result.code, `refused for the wrong reason: ${result.message}`).toBe(
-      INSUFFICIENT_PRIVILEGE,
-    );
-  });
+  it('reads nothing at all when the connection names no session', async () => {
+    // The failure V5 measured was a forgotten scope filter failing OPEN. This is the
+    // same mistake made to fail shut: no session set, nothing visible, on every table.
+    await asSession(null, async (client) => {
+      for (const table of TABLES) {
+        const result = await tryStatement(client, `SELECT count(*)::INT AS n FROM ${table}`);
+        expect(result.allowed, `SELECT ${table} errored: ${result.message}`).toBe(true);
 
-  it.each(TABLES)('cannot write %s', async (table) => {
-    const result = await attempt(dsn('CORTEX_DEMO_DSN'), writeStatement(table), true);
-    expect(result.allowed, `INSERT into ${table} was ALLOWED — cortex_demo can write memory`).toBe(
-      false,
-    );
-    expect(result.code, `refused for the wrong reason: ${result.message}`).toBe(
-      INSUFFICIENT_PRIVILEGE,
-    );
-  });
+        // `Number(...)`: CockroachDB's INT is INT8, which `pg` hands back as a string to
+        // avoid losing precision, so `toBe(0)` against the raw value compares '0' to 0.
+        const { rows } = await client.query(`SELECT count(*) AS n FROM ${table}`);
+        expect(Number((rows[0] as { n: string }).n), `${table} was visible with no session set`).toBe(0);
+      }
+    });
+  }, 60_000);
+
+  it('cannot see a real repository, only its own scope', async () => {
+    await asSession(scopes.sessionA, async (client) => {
+      const { rows } = await client.query('SELECT repo_id, fact FROM findings');
+      const visible = rows as Array<{ repo_id: string; fact: string }>;
+
+      expect(visible.map((r) => r.fact)).toEqual(['test9 fixture: sessionA']);
+      expect(
+        visible.some((r) => r.repo_id === scopes.real),
+        'the demo principal can see real repository memory',
+      ).toBe(false);
+    });
+  }, 60_000);
+
+  it('cannot write to a repo_id that is not a live demo scope', async () => {
+    const embedding = `[${vector(1).join(',')}]`;
+
+    await asSession(scopes.sessionA, async (client) => {
+      for (const [name, target] of [
+        ['a real repository', scopes.real],
+        ['an expired demo scope', scopes.expired],
+      ] as const) {
+        const result = await tryStatement(
+          client,
+          `INSERT INTO findings (repo_id, fact, embedding) VALUES ($1, 'smuggled', '${embedding}')`,
+          [target],
+        );
+        expect(result.allowed, `INSERT into ${name} was ALLOWED`).toBe(false);
+        expect(result.code, `refused for the wrong reason: ${result.message}`).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+      }
+    });
+  }, 60_000);
+
+  it('cannot reach a real repository even when the connection names one as its session', async () => {
+    // THE assertion in test 9, and the one the other tests cannot make.
+    //
+    // Every other case here scopes the connection to a legitimate session and then
+    // reaches for something else, so the session predicate alone is enough to refuse
+    // it — a mutation removing the demo-scope condition entirely left them all green.
+    // §3 requires real memory to be unreachable to this principal "even when a statement
+    // is wrong", which means the interesting case is the write path being *compromised*
+    // or buggy and naming a real repository as its own session.
+    //
+    // What must hold then: `demo_expires_at IS NOT NULL` is false for a real repository,
+    // so the policy refuses regardless of what the connection claims about itself.
+    const embedding = `[${vector(1).join(',')}]`;
+
+    await asSession(scopes.real, async (client) => {
+      const { rows } = await client.query('SELECT fact FROM findings WHERE repo_id = $1', [
+        scopes.real,
+      ]);
+      expect(rows, 'naming a real repo as the session made real memory readable').toEqual([]);
+
+      const written = await tryStatement(
+        client,
+        `INSERT INTO findings (repo_id, fact, embedding) VALUES ($1, 'claimed as a session', '${embedding}')`,
+        [scopes.real],
+      );
+      expect(written.allowed, 'naming a real repo as the session made real memory writable').toBe(
+        false,
+      );
+      expect(written.code, `refused for the wrong reason: ${written.message}`).toBe(
+        INSUFFICIENT_PRIVILEGE,
+      );
+
+      const updated = await tryStatement(
+        client,
+        `UPDATE findings SET fact = 'tampered' WHERE repo_id = $1`,
+        [scopes.real],
+      );
+      expect(updated.rowCount, 'naming a real repo as the session allowed an UPDATE').toBe(0);
+    });
+  }, 60_000);
+
+  it('cannot alter or delete a real repository’s rows', async () => {
+    await asSession(scopes.sessionA, async (client) => {
+      const updated = await tryStatement(
+        client,
+        `UPDATE findings SET fact = 'tampered' WHERE repo_id = $1`,
+        [scopes.real],
+      );
+      const deleted = await tryStatement(client, 'DELETE FROM findings WHERE repo_id = $1', [
+        scopes.real,
+      ]);
+
+      // Invisible, not refused: the rows are outside the policy, so there is nothing to
+      // act on. Asserting 42501 here would assert a misreading of RLS.
+      expect(updated.rowCount, 'the demo principal UPDATEd real repository memory').toBe(0);
+      expect(deleted.rowCount, 'the demo principal DELETEd real repository memory').toBe(0);
+    });
+
+    const admin = new Client({ connectionString: dsn('CORTEX_DSN'), connectionTimeoutMillis: 10_000 });
+    await admin.connect();
+    try {
+      const { rows } = await admin.query('SELECT fact FROM findings WHERE repo_id = $1', [
+        scopes.real,
+      ]);
+      expect((rows[0] as { fact: string }).fact).toBe('test9 fixture: real');
+    } finally {
+      await admin.end();
+    }
+  }, 60_000);
+
+  it('cannot read or write another live session’s rows', async () => {
+    await asSession(scopes.sessionA, async (client) => {
+      const { rows } = await client.query('SELECT fact FROM findings WHERE repo_id = $1', [
+        scopes.sessionB,
+      ]);
+      expect(rows, "session A can read session B's rows").toEqual([]);
+
+      const embedding = `[${vector(1).join(',')}]`;
+      const written = await tryStatement(
+        client,
+        `INSERT INTO findings (repo_id, fact, embedding) VALUES ($1, 'cross-session', '${embedding}')`,
+        [scopes.sessionB],
+      );
+      expect(written.allowed, "session A wrote into session B's scope").toBe(false);
+      expect(written.code, `refused for the wrong reason: ${written.message}`).toBe(
+        INSUFFICIENT_PRIVILEGE,
+      );
+
+      const updated = await tryStatement(
+        client,
+        `UPDATE findings SET fact = 'tampered' WHERE repo_id = $1`,
+        [scopes.sessionB],
+      );
+      expect(updated.rowCount, "session A UPDATEd session B's rows").toBe(0);
+    });
+  }, 60_000);
+
+  it('can work freely inside its own live scope', async () => {
+    // The confinement has to leave a working demo behind it. A policy that refused
+    // everything would pass every assertion above and ship a broken product.
+    const embedding = `[${vector(1).join(',')}]`;
+
+    await asSession(scopes.sessionA, async (client) => {
+      const written = await tryStatement(
+        client,
+        `INSERT INTO findings (repo_id, fact, embedding) VALUES ($1, 'sandbox write', '${embedding}')`,
+        [scopes.sessionA],
+      );
+      expect(written.allowed, `the demo cannot write its own scope: ${written.message}`).toBe(true);
+
+      const updated = await tryStatement(
+        client,
+        `UPDATE findings SET fact = 'sandbox edit' WHERE repo_id = $1 AND fact = 'sandbox write'`,
+        [scopes.sessionA],
+      );
+      expect(updated.rowCount).toBe(1);
+
+      const removed = await tryStatement(
+        client,
+        `DELETE FROM findings WHERE repo_id = $1 AND fact = 'sandbox edit'`,
+        [scopes.sessionA],
+      );
+      expect(removed.rowCount).toBe(1);
+    });
+  }, 60_000);
+
+  it('loses its scope the moment the session expires', async () => {
+    // Reachability is `demo_expires_at > now()`, so an expired scope goes dark without
+    // waiting for any cleanup job. Reclamation is housekeeping, not the boundary.
+    await asSession(scopes.expired, async (client) => {
+      const { rows } = await client.query('SELECT fact FROM findings WHERE repo_id = $1', [
+        scopes.expired,
+      ]);
+      expect(rows, 'an expired demo session can still read its own rows').toEqual([]);
+    });
+  }, 60_000);
 });

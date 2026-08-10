@@ -208,11 +208,17 @@ work. Both directions belong in the B10 answer.
 ## 5. Demo HTTP API
 
 Only what the SPA needs. Public, anonymous, rate limited. Served by the `cortex_demo`
-principal, whose confinement is specified in `04-ARCHITECTURE.md` §3.
+principal, whose confinement is specified in `04-ARCHITECTURE.md` §3 and enforced by
+row-level security.
+
+**Every route MUST issue `SET cortex.demo_session = '<session repo_id>'` on its
+connection before touching a table.** Without it the policies match nothing and every
+route correctly returns empty. That is the intended failure: a handler that forgets to
+scope itself returns nothing rather than everything.
 
 | Route | Purpose |
 | --- | --- |
-| `POST /demo/session` | create a sandbox repo scope, returns a session id, rows TTL'd |
+| `POST /demo/session` | create a sandbox repo scope, returns a session id, rows TTL'd. Generate the id client-side, `SET cortex.demo_session` to it, then INSERT — the scope's own row is subject to the same policy |
 | `POST /demo/run` | start a scenario in `replay` or `live` mode |
 | `GET /demo/state` | current claims, intents, findings for the session |
 | `GET /demo/sql-log` | the actual SQL statements executed, for the "prove it" panel |

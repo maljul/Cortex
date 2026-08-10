@@ -1956,3 +1956,126 @@ in this project that the artifact contradicted the reasoning about the artifact,
 V14's join and V22's template.
 
 Suite **174/174**, `npx tsc --noEmit` clean.
+
+## V24 — `cortex_demo` is confined by row-level security, and `03` §8 test 9 exists
+**2026-08-11 · U15 · `test/privilege-planes.test.ts` · PASS**
+
+`04` §3's `[OPEN]` is closed and `03` §8's last untested invariant has a test. Nothing
+below reads a catalogue; every claim is a statement issued on a `cortex_demo` connection.
+
+### Does RLS work here at all? Asked before anything was written.
+
+Scratch table, one policy, two rows, run as the real principal:
+
+```
+1. does the syntax exist at all?
+   grant   : OK
+   enable  : OK
+   force   : OK
+   policy  : OK
+
+2. is it ENFORCED against cortex_demo?
+   who am i          : OK [{"who":"cortex_demo"}]
+   select all        : OK [{"scope":"live-demo-session"}]      <- 1 of 2 rows
+   see the real row  : OK rowCount=0
+   update the real   : OK rowCount=0
+   delete the real   : OK rowCount=0
+   insert out of     : REFUSED 42501 — new row violates row-level security policy
+   insert in scope   : OK rowCount=1
+
+3. what does the owner still see?
+   admin view        : 3 rows, 'real-repository' note unchanged
+```
+
+**Two refusal shapes, and both are correct.** A row the policy hides is *invisible* —
+`rowCount` 0, no error. A row the policy forbids you to create is *refused* — 42501 from
+`WITH CHECK`. A test that only looked for thrown errors would pass while the demo read
+every repository in the cluster, so test 9 asserts both shapes explicitly.
+
+### Two things the cluster refused, which shaped the implementation
+
+```
+EXISTS (SELECT 1 FROM repos r WHERE r.id = claims.repo_id ...)  -> 42P01 no data source matches prefix: r
+repo_id IN (SELECT id FROM repos WHERE ...)                     -> 42703 column "id" does not exist
+```
+
+**Policy expressions cannot contain a subquery on this cluster.** The expression is
+parsed against its own table and the `FROM` clause is never processed. A `STABLE`
+function works and is clearer:
+
+```
+create fn (STABLE)   : OK
+policy calling fn    : OK
+select all           : OK [{"note":"sandbox"}]
+update the real row  : OK rowCount=0
+insert into real     : FAILED 42501 — new row violates row-level security policy
+insert into sandbox  : OK rowCount=1
+```
+
+It cannot be `LEAKPROOF`: `42P13 — leak proof function must be immutable, but got
+volatility: STABLE`. It reads a table and calls `now()`, so it is neither.
+
+### The session layer, and exactly what it is worth
+
+```
+no setting set      : OK rowCount=0            <- fails CLOSED
+as session A        : OK [{"note":"session A row"}]
+A writes into B     : FAILED 42501
+as session B        : OK [{"note":"session B row"}]
+```
+
+Every visitor connects as the same SQL user, so this is defence at the write path, not
+at the account boundary — there is no SQL role per anonymous visitor to be had. What it
+buys is the failure direction: V5 measured a forgotten scope filter failing **open**;
+here a statement that forgets to scope itself sees nothing.
+
+### The migration converges, and once did not
+
+`sql/001_init.sql` applies **61/61** and re-applies **61/61**.
+
+It did not, at first. Policies were written `CREATE POLICY IF NOT EXISTS`, which
+**silently skips** when a policy of that name exists. Adding the session condition
+applied cleanly to a fresh cluster and did nothing at all to the live one, while the
+migration reported success. Every policy is now DROP-then-CREATE.
+
+This is the same class of defect as V22's template and V14's join: the artifact and the
+belief about the artifact diverged, and only inspecting the artifact found it.
+
+### Test 9, and the mutation that showed the first draft was too weak
+
+23 tests pass. Three mutations:
+
+| mutation | tests failed |
+| --- | --- |
+| session condition removed from the function only | **0** |
+| session condition removed from the function *and* `repos` | 3 |
+| demo-scope + expiry condition removed, session kept | 1, then 2 |
+
+The first is not a gap — the function's `EXISTS` reads `repos`, whose own policy already
+carries the session predicate, so the condition is redundant there. It is kept as depth.
+
+**The third is the finding.** Removing the condition that keeps `cortex_demo` off real
+repository memory — the invariant §3 ranks first — failed only the *expiry* test. Every
+other assertion scoped the connection to a legitimate session and then reached somewhere
+else, so the session predicate alone refused it. The suite could not tell "confined to
+demo scopes" from "confined to the named session".
+
+The missing case is the one that actually happens: a compromised or simply buggy write
+path naming **a real repository as its own session**. Added:
+
+```
+FAIL  cannot reach a real repository even when the connection names one as its session
+      Tests  2 failed | 21 passed (23)
+```
+
+`demo_expires_at IS NOT NULL` is what holds there, and until this test existed nothing
+checked it. Written up in `docs/UNITS.md` because the lesson generalises: a test that
+only ever attacks from a valid position measures the wrong predicate.
+
+### What test 9 does not claim
+
+That two demo sessions are isolated by the *account* boundary. They are not, and `04` §3
+now says so in those words.
+
+Suite **170/170** (down from 174: 13 blanket demo assertions became 9 sharper ones),
+`npx tsc --noEmit` clean.

@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS repos (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- A demo session scope is a repo like any other, with an expiry. NULL means a real
+-- repository; a timestamp means a sandbox scope created by the hosted demo, per
+-- spec/03-MEMORY-MODEL.md section 7. This single column is what every row-level
+-- security policy below predicates on, so it is the whole confinement boundary.
+--
+-- ADD COLUMN IF NOT EXISTS, because U1's done-when is that this file re-applies to a
+-- live cluster without error and that property is not negotiable for one column.
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS agents (
   id           STRING PRIMARY KEY,            -- 'agent-3'
   repo_id      UUID NOT NULL REFERENCES repos(id),
@@ -120,12 +129,177 @@ GRANT SELECT, INSERT, UPDATE, DELETE
   ON TABLE repos, agents, claims, intents, findings, action_ledger
   TO cortex_writer;
 
--- cortex_demo is deliberately NOT granted here. spec/04-ARCHITECTURE.md §3
--- requires it to be unable to affect any row outside a live demo session scope,
--- and §3's [OPEN] decision — separate cluster vs demo-scoped repo_ids — is what
--- decides how that confinement is enforced. A plain table-level grant would give
--- it the whole table and break the invariant, so the grant waits on the decision.
--- The user exists on the cluster; only its privileges are outstanding.
+-- ---------------------------------------------------------------------
+-- The demo plane: table grants, then row-level security to take most of them back.
+--
+-- spec/04-ARCHITECTURE.md section 3's [OPEN] is CLOSED (2026-08-11, V24): demo-scoped
+-- repo_ids in the one cluster, confined by RLS rather than by a second cluster.
+--
+-- Why RLS and not a plain grant: section 3 requires real repository memory to be
+-- UNREACHABLE to this principal, not merely filtered out of its queries. A table-level
+-- grant gives it the whole table and leaves confinement resting on application code
+-- being correct — which is precisely the assumption section 3 refuses to make, since
+-- the point of a separate principal is that it holds when the application is wrong.
+--
+-- Why not a second cluster: it doubles the surface of the longevity risk that
+-- 08-BUILD-PLAN.md section 7 already ranks as the most likely way this submission
+-- fails AFTER submission, and it makes the one-cluster architecture claim false.
+--
+-- Verified by attempting the statements against this cluster before being written
+-- here, never by reading a catalogue. V9 is why: SHOW GRANTS answered a narrow
+-- question truthfully while three accounts held admin through a role membership.
+-- ---------------------------------------------------------------------
 
--- Sanity check after granting. The reader must show SELECT only.
--- SHOW GRANTS ON TABLE claims;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE repos, agents, claims, intents, findings, action_ledger
+  TO cortex_demo;
+
+-- FORCE, not merely ENABLE. ENABLE exempts the table owner, and every one of these
+-- tables is owned by the account that ran this file. Without FORCE the policies below
+-- would be silently inert for the owner and the test would still pass for cortex_demo,
+-- which is the shape of a guard that protects everything except the thing you check.
+ALTER TABLE repos         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE repos         FORCE  ROW LEVEL SECURITY;
+ALTER TABLE agents        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agents        FORCE  ROW LEVEL SECURITY;
+ALTER TABLE claims        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE claims        FORCE  ROW LEVEL SECURITY;
+ALTER TABLE intents       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE intents       FORCE  ROW LEVEL SECURITY;
+ALTER TABLE findings      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE findings      FORCE  ROW LEVEL SECURITY;
+ALTER TABLE action_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE action_ledger FORCE  ROW LEVEL SECURITY;
+
+-- DROP-then-CREATE on every policy below, not CREATE ... IF NOT EXISTS. IF NOT EXISTS
+-- silently skips when a policy of that name already exists, so editing a predicate here
+-- would apply cleanly to a fresh cluster and do nothing at all to a live one — the
+-- migration would report success while the cluster kept the old rule. This file must
+-- converge, not merely avoid erroring. Found the hard way: the session-scope condition
+-- was added to these predicates and the first re-run applied none of it.
+--
+-- Enabling RLS with no policy denies everything to non-exempt roles, so the reader and
+-- writer planes need policies that restore exactly what their grants already say. These
+-- are permissive-everything for those two roles: RLS is not the mechanism confining
+-- them, their grants are, and 04 section 3's security claim rests on cortex_reader
+-- holding no write verb.
+DROP POLICY IF EXISTS reader_all ON repos;
+CREATE POLICY reader_all ON repos         FOR ALL TO cortex_reader USING (true);
+DROP POLICY IF EXISTS reader_all ON agents;
+CREATE POLICY reader_all ON agents        FOR ALL TO cortex_reader USING (true);
+DROP POLICY IF EXISTS reader_all ON claims;
+CREATE POLICY reader_all ON claims        FOR ALL TO cortex_reader USING (true);
+DROP POLICY IF EXISTS reader_all ON intents;
+CREATE POLICY reader_all ON intents       FOR ALL TO cortex_reader USING (true);
+DROP POLICY IF EXISTS reader_all ON findings;
+CREATE POLICY reader_all ON findings      FOR ALL TO cortex_reader USING (true);
+DROP POLICY IF EXISTS reader_all ON action_ledger;
+CREATE POLICY reader_all ON action_ledger FOR ALL TO cortex_reader USING (true);
+
+DROP POLICY IF EXISTS writer_all ON repos;
+CREATE POLICY writer_all ON repos         FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS writer_all ON agents;
+CREATE POLICY writer_all ON agents        FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS writer_all ON claims;
+CREATE POLICY writer_all ON claims        FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS writer_all ON intents;
+CREATE POLICY writer_all ON intents       FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS writer_all ON findings;
+CREATE POLICY writer_all ON findings      FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS writer_all ON action_ledger;
+CREATE POLICY writer_all ON action_ledger FOR ALL TO cortex_writer USING (true) WITH CHECK (true);
+
+-- The other five tables predicate on the repo their repo_id names, and reaching another
+-- table from a policy needs a function.
+--
+-- CockroachDB policy expressions cannot contain a subquery. Both obvious spellings were
+-- attempted against this cluster and both were refused:
+--   EXISTS (SELECT 1 FROM repos r WHERE r.id = claims.repo_id ...)  -> 42P01
+--   repo_id IN (SELECT id FROM repos WHERE ...)                     -> 42703
+-- The expression is parsed against the policy's own table and no other data source is
+-- in scope, so the FROM clause is never processed. A STABLE function is the way through,
+-- and it is a better shape anyway: the predicate is named once and every policy below
+-- reads as the sentence 04 section 3 actually specifies.
+--
+-- Not LEAKPROOF: this cluster requires a leakproof function to be IMMUTABLE, and this
+-- one reads a table and calls now(), so it is neither.
+--
+-- TWO conditions, because section 3 states two invariants and they are not the same one:
+--
+--   1. the row's repo is a demo scope that has not expired  — keeps cortex_demo off real
+--      repository memory. This is the boundary that matters most and it is enforced by
+--      the principal's policies, so it holds even when the application is wrong.
+--   2. the row's repo is THE SESSION'S scope             — keeps one demo session out of
+--      another's rows, which section 3 also requires and which condition 1 alone does
+--      not give: every visitor connects as the same SQL user.
+--
+-- Condition 2 reads a per-connection setting the demo write path sets before touching
+-- anything. Be precise about what that is worth: with one shared SQL user there is no
+-- stronger option — you cannot create a SQL role per anonymous visitor — so this is
+-- defence at the write path and not at the account boundary, and section 3's own
+-- ordering puts session-versus-session below real-memory for exactly that reason.
+-- What it does buy is that it **fails closed**: `current_setting(..., true)` returns
+-- NULL when unset, the predicate is false, and a statement that forgot to scope itself
+-- reads and writes nothing. Per V5 the failure mode that matters is a forgotten filter
+-- failing OPEN, and this is the same class of mistake made to fail shut.
+CREATE OR REPLACE FUNCTION is_current_demo_scope(rid UUID) RETURNS BOOL
+  LANGUAGE SQL STABLE AS $$
+    SELECT rid::STRING = current_setting('cortex.demo_session', true)
+       AND EXISTS (SELECT 1 FROM repos
+                    WHERE repos.id = rid
+                      AND repos.demo_expires_at IS NOT NULL
+                      AND repos.demo_expires_at > now())
+  $$;
+
+GRANT EXECUTE ON FUNCTION is_current_demo_scope(UUID) TO cortex_demo;
+
+-- The demo plane. `repos` predicates on its own row; the other five call the function.
+--
+-- USING governs which rows are visible to SELECT, UPDATE and DELETE; WITH CHECK governs
+-- which rows may be written by INSERT and UPDATE. Both are required and they are not the
+-- same statement: USING alone would let the demo UPDATE a row it can see INTO a scope it
+-- cannot, and WITH CHECK alone would let it read everything.
+--
+-- `demo_expires_at > now()` means an expired scope becomes unreachable at the instant it
+-- expires, before any TTL job runs. Reclamation is then housekeeping rather than the
+-- security boundary, which is the right order for a demo that must survive unattended
+-- until 2026-09-15.
+-- `repos` spells the predicate out inline rather than calling the function, because
+-- the function reads `repos` and calling it from this table's own policy is a recursion
+-- waiting to happen. Same two conditions, written against the row's own columns.
+DROP POLICY IF EXISTS demo_scope ON repos;
+CREATE POLICY demo_scope ON repos FOR ALL TO cortex_demo
+  USING      (demo_expires_at IS NOT NULL AND demo_expires_at > now()
+              AND id::STRING = current_setting('cortex.demo_session', true))
+  WITH CHECK (demo_expires_at IS NOT NULL AND demo_expires_at > now()
+              AND id::STRING = current_setting('cortex.demo_session', true));
+
+DROP POLICY IF EXISTS demo_scope ON agents;
+CREATE POLICY demo_scope ON agents FOR ALL TO cortex_demo
+  USING      (is_current_demo_scope(repo_id))
+  WITH CHECK (is_current_demo_scope(repo_id));
+
+DROP POLICY IF EXISTS demo_scope ON claims;
+CREATE POLICY demo_scope ON claims FOR ALL TO cortex_demo
+  USING      (is_current_demo_scope(repo_id))
+  WITH CHECK (is_current_demo_scope(repo_id));
+
+DROP POLICY IF EXISTS demo_scope ON intents;
+CREATE POLICY demo_scope ON intents FOR ALL TO cortex_demo
+  USING      (is_current_demo_scope(repo_id))
+  WITH CHECK (is_current_demo_scope(repo_id));
+
+DROP POLICY IF EXISTS demo_scope ON findings;
+CREATE POLICY demo_scope ON findings FOR ALL TO cortex_demo
+  USING      (is_current_demo_scope(repo_id))
+  WITH CHECK (is_current_demo_scope(repo_id));
+
+DROP POLICY IF EXISTS demo_scope ON action_ledger;
+CREATE POLICY demo_scope ON action_ledger FOR ALL TO cortex_demo
+  USING      (is_current_demo_scope(repo_id))
+  WITH CHECK (is_current_demo_scope(repo_id));
+
+-- Do NOT verify any of the above with SHOW GRANTS or SHOW POLICIES. The guard is
+-- test/privilege-planes.test.ts, which attempts every statement and requires the
+-- cluster to refuse it. A catalogue answers the question you asked, not the one you
+-- meant — see V9.

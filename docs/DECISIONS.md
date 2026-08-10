@@ -350,3 +350,48 @@ that new paragraph read the count of pairs caught by the old threshold off
 constant moved. The historical number is now a fixed named constant. A generated document
 that derives a claim about the past from a value that lives in the present will lie the
 first time the present changes.
+
+## 2026-08-11 — `cortex_demo` is confined by row-level security, in the one cluster
+
+`04` §3 left open how the demo principal is confined, between a dedicated demo cluster
+and demo-scoped `repo_id`s in the one cluster. The stated objection to the second was
+that confinement would then rest on the write path rather than on the account boundary,
+and §3 is explicit that real repository memory must be **unreachable to the principal**,
+not merely filtered out of its queries.
+
+**Row-level security removes the objection**, which is what made the choice easy once it
+was measured rather than reasoned about. The predicate is attached to the principal by
+the database. `cortex_demo` holds ordinary DML on the six tables, every table carries
+`FORCE ROW LEVEL SECURITY`, and every policy admits only rows whose repository is an
+unexpired demo scope and is the scope this connection named. A wrong statement from a
+correct application, or any statement from a compromised one, still cannot reach a real
+repository — `demo_expires_at IS NOT NULL` is false for every one of them.
+
+The dedicated cluster was rejected on the risk it adds rather than the isolation it
+gives: `08` §7 already ranks a paused free-tier cluster as the most likely way this
+submission fails *after* submission, and a second cluster doubles that surface for
+something RLS provides inside the one. It would also have made the one-cluster claim —
+which is the thesis — false.
+
+**Three things this decision had to learn from the cluster, none of which were guessable:**
+
+1. **Policy expressions cannot contain a subquery.** `EXISTS (SELECT 1 FROM repos …)`
+   returns 42P01 and `IN (SELECT id FROM repos …)` returns 42703; the expression is
+   parsed against its own table and no other data source is in scope. A `STABLE`
+   function is the way through, and it reads better anyway. It cannot be `LEAKPROOF`,
+   which this cluster requires to be `IMMUTABLE`.
+2. **`CREATE POLICY IF NOT EXISTS` silently skips.** Adding the session condition to
+   already-created policies applied perfectly to a fresh cluster and changed nothing on
+   the live one, with the migration reporting success. Every policy is now
+   DROP-then-CREATE. A migration must converge, not merely avoid erroring — and the
+   failure mode of the weaker form is a green run over an unchanged database.
+3. **`FORCE`, not `ENABLE`.** `ENABLE` exempts the table owner, and the owner runs the
+   migration. Without `FORCE` the policies would be inert exactly where nobody looks.
+
+**What is deliberately claimed narrowly.** Session-versus-session isolation is enforced
+by a per-connection setting, so it is defence at the write path and not at the account
+boundary — every visitor connects as the same SQL user, and there is no SQL role per
+anonymous visitor. It is worth having because it **fails closed**: unset, the predicate
+is false and the demo reads and writes nothing. V5's lesson was that a forgotten scope
+filter fails open; this is the same mistake arranged to fail shut. `04` §3 says so in
+those terms rather than implying an account boundary that is not there.
