@@ -12,13 +12,14 @@
  * that can only be exercised after it is deployed is a route surface that is exercised
  * once.
  *
- * **Two routes, not five.** `05` §5 specifies five; `POST /demo/run` and
- * `GET /demo/sql-log` serve the four beats of `07` §3 and arrive with the SPA that
- * renders them (U16), and the replay/live mode they carry is the degradation ladder's
- * (U17). U14 is the deployed surface and the change stream. `05` §5 is listed by U14 and
- * U16 both, and this is where the line falls.
+ * All five of `05` §5's routes now exist. U14 built session, state and the stream; U16
+ * added `POST /demo/run` and `GET /demo/sql-log`, which are the two that serve `07` §3's
+ * beats and `07` §2's show-SQL toggle.
  */
+import { StatementRecorder } from '../db/recorder.js';
 import { createDemoSession, demoState } from '../memory/demo.js';
+import { runScenario, type DemoArm } from './scenario.js';
+import { readSqlLog, writeSqlLog } from './sql-log.js';
 
 export interface DemoRequest {
   method: string;
@@ -70,6 +71,21 @@ const JSON_HEADERS: Record<string, string> = {
 
 function json(statusCode: number, payload: unknown): DemoResponse {
   return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(payload) };
+}
+
+/**
+ * How the scenario embeds its statements. Installed by the caller so this module carries
+ * no Bedrock dependency and `test/` can drive the whole route surface deterministically.
+ */
+let embedderFn: ((text: string) => Promise<number[]>) | undefined;
+
+export function useEmbedder(embed: (text: string) => Promise<number[]>): void {
+  embedderFn = embed;
+}
+
+function embedder(): (text: string) => Promise<number[]> {
+  if (!embedderFn) throw new Error('no embedder installed: call useEmbedder() at start-up');
+  return embedderFn;
 }
 
 /** Walks a decoded request body looking for anything credential-shaped, at any depth. */
@@ -142,6 +158,60 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
     }
 
     return json(200, state);
+  }
+
+  if (route === 'POST /demo/run') {
+    const body = (request.body ?? {}) as { session?: unknown; arm?: unknown };
+    const sessionId = typeof body.session === 'string' ? body.session : request.query?.['session'];
+    if (!sessionId) {
+      return json(400, { error: 'A session id is required. Start one at POST /demo/session.' });
+    }
+
+    // Only two values are accepted, and neither reaches SQL. `07` §4's honesty rule and
+    // invariant 7 both point the same way: an arm is a fixed choice between two code
+    // paths, not a parameter the caller gets to shape.
+    const arm: DemoArm = body.arm === 'naive' ? 'naive' : 'cortex';
+
+    if (!(await demoState(sessionId))) {
+      return json(404, {
+        error: 'That session has expired or never existed. Starting a new one is one click.',
+      });
+    }
+
+    const recorder = new StatementRecorder();
+    const result = await runScenario({
+      sessionId,
+      arm,
+      embed: (text) => embedder()(text),
+      recorder,
+    });
+
+    await writeSqlLog({
+      sessionId,
+      arm,
+      recordedAt: new Date().toISOString(),
+      statements: recorder.statements,
+    });
+
+    return json(200, {
+      ...result,
+      sql: { statements: recorder.statements.length, at: '/demo/sql-log' },
+    });
+  }
+
+  if (route === 'GET /demo/sql-log') {
+    const sessionId = request.query?.['session'];
+    if (!sessionId) return json(400, { error: 'A session id is required.' });
+
+    const log = await readSqlLog(sessionId);
+    if (!log) {
+      // Not an error: a session that has not run the scenario has executed no statements,
+      // and an empty transcript is the truthful answer. `04` §5 invariant 1 forbids an
+      // error page on any path a visitor can reach, and this is one click away.
+      return json(200, { sessionId, arm: null, recordedAt: null, statements: [] });
+    }
+
+    return json(200, log);
   }
 
   return json(404, { error: 'No such route.' });

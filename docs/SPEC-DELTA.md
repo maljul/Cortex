@@ -13,6 +13,45 @@ is not undone by a later reader.
 
 ## Open
 
+### `03` §4.1's `dist < 0.35` is tighter than real embeddings reach, so recall returns nothing *(2026-08-11, V28)*
+
+§4.1's published SQL filters findings at `WHERE n.dist < 0.35`, and `recall()` ships that
+as `DEFAULT_MAX_DISTANCE`. Measured against **real Titan embeddings**, a finding about a
+task sits further from that task's statement than 0.35, so the filter excludes exactly the
+case recall exists to serve.
+
+Query: `add a retry to the orders client`. Candidate findings, every one of them an honest
+wording of what an agent would record after doing that work:
+
+```
+0.3801  adding a retry to the orders client broke 429 handling and was reverted
+0.3852  orders client retry: skip 429
+0.4166  a retry in the orders client must skip 429 — retrying it drops the order
+0.4218  the retry added to the orders client dropped orders on 429 and was reverted
+0.4271  retry in the orders client — reverted, it dropped orders on 429
+0.4680  the orders client retry loop drops the order when the server answers 429
+```
+
+Nothing clears 0.35. The closest is 0.3801 and it reads well; the wordings *below* 0.38
+stop sounding like findings and start sounding like restatements of the task.
+
+**This partially corrects U12's diagnosis.** U12 recorded that CORTEX recall returns 0 in
+the benchmark and attributed it to consolidation not being built. Consolidation is built
+now (V27) and recall still returns 0 — so the threshold was always a second, independent
+cause, and fixing §4.4 alone was never going to move that number.
+
+**Deliberately not changed.** Moving a mechanism constant so that the demo showcasing the
+mechanism looks better is the circularity `06` §3 exists to prevent, and the precedent is
+`03` §4.2's threshold: swept, published, and closed by Julian as a separate act with the
+measurement in front of him. The demo reports "nothing known" when nothing is known, which
+is `07` §4's honesty rule working as intended.
+
+**What closing it needs:** a sweep like `bench/results/*/threshold-sweep.md`, over findings
+and queries rather than over intent pairs. Note that 0.35 is currently *tighter* than the
+dedupe threshold of 0.39, which is the wrong way round on the face of it — recall asks
+"what might be relevant", dedupe asks "is this the same work", and the second is the
+stricter question. Whoever sweeps this should say why the ordering is what it is.
+
 ### `04` §5 brake 1 — reserved concurrency cannot be set on this account at all *(2026-08-11, V26)*
 
 §5 requires three independent brakes on LIVE mode and lists first: "**Reserved

@@ -122,11 +122,40 @@ export class CortexStack extends cdk.Stack {
       environment: { CORTEX_DEMO_DSN: demoDsn },
     });
 
+    // The show-SQL transcript. Separate from `Connections` because the two have different
+    // keys and different lifetimes, and a single table keyed on a union of the two would
+    // be cleverness with no payoff at this size.
+    const sqlLog = new dynamodb.TableV2(this, 'SqlLog', {
+      partitionKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
+      timeToLiveAttribute: 'expiresAt',
+      billing: dynamodb.Billing.onDemand(),
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     const demoFn = new lambda.Function(this, 'DemoFn', {
       ...runtime,
+      // 60s: `POST /demo/run` performs the four beats against the cluster — several
+      // embeddings and half a dozen transactions. It is the one visitor-facing route that
+      // does real work, and a timeout here would show a judge an error rather than a beat.
+      timeout: cdk.Duration.seconds(60),
       code: lambda.Code.fromAsset(path.join(DIST, 'demo')),
-      environment: { CORTEX_DEMO_DSN: demoDsn },
+      environment: {
+        CORTEX_DEMO_DSN: demoDsn,
+        SQL_LOG_TABLE: sqlLog.tableName,
+        BEDROCK_REGION: bedrockRegion,
+        BEDROCK_EMBED_MODEL: embedModel,
+      },
     });
+    sqlLog.grantReadWriteData(demoFn);
+    demoFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          `arn:aws:bedrock:${bedrockRegion}::foundation-model/${embedModel}`,
+          `arn:aws:bedrock:${bedrockRegion}:${this.account}:inference-profile/${embedModel}`,
+        ],
+      }),
+    );
 
     const connectionsFn = new lambda.Function(this, 'ConnectionsFn', {
       ...runtime,

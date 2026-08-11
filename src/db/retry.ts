@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 
 import { getPool, type Plane } from './pool.js';
+import type { StatementRecorder } from './recorder.js';
 
 /** SQLSTATE for a serialization failure. Under SERIALIZABLE this is expected traffic. */
 const SERIALIZATION_FAILURE = '40001';
@@ -68,6 +69,14 @@ export interface RetryOptions {
    * policies would ignore anyway.
    */
   demoSession?: string;
+  /**
+   * Collects the statements this transaction actually executes, for `05` §5's
+   * `GET /demo/sql-log`. Only successful statements are recorded — a statement that threw
+   * produced no rows and no timing, and the panel is showing what ran, not what was
+   * attempted. Retried attempts each appear, which is correct: a 40001 retry really did
+   * execute the statement twice.
+   */
+  recorder?: StatementRecorder;
 }
 
 /**
@@ -99,7 +108,11 @@ export async function withRetry<T>(
   const pool = getPool(options.plane ?? 'write');
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-    const client = await pool.connect();
+    const borrowed = await pool.connect();
+    // Wrapped before BEGIN, not around `fn` alone, so the transaction boundary is in the
+    // log too. `07` §2's panel is showing that dedupe and claim sit inside **one** BEGIN;
+    // a log that omitted the BEGIN would be asking the reader to take that on trust.
+    const client = options.recorder ? options.recorder.wrap(borrowed) : borrowed;
 
     try {
       await client.query('BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE');
@@ -124,7 +137,7 @@ export async function withRetry<T>(
       retries += 1;
       await sleep(backoffMs(attempt));
     } finally {
-      client.release();
+      borrowed.release();
     }
   }
 

@@ -2459,3 +2459,118 @@ intent id would produce findings that can never carry the signal `03` §4.1 rank
   and this account cannot have one.
 
 Suite 215/215, `tsc` clean.
+
+---
+
+## V28 — The four beats run against the hosted API, and two of them told the truth about the mechanism
+**2026-08-11 · U16, phase 2 · PASS on beats 2–4, and one spec constant falsified**
+
+`POST /demo/run` and `GET /demo/sql-log` are built, so all five of `05` §5's routes exist.
+The run performs `07` §3's beats against the real cluster in the visitor's own scope, and
+the two most useful results of this phase are both failures that real embeddings caused
+and test vectors could not have.
+
+### The beats, over the deployed API, anonymously
+
+```
+=== CORTEX ===
+beat 1  agent-0  seed     -> seeded
+beat 1  agent-1  recall   -> nothing known
+beat 2  agent-2  propose  -> granted
+beat 2  agent-4  propose  -> deduped
+beat 3  agent-3  propose  -> granted
+beat 3  agent-5  propose  -> blocked
+beat 4  agent-2  close    -> done
+meter: {"duplicateWorkAvoided":1,"duplicateWorkDone":0,"lostWrites":0,
+        "blockedAndReplanned":1,"findingsRecalled":0}
+sql statements: 45
+
+=== NAIVE (fresh session) ===
+beat 1  agent-1  recall   -> nothing known
+beat 2  agent-2  propose  -> proceeded
+beat 2  agent-4  propose  -> proceeded
+beat 3  agent-3  propose  -> proceeded
+beat 3  agent-5  propose  -> proceeded
+beat 3  agent-5  close    -> overwrote
+beat 4  agent-2  close    -> done
+meter: {"duplicateWorkAvoided":0,"duplicateWorkDone":1,"lostWrites":1,
+        "blockedAndReplanned":0,"findingsRecalled":0}
+sql statements: 0
+```
+
+`07` §2's contrast, from the same script and the same embeddings: dedupe avoided versus
+duplicate work done, and a blocked re-plan versus a lost write. **NAIVE's `sql statements:
+0` is not a gap in the instrumentation** — a fleet with no shared memory issues no
+statements against one, and the show-SQL panel showing nothing for NAIVE is the most
+direct statement of the difference the demo makes.
+
+### The show-SQL panel, and what it proves on sight
+
+`GET /demo/sql-log`, first five of forty-five:
+
+```
+   2ms  p0  r0  BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE
+   2ms  p2  r1  SELECT set_config($1, $2, true)
+   7ms  p2  r0  SELECT id, agent_id, status, outcome, embedding <=> $2 AS dist FROM intents WHERE repo…
+  10ms  p5  r1  INSERT INTO intents (repo_id, agent_id, statement, resource_keys, embedding, status) V…
+  37ms  p5  r1  INSERT INTO claims (repo_id, resource_key, intent_id, holder, expires_at) SELECT $1, k…
+```
+
+One `BEGIN`, then the dedupe search and the claim insert inside it. `03` §8 invariant 1 —
+"if a similarity check and a claim insert ever land in different transactions the project's
+thesis is falsified by its own code" — is readable off the panel rather than taken on
+trust. `p2` on the `set_config` is V26's bind parameter, also visible.
+
+Nothing composes that text: `src/db/recorder.ts` wraps the live client and writes down what
+went to the driver, and `test/recorder.test.ts` asserts that a statement which was never
+executed cannot appear.
+
+### Finding 1 — the demo deduped against its own seed, and no test could have caught it
+
+The first hosted run came back with **agent-2 deduped** and no beat 4 at all: with nothing
+granted there was nothing to close. Measured under Titan:
+
+```
+seedStatement / dedupeHolder   0.2969   ← inside the 0.39 dedupe threshold
+dedupeHolder  / dedupeCaller   0.1680
+claimWinner   / claimLoser     0.6995
+```
+
+The seed's statement, "make the orders client retry 429s", was a near-duplicate of agent-2's
+"add a retry to the orders client", so the mechanism correctly deduped agent-2 against the
+demo's own scaffolding. Unit tests could not have found this: they control distances
+exactly by construction, and this is a fact about what Titan does to these particular
+English sentences. Re-worded to `switch the orders queue driver to SQS` — 0.7660 from the
+holder — and the beats run as above. U11 learned the same lesson from the other direction,
+and the script now carries its measured distances in a comment.
+
+### Finding 2 — `03` §4.1's `dist < 0.35` excludes the case recall exists for
+
+Beat 1 says "nothing known" and that is the honest answer, not a bug in the demo. The seeded
+finding is there and the query is the task it is about; `recall` filters at `dist < 0.35`
+and every honest wording of that finding sits further away:
+
+```
+0.3801  adding a retry to the orders client broke 429 handling and was reverted
+0.3852  orders client retry: skip 429
+0.4166  a retry in the orders client must skip 429 — retrying it drops the order
+0.4218  the retry added to the orders client dropped orders on 429 and was reverted
+0.4680  the orders client retry loop drops the order when the server answers 429
+```
+
+**Not changed here.** 0.35 is `03` §4.1's own published SQL, and moving a mechanism
+constant so the demo showcasing it looks better is the circularity `06` §3 exists to
+prevent — the precedent is the dedupe threshold, which Julian closed as a separate act with
+a sweep in front of him. Recorded in `docs/SPEC-DELTA.md` with what closing it would need.
+
+**It also revises U12.** U12 recorded CORTEX recall returning 0 in the benchmark and
+attributed it to consolidation being unbuilt. Consolidation is built (V27) and recall still
+returns 0, so the threshold was always a second, independent cause.
+
+### What is still not built
+
+The SPA. `07` §2's three panels, the naive toggle and the show-SQL view are U16's remaining
+work; everything they need is now deployed and returning real data. The page at the
+CloudFront URL is still U14's placeholder and says so.
+
+Suite 225/225, `tsc` clean.

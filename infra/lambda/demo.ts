@@ -11,7 +11,50 @@
  * its connection: V22 measured a cold query at ~690ms and a warm one at 3ms on exactly
  * that arrangement.
  */
-import { handleDemoRequest } from '../../src/demo/api.js';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+
+import { Embedder } from '../../src/embed/titan.js';
+import { handleDemoRequest, useEmbedder } from '../../src/demo/api.js';
+import { useSqlLogStore, type SqlLogEntry } from '../../src/demo/sql-log.js';
+
+/**
+ * The show-SQL transcript, stored where the connection registry is stored and for the
+ * same reason (`docs/DECISIONS.md`): `POST /demo/run` and `GET /demo/sql-log` are two
+ * invocations and possibly two sandboxes, and the transcript is bookkeeping with a
+ * lifetime of minutes rather than memory.
+ */
+const documents = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const SQL_LOG_TABLE = process.env.SQL_LOG_TABLE;
+/** Outlives the session it describes by a margin, and no longer. */
+const SQL_LOG_TTL_SECONDS = 2 * 60 * 60;
+
+if (SQL_LOG_TABLE) {
+  useSqlLogStore({
+    async put(entry) {
+      await documents.send(
+        new PutCommand({
+          TableName: SQL_LOG_TABLE,
+          Item: { ...entry, expiresAt: Math.floor(Date.now() / 1000) + SQL_LOG_TTL_SECONDS },
+        }),
+      );
+    },
+    async get(sessionId) {
+      const { Item } = await documents.send(
+        new GetCommand({ TableName: SQL_LOG_TABLE, Key: { sessionId } }),
+      );
+      return (Item as SqlLogEntry | undefined) ?? null;
+    },
+  });
+}
+
+// Lazily built, like `getPool()`: a module-scope `Embedder` would read `BEDROCK_REGION`
+// before the handler's environment is in place. U8 hit exactly that.
+let cachedEmbedder: Embedder | undefined;
+useEmbedder(async (text) => {
+  cachedEmbedder ??= new Embedder();
+  return cachedEmbedder.embed(text);
+});
 
 /** The subset of API Gateway's HTTP API v2 event this handler reads. */
 interface HttpEvent {
@@ -32,7 +75,7 @@ interface HttpResult {
  * Bumped by hand on each redeploy, as the identity handler's is. Without it a redeploy
  * and a no-op are indistinguishable from outside.
  */
-const BUNDLE_REVISION = 1;
+const BUNDLE_REVISION = 2;
 
 function decodeBody(event: HttpEvent): unknown {
   if (!event.body) return undefined;

@@ -12,7 +12,9 @@
  * §3), which is why the query text is kept verbatim and parameterised: the same
  * statement ships in the Agent Skill.
  */
-import { getPool } from '../db/pool.js';
+import { getPool, type Plane } from '../db/pool.js';
+import type { StatementRecorder } from '../db/recorder.js';
+import { withRetry } from '../db/retry.js';
 
 /** §4.1: findings past this cosine distance are noise, not memory. */
 export const DEFAULT_MAX_DISTANCE = 0.35;
@@ -30,6 +32,20 @@ export interface RecallInput {
   k?: number;
   maxDistance?: number;
   candidates?: number;
+  /**
+   * Which privilege plane to read on. Defaults to the write plane, which is what the CLI
+   * and the benchmark use. The hosted demo passes `'demo'` with its session scope, so a
+   * visitor's recall is the same query under `cortex_demo`'s row-level security.
+   *
+   * Note what this is *not*: the agent-facing read path is `cortex_reader` reached with a
+   * stock client and the SQL in `skills/cortex-memory/SKILL.md`, which never enters this
+   * process at all (V17, V21).
+   */
+  plane?: Plane;
+  /** The demo session scope, when the plane is `demo`. */
+  demoSession?: string;
+  /** Collects the statements this call executes, for `05` §5's show-SQL panel. */
+  recorder?: StatementRecorder;
 }
 
 export interface Finding {
@@ -102,13 +118,20 @@ export async function recall(input: RecallInput): Promise<Finding[]> {
     candidates = DEFAULT_CANDIDATES,
   } = input;
 
-  const { rows } = await getPool().query(RECALL_SQL, [
-    `[${embedding.join(',')}]`,
-    repoId,
-    candidates,
-    maxDistance,
-    k,
-  ]);
+  const parameters = [`[${embedding.join(',')}]`, repoId, candidates, maxDistance, k];
+
+  // A read, so no transaction is required — but the demo plane's scope is
+  // transaction-local by design (`src/db/retry.ts`), so a scoped recall has to run inside
+  // one. Unscoped, the policies would match nothing and the panel would show an empty
+  // recall that looked like an honest "nothing known".
+  const { rows } =
+    input.plane === 'demo'
+      ? await withRetry(async (client) => client.query(RECALL_SQL, parameters), {
+          plane: 'demo',
+          ...(input.demoSession ? { demoSession: input.demoSession } : {}),
+          ...(input.recorder ? { recorder: input.recorder } : {}),
+        })
+      : await getPool(input.plane ?? 'write').query(RECALL_SQL, parameters);
 
   return rows.map((row) => ({
     fact: row.fact as string,

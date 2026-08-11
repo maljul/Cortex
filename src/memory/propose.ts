@@ -9,6 +9,7 @@
 import type { PoolClient } from 'pg';
 
 import type { Plane } from '../db/pool.js';
+import type { StatementRecorder } from '../db/recorder.js';
 import { withRetry } from '../db/retry.js';
 import { expandKeys, type GlobResolver } from './keys.js';
 
@@ -55,6 +56,8 @@ export interface ProposeInput {
   plane?: Plane;
   /** The demo session scope, when the plane is `demo`. */
   demoSession?: string;
+  /** Collects the statements this call executes, for `05` §5's show-SQL panel. */
+  recorder?: StatementRecorder;
 }
 
 export interface Contested {
@@ -179,6 +182,7 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
   const planeOptions = {
     ...(input.plane ? { plane: input.plane } : {}),
     ...(input.demoSession ? { demoSession: input.demoSession } : {}),
+    ...(input.recorder ? { recorder: input.recorder } : {}),
   };
 
   const keys = await expandKeys(resourceKeys, resolveGlob);
