@@ -32,6 +32,24 @@ What does not belong in a unit list, and so lives here:
   bundle with `node infra/bundle.mjs` before every deploy**; nothing does it
   automatically, and `npm run deploy:secrets` must have run once or CloudFormation fails
   on an unresolvable secret.
+- **Consolidation (`03` §4.4) is built and beat 4 is real (U16, V27, 2026-08-11).** The
+  changefeed sink embeds a closed intent's outcome and either reinforces the nearest
+  finding in that repository or inserts one. `npm run gate:consolidate` proves it end to
+  end in 502ms. The candidate search carries `WHERE repo_id`, and mutating it away fails
+  all seven tests in the file — without it a fresh consolidation reinforces one of the
+  cluster's existing findings instead of inserting. `04` §2 routes this through
+  EventBridge and the deployment does not; reasoning in `docs/SPEC-DELTA.md`.
+- **`03` §4.1's `dist < 0.35` is too tight for real embeddings, and recall returns nothing
+  because of it (V28).** Every honest wording of a finding sits 0.38–0.47 from the task it
+  describes. **This is an open decision, not a bug to patch** — moving it to make the demo
+  look better is `06` §3's circularity, and it is Julian's to close with a sweep as `03`
+  §4.2's was. It also revises U12: consolidation being unbuilt was never the only reason
+  CORTEX recall returned 0.
+- **All five of `05` §5's demo routes exist, and the show-SQL panel is a transcript**
+  (U16, V28). `src/db/recorder.ts` wraps the live client, so a statement reaches the panel
+  only by having gone to the driver. The recorded log shows one `BEGIN` holding the dedupe
+  search and the claim insert — invariant 1, readable rather than asserted. **The SPA
+  itself is not built**; `docs/UNITS.md` U16 has the remaining scope.
 - **Changefeed delivery is proven end to end, not just entitled (V26).** `npm run
   gate:stream` takes a session anonymously from the hosted API, writes one row as
   `cortex_demo`, and receives it back over the WebSocket in ~126ms. V25 established the
@@ -75,9 +93,9 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 197/197** — it was 170 after U15 (down from
-  174 because 13 blanket demo assertions became 9 sharper ones, not because anything was
-  removed), and U14 added 27.
+  the weaker "no privilege at all". **Suite 225/225** — 170 after U15 (down from 174 because 13
+  blanket demo assertions became 9 sharper ones, not because anything was removed), U14
+  added 27 and U16 has added 28 so far.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the
@@ -190,7 +208,8 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
-`npm run changefeed status|create|cancel` · `npm run deploy:secrets` · `npm run deploy:site`.
+`npm run gate:consolidate` (hosted) · `npm run changefeed status|create|cancel` ·
+`npm run deploy:secrets` · `npm run deploy:site`.
 
 `npx tsc --noEmit` exits clean and must stay that way — it is what someone cloning
 the repo runs first, and Production Readiness is scored.

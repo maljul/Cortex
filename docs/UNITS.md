@@ -511,18 +511,44 @@ SQL role per anonymous visitor to be had. What it buys is failing **closed** —
 `cortex.demo_session` set, nothing visible — which is V5's failure mode inverted. Said
 plainly in `04` §3 rather than left for a reader to infer.
 
-### U16 — Demo SPA: three panels, naive toggle, show-SQL ⬜
+### U16 — Demo SPA: three panels, naive toggle, show-SQL 🔶 **backend done, SPA not started**
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(08 §5, 38–44h, verbatim)*
 **Specs:** `07` §2, `07` §3, `05` §5
-**Two of `05` §5's routes are this unit's, decided in U14 (`docs/DECISIONS.md`):**
-`POST /demo/run` and `GET /demo/sql-log`. U14 built session, state and the WebSocket
-stream and stopped there, because a scenario runner is a decision about what the beats
-*are*. `POST /demo/session`, `GET /demo/state` and `WSS /demo/stream` are deployed and
-proven (V26) — build on them, do not rebuild them.
-**Starting point:** the deployed page at https://d11xbslgdgomdp.cloudfront.net is a
-placeholder that starts a session and prints the change stream. It is not a first draft
-of the SPA and carries no panel layout worth keeping; `07` §2 is where that comes from.
+
+**Done (2026-08-11, V27 + V28) — everything the SPA renders:**
+- **Consolidation is built** (`03` §4.4, `src/memory/consolidate.ts`), so beat 4 is a real
+  mechanism rather than a cut. `npm run gate:consolidate` proves it end to end: close →
+  changefeed → Bedrock → finding → back over the socket in 502ms. Julian's call on
+  2026-08-11 was to build it rather than cut the beat.
+- **All five of `05` §5's routes exist.** `POST /demo/run` performs the beats in either
+  arm against the real cluster; `GET /demo/sql-log` returns the run's actual statements.
+- **The show-SQL panel cannot lie.** `src/db/recorder.ts` wraps the live client, so a
+  statement reaches the log only by having gone to the driver — the named silent break,
+  closed by construction rather than by care. The log shows one `BEGIN` containing the
+  dedupe search and the claim insert, so invariant 1 is readable off the panel.
+- `propose`, `close`, `recall` and `consolidate` all take a plane and a demo session, so a
+  visitor's arbitration is the same transaction under `cortex_demo`'s RLS.
+
+**Remaining: the SPA itself.** `07` §2's three panels (fleet / memory / meter), the naive
+toggle, and the show-SQL view. Everything it needs is deployed and returning real data;
+drive it from `POST /demo/run`, `GET /demo/state`, `GET /demo/sql-log` and the WebSocket.
+The page at https://d11xbslgdgomdp.cloudfront.net is still U14's placeholder — it carries
+no panel layout worth keeping, and `07` §2 is where the layout comes from.
+
+**Beat 1 does not fire, and that is a decision waiting, not a bug.** `03` §4.1's published
+SQL filters recall at `dist < 0.35`, and under real Titan embeddings every honest wording
+of the seeded finding sits 0.38–0.47 from the task it is about. The run reports "nothing
+known", truthfully. **Do not move the constant to make the beat work** — that is `06` §3's
+circularity, and the precedent is `03` §4.2's threshold, which Julian closed separately
+with a sweep in front of him. `docs/SPEC-DELTA.md` says what closing it needs. Until it is
+closed, beat 1 shows a seeded past and an honest empty recall.
+
+**The lesson from this unit, for whoever writes SPA copy:** the demo deduped against its own
+seed on the first hosted run, because the seed statement sat 0.2969 from agent-2's — inside
+the dedupe threshold — so beat 4 never fired. Unit tests could not catch it; they control
+distances by construction. Any new statement added to `SCRIPT` must be measured against the
+others under Titan, and the measured distances belong in the comment beside it.
 **Verify live first:** the four beats end to end against the deployed stack, in the
 order `07` §3 gives them. Beat 4 is consolidation arriving over the change stream, and
 `03` §4.4 is **not built** — see the note under U12. Either this unit builds enough
