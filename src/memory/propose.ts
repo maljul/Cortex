@@ -8,6 +8,7 @@
  */
 import type { PoolClient } from 'pg';
 
+import type { Plane } from '../db/pool.js';
 import { withRetry } from '../db/retry.js';
 import { expandKeys, type GlobResolver } from './keys.js';
 
@@ -44,6 +45,16 @@ export interface ProposeInput {
   dedupeThreshold?: number;
   /** Omit for claims with no `glob:` keys; a glob without a resolver is an error. */
   resolveGlob?: GlobResolver;
+  /**
+   * Which privilege plane to arbitrate on. Defaults to the write plane — the CLI and the
+   * MCP tools. The hosted demo passes `'demo'` with its session scope, so a visitor's
+   * arbitration runs through **this same transaction** under `cortex_demo`'s row-level
+   * security rather than through a second, demo-shaped implementation. A separate one
+   * would mean the demo demonstrating something other than the mechanism.
+   */
+  plane?: Plane;
+  /** The demo session scope, when the plane is `demo`. */
+  demoSession?: string;
 }
 
 export interface Contested {
@@ -165,6 +176,11 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
     },
   } = input;
 
+  const planeOptions = {
+    ...(input.plane ? { plane: input.plane } : {}),
+    ...(input.demoSession ? { demoSession: input.demoSession } : {}),
+  };
+
   const keys = await expandKeys(resourceKeys, resolveGlob);
   const vector = toVector(embedding);
 
@@ -223,7 +239,7 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
         keys,
         expiresAt: (acquired[0] as { expires_at: Date }).expires_at,
       };
-    });
+    }, planeOptions);
   } catch (error) {
     if (error instanceof Decided) return error.result;
     throw error;

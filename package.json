@@ -22,7 +22,8 @@
     "deploy:secrets": "tsx scripts/deploy-secrets.mts",
     "deploy:site": "tsx scripts/deploy-site.mts",
     "changefeed": "tsx scripts/changefeed.mts",
-    "gate:stream": "tsx scripts/gate-stream.mts"
+    "gate:stream": "tsx scripts/gate-stream.mts",
+    "gate:consolidate": "tsx scripts/gate-consolidate.mts"
   },
   "keywords": [],
   "author": "",

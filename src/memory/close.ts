@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 
 import type { PoolClient } from 'pg';
 
+import type { Plane } from '../db/pool.js';
 import { withRetry } from '../db/retry.js';
 
 /** What the agent reports. `reverted` is an outcome, not a status — see below. */
@@ -31,6 +32,10 @@ export interface CloseInput {
   notes?: string;
   tokensSpent?: number;
   action?: string;
+  /** Which privilege plane to close on. See `ProposeInput.plane`. */
+  plane?: Plane;
+  /** The demo session scope, when the plane is `demo`. */
+  demoSession?: string;
 }
 
 export interface CloseOutput {
@@ -186,6 +191,9 @@ export async function close(input: CloseInput): Promise<CloseOutput> {
     );
 
     return { applied: true, intentId, status, releasedKeys: released ?? 0 };
+  }, {
+    ...(input.plane ? { plane: input.plane } : {}),
+    ...(input.demoSession ? { demoSession: input.demoSession } : {}),
   });
 }
 

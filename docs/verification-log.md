@@ -2379,3 +2379,83 @@ and editing one; `test/demo-stream.test.ts` asserts that distinction.
 - **Nothing about `POST /demo/run` or `GET /demo/sql-log`.** Both are specified in `05` §5
   and neither is built: they serve `07` §3's beats and belong to U16, which lists `05` §5
   as its own spec.
+
+---
+
+## V27 — Consolidation is built, and beat 4 is a measured path
+**2026-08-11 · U16, phase 1 · PASS**
+
+`07` §3's beat 4 is "a closed intent becomes a durable finding a moment later, arriving
+via the change stream", and `03` §4.4 is the mechanism. It was not built — U12 recorded
+the consequence honestly, that CORTEX recall returns 0 in the benchmark because there is
+nothing to recall. Julian's call was to build it rather than cut the beat, so A7's "must
+function as depicted" is satisfied by the system performing it rather than by the demo
+avoiding it.
+
+### The candidate search is scoped, and the whole file proves it
+
+`03` §4.4's SQL carries `WHERE repo_id = $repo`, and this is the most dangerous place in
+the project to lose it. V5 measured a vector query without its tenant filter falling back
+to a full scan and returning another repository's rows; here that would not merely leak,
+it would **reinforce one repository's finding on another's evidence** and leave a
+confidence score that looks earned. Mutating the predicate to `WHERE $1 IS NOT NULL`:
+
+```
+× inserts when semantic memory holds nothing like it
+× inserts rather than reinforcing when the nearest finding is far away
+× increments corroborations and raises confidence instead of inserting
+× caps confidence at 1.0 however many times it is corroborated
+× carries WHERE repo_id in the SQL
+× does not reinforce another repository findings, however close they are
+× records the intent that produced it
+Tests  7 failed (7)
+```
+
+Every test in the file, not one. Worth noting *why* the first one fails: with the filter
+gone the search reaches the cluster's existing 329 findings and finds something within
+0.20 of a fresh test vector, so a consolidation that should have inserted reinforces a
+stranger's row instead. That is the failure in its exact production form.
+
+### Beat 4, end to end, against the deployed stack
+
+`npm run gate:consolidate`. Nothing simulated: proposed and closed through
+`src/memory/` on the demo plane, carried by CockroachDB's changefeed to the deployed
+sink, embedded via Bedrock Titan, written as a finding — and the finding's own insert is a
+row change, so the changefeed brings it back to the same socket.
+
+```
+session 5e7c719d-3bba-4c34-8590-5c64b0dbd067
+stream  wss://4hiryvz6yd.execute-api.us-east-1.amazonaws.com/live
+
+PASS  1. intent granted                              granted
+PASS  2. intent closed as done                       ecf21ff0-a61b-4b67-9529-c745fdb8025e
+PASS  3. finding arrived over the change stream      502ms
+PASS  4. it names the intent it came from            ecf21ff0-a61b-4b67-9529-c745fdb8025e
+
+fact: the retry belongs in the client — gate 2026-08-11T11:23:53.890Z
+confidence 0.5  corroborations 1
+
+GATE PASSED
+```
+
+502ms from close to the finding appearing on the socket. Check 4 matters more than it
+looks: `recall` orders findings by `times_reverted` **ahead of** distance, and it reaches
+that count by joining `intents` on `source_intent_id`. A consolidation that dropped the
+intent id would produce findings that can never carry the signal `03` §4.1 ranks first.
+
+### What consolidation deliberately does not do
+
+- **It does not overwrite the fact on reinforcement.** A second sighting is evidence that
+  a fact holds, not an instruction to restate it. Corroborations and confidence move; the
+  original wording survives.
+- **It does not skip reverted outcomes.** A revert is the most valuable thing recall can
+  hand the next agent, for the reason above. `status = 'done'` with `outcome.result =
+  'reverted'` consolidates like any other completion.
+- **It does not consolidate `proposed`, `in_flight`, `deduped` or `abandoned`.** Each is
+  tested. `proposed` is the one that would hurt: semantic memory that records intentions
+  as facts is worse than no semantic memory.
+- **It does not use EventBridge**, which `04` §2's map puts in this path. Reasoning in
+  `docs/SPEC-DELTA.md`; the short version is that the bus buys a second concurrency pool
+  and this account cannot have one.
+
+Suite 215/215, `tsc` clean.

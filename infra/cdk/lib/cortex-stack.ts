@@ -56,6 +56,22 @@ const DIST = path.join(__dirname, '..', '..', 'lambda-dist');
  */
 const CONCURRENCY = { accountLimit: 10, reservedPerFunction: 'unavailable on this account' };
 
+/**
+ * Bedrock's region and the embedding model, for consolidation (flow D).
+ *
+ * Written here rather than read from `.env` at synth time because neither is a
+ * credential and because `cdk synth` runs from `infra/cdk/` without the repository's
+ * environment loaded — a value that silently defaulted would be worse than one written
+ * down. **They MUST match `.env`**, and `test/infra-config.test.ts` fails if they drift.
+ *
+ * The drift is not cosmetic. `src/embed/titan.ts` hashes model *and* width into its cache
+ * key precisely because a sentence embedded by a different model at a different width is
+ * a different vector, so a deployment consolidating with one model into findings that
+ * local runs recall with another would produce distances that mean nothing.
+ */
+const bedrockRegion = 'us-east-1';
+const embedModel = 'amazon.titan-embed-text-v2:0';
+
 export class CortexStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -139,13 +155,32 @@ export class CortexStack extends cdk.Stack {
     const changefeedFn = new lambda.Function(this, 'ChangefeedFn', {
       ...runtime,
       code: lambda.Code.fromAsset(path.join(DIST, 'changefeed')),
+      // 30s rather than 15: this function embeds via Bedrock on a closed intent (flow D),
+      // and a cold Titan call plus a cold pool is the one path here that can legitimately
+      // take a while. It is off the critical path, so waiting costs no agent anything.
+      timeout: cdk.Duration.seconds(30),
       environment: {
         CORTEX_DEMO_DSN: demoDsn,
         CONNECTIONS_TABLE: connections.tableName,
         WEBSOCKET_CALLBACK_URL: streamStage.callbackUrl,
         CHANGEFEED_TOKEN: changefeedToken,
+        BEDROCK_REGION: bedrockRegion,
+        BEDROCK_EMBED_MODEL: embedModel,
       },
     });
+
+    // Consolidation embeds the outcome it is about to store. Scoped to the one model
+    // `05` §6 names: this function has no business invoking a reasoning model, and the
+    // LIVE reasoning path is a different function with a different brake on it.
+    changefeedFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          `arn:aws:bedrock:${bedrockRegion}::foundation-model/${embedModel}`,
+          `arn:aws:bedrock:${bedrockRegion}:${this.account}:inference-profile/${embedModel}`,
+        ],
+      }),
+    );
     connections.grantReadWriteData(changefeedFn);
     // Scoped to this stage rather than `*`: the fan-out posts to sockets on the live
     // stage and has no business managing any other API's connections.

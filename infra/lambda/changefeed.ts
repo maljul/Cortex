@@ -1,11 +1,23 @@
 /**
- * The changefeed ingress and the WebSocket fan-out. `04` §2, flow E.
+ * The changefeed ingress: the WebSocket fan-out (flow E) and consolidation (flow D).
+ * `04` §2, `03` §4.4.
  *
- * CockroachDB's webhook sink posts here; every connected browser that is listening to
- * the affected demo scope gets the row. `04` §2 puts EventBridge between the two for
- * consolidation, which is a different consumer of the same feed and is not built (`03`
- * §4.4); the live view does not need a bus to reach a socket, and adding one here would
- * have bought a second hop and a second failure mode for no behaviour.
+ * CockroachDB's webhook sink posts here. Every connected browser listening to the
+ * affected demo scope gets the row, and a row that is an intent reaching `done` also
+ * becomes a durable finding.
+ *
+ * **`04` §2 routes flow D through EventBridge and this does not.** The bus buys
+ * asynchrony this handler already has — the sink answers 200 regardless, and a
+ * consolidation failure is caught and logged rather than retried — at the price of a
+ * second hop and a second failure mode. What it would buy that matters is a *separate*
+ * concurrency pool for the two consumers, and on an account where reserved concurrency
+ * cannot be set at all (V26) there is no pool to separate. Recorded in
+ * `docs/SPEC-DELTA.md` rather than left as a silent departure.
+ *
+ * There is a pleasing consequence worth knowing when reading beat 4: the finding this
+ * handler inserts is itself a row change, so the changefeed delivers it back here and out
+ * to the same socket a moment later. The judge watches memory improve over the same
+ * stream that showed the work happening.
  *
  * **The sink must answer 200 for anything it accepted**, including a resolved message
  * and including a batch it decided to broadcast nothing from. A non-200 makes the
@@ -26,6 +38,8 @@ import {
   parseChangefeedPayload,
   scopeOf,
 } from '../../src/demo/stream.js';
+import { Embedder } from '../../src/embed/titan.js';
+import { consolidateClosedIntent } from '../../src/memory/consolidate.js';
 import { isLiveDemoScope } from '../../src/memory/demo.js';
 
 interface HttpEvent {
@@ -43,7 +57,18 @@ const sockets = new ApiGatewayManagementApiClient(
   CALLBACK_URL ? { endpoint: CALLBACK_URL } : {},
 );
 
-const BUNDLE_REVISION = 2;
+const BUNDLE_REVISION = 3;
+
+/**
+ * Lazily built, like `getPool()` and for the same reason: a module-scope `Embedder` would
+ * read `BEDROCK_REGION` before the handler's environment is in place. U8 hit exactly that
+ * and it is why the MCP server's embedder is lazy too.
+ */
+let cachedEmbedder: Embedder | undefined;
+function embedder(): Embedder {
+  cachedEmbedder ??= new Embedder();
+  return cachedEmbedder;
+}
 
 interface Connection {
   connectionId: string;
@@ -117,10 +142,34 @@ export async function handler(event: HttpEvent): Promise<{ statusCode: number; b
 
   const connections = await listConnections();
   let delivered = 0;
+  let consolidated = 0;
 
   for (const event_ of events) {
     const scope = scopeOf(event_);
     if (scope === null || !scopes.get(scope)) continue;
+
+    // FLOW D — `04` §2, `03` §4.4. A closed intent becomes a durable finding, which is
+    // beat 4 of `07` §3: the judge sees it *arrive over this same stream* a moment later,
+    // because the insert below is itself a row change the changefeed will deliver.
+    //
+    // Wrapped rather than awaited into the delivery path: consolidation is off the
+    // critical path by design, and a Bedrock hiccup must not stop the rows this batch is
+    // already carrying from reaching the panel. The sink still answers 200 — see the
+    // header — so a failure here costs one finding, not the feed.
+    if (event_.topic === 'intents' && event_.after?.['status'] === 'done') {
+      try {
+        const result = await consolidateClosedIntent(event_.after, {
+          embed: (text) => embedder().embed(text),
+          plane: 'demo',
+          demoSession: scope,
+        });
+        if (result) consolidated += 1;
+      } catch (error) {
+        console.error(
+          JSON.stringify({ level: 'error', stage: 'consolidate', message: String(error) }),
+        );
+      }
+    }
 
     const message = {
       type: 'change',
@@ -143,8 +192,9 @@ export async function handler(event: HttpEvent): Promise<{ statusCode: number; b
       events: events.length,
       connections: connections.length,
       delivered,
+      consolidated,
     }),
   );
 
-  return { statusCode: 200, body: JSON.stringify({ delivered }) };
+  return { statusCode: 200, body: JSON.stringify({ delivered, consolidated }) };
 }

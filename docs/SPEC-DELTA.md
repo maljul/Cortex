@@ -455,3 +455,22 @@ spec to add `"additionalProperties": false` to each block would be an improvemen
 it would also make the verbatim-copy test compare against a moved target for no
 behavioural gain — the enforcement already exists and is tested. Recorded so the
 omission is understood as known rather than overlooked.
+
+## Departures recorded while building, not errors in the spec
+
+### `04` §2 routes flow D through EventBridge; the changefeed sink does it inline *(2026-08-11, U16)*
+
+§2's component map puts `EventBridge ──► Lambda: consolidate` between the changefeed
+ingress and `findings`. `infra/lambda/changefeed.ts` consolidates in the sink handler
+instead, and the bus is not deployed.
+
+What EventBridge buys is asynchrony and an independent consumer. The asynchrony is already
+there: the sink answers 200 whatever consolidation does, a consolidation failure is caught
+and logged rather than retried, and `04` §6 already accepts that a stalled feed shows a
+staleness badge rather than blocking an agent. What it would *additionally* buy is a
+separate concurrency pool for the two consumers — and on an account where reserved
+concurrency cannot be set at any value (V26), there is no pool to separate. The bus would
+have added a hop and a failure mode for no behaviour this deployment can express.
+
+Recorded rather than reconciled: if the concurrency restriction is ever lifted, splitting
+the consumers becomes worth doing, and §2's map is then right rather than aspirational.
