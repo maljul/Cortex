@@ -104,7 +104,7 @@ almost nothing; cutting from the bottom costs the submission.
 | --- | --- | --- | --- |
 | A verification item fails | medium | low | fallbacks are pre-specified; log and proceed |
 | Deployment eats day three | medium | **high** | ~~deploy a hello-world through the full pipeline on day one evening~~ — **done 2026-08-10, V22.** CDK redeploys the whole stack in 42s and Lambda reaches the cluster with no TLS work. Risk retired |
-| **Lambda concurrency capped at 10 on this account** | **certain — measured** | **high** | Not the default 1000. Ten simultaneous visitors already produce `503`s, which `04` §5 invariant 1 forbids and rule B4 makes a submission risk. Raise `L-B99A9384` via Service Quotas, and have U17 absorb overflow into a working page rather than an error. V22 |
+| **Lambda concurrency capped at 10 on this account** | **certain — measured** | **high** | An account-level restriction *below* AWS's own default of 1000, not a quota set low. Ten simultaneous visitors already produce `503`s, which `04` §5 invariant 1 forbids and rule B4 makes a submission risk. **Service Quotas cannot raise it** — it refuses any request at or under the default — and the Support API needs a paid plan. Console support case only, turnaround unknown. **U17 must therefore absorb overflow into a working page and assume 10 stands.** V22 |
 | Benchmark shows no difference | low | **high** | it means task overlap is too low; increase the overlapping-task share and say so in the methodology |
 | Demo cost runs away | low | medium | three independent brakes; verify each fires |
 | Agents behave inconsistently in the video | medium | medium | record in scripted-agent mode, which is also the trademark mitigation |

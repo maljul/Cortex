@@ -519,10 +519,15 @@ safe.
 explicit that a budget action disabling the API, the SPA, the read path or the cluster
 converts a cost control into a **rules violation**, because B4 requires availability
 until 2026-09-15. Fire each brake deliberately and confirm the demo stayed up.
-**Carry V22's finding in:** at 10 account-wide Lambda concurrency, a `503` is reachable
-by ten simultaneous visitors and a `503` is an error page, which rung invariant 1
-forbids. This unit either absorbs overflow into a working page or depends on a quota
-increase that may not have landed. **Do not assume it landed.**
+**Carry V22's finding in, and note it hardened on 2026-08-11:** at 10 account-wide Lambda
+concurrency a `503` is reachable by ten simultaneous visitors, and a `503` is an error
+page, which rung invariant 1 forbids. The increase **cannot be requested from the CLI** —
+it is an account restriction below AWS's default, Service Quotas refuses every useful
+value, and the Support API needs a paid plan. A console case is the only route and its
+turnaround is unknown. **So this is no longer "absorb overflow or rely on the increase".
+It is: absorb overflow. Build for 10 and treat any lift as a bonus.**
+A fifth rung is the likely shape — concurrency exhausted → a queued or cached page that
+says so — and it must not be an error status, per invariant 1.
 **The last clause of the done-when is a separate act:** a private window, on a machine
 that never touched this project. Not localhost, not a logged-in browser.
 

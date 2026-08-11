@@ -1821,9 +1821,45 @@ This is load-bearing for day three, in two places:
   Rule B4 requires the demo to be available to judges without restriction. U17 must
   either absorb overflow into a working page or the quota must be raised.
 
-**Action:** a Service Quotas increase on `L-B99A9384` (Lambda concurrent executions) has
-lead time and is Julian's to file. Logged here and in `08` §7's risk register rather than
-filed on his behalf.
+**Action — attempted 2026-08-11, and the obvious route does not exist.** The request was
+run and AWS refused it:
+
+```
+$ aws service-quotas request-service-quota-increase --service-code lambda \
+    --quota-code L-B99A9384 --desired-value 100 --region us-east-1
+IllegalArgumentException: You must provide a quota value greater than the
+default quota value of 1000.0
+```
+
+The numbers underneath explain it, and they are worth reading together:
+
+```
+applied value (ACCOUNT level) : 10.0    adjustable: True
+AWS default for this quota    : 1000.0
+what Lambda itself reports    : 10 concurrent, 10 unreserved
+existing increase requests    : none
+```
+
+**This is not a quota that was set low; it is an account-level restriction sitting below
+AWS's own default.** Service Quotas will only accept requests *above* the default, so
+there is no value between 10 and 1000 that it will take — the API cannot express "put me
+back to normal". And the Support API is not available either:
+
+```
+$ aws support describe-services
+SubscriptionRequiredException: Amazon Web Services Premium Support
+Subscription is required to use this service.
+```
+
+So the only route is the **console** — Support Center → Create case → Service limit
+increase, which Basic support does allow through the browser even though the API is
+closed. That cannot be scripted, and its turnaround is not knowable in advance.
+
+**The consequence for the build, stated plainly: design for 10 and treat any increase as
+a bonus.** With submission on 2026-08-17 and judging to 2026-09-15, a support case on
+Basic support is not something U17 can depend on having landed. AWS also raises
+new-account concurrency automatically as usage accrues, which the spike has now started
+generating — but "it may lift on its own" is not a mitigation either.
 
 ### Finding 2 — the first arrangement put the DSN in the CloudFormation template
 

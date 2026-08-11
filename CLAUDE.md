@@ -26,10 +26,13 @@ What does not belong in a unit list, and so lives here:
   `{{resolve:secretsmanager:...}}` dynamic reference, never a template value — the first
   arrangement leaked it into `cdk.out/` and that is why. Rebuild the bundle with
   `node infra/bundle.mjs` before every deploy; nothing does it automatically.
-- **This account's Lambda concurrency limit is 10, not 1000 (V22).** Ten simultaneous
-  visitors already get `503`, which `04` §5's ladder forbids and rule B4 makes a
-  submission risk. A Service Quotas increase on `L-B99A9384` is **Julian's to file** and
-  has lead time. U17 must not assume it landed.
+- **This account's Lambda concurrency limit is 10, not 1000, and it cannot be raised from
+  the CLI (V22).** Ten simultaneous visitors already get `503`, which `04` §5's ladder
+  forbids and rule B4 makes a submission risk. It is an **account-level restriction below
+  AWS's default of 1000**, so `request-service-quota-increase` refuses every value that
+  would help (`IllegalArgumentException`, must exceed the default), and the Support API
+  needs a paid plan this account does not have. Console support case is the only route.
+  **Build for 10.** Do not spend time re-attempting the CLI — it has been tried.
 - **`cortex_demo` confinement is decided and built (U15, V24, 2026-08-11): row-level
   security on the one cluster.** `04` §3's `[OPEN]` is closed. Every one of the six
   tables carries `FORCE ROW LEVEL SECURITY` plus a policy admitting only rows whose repo
