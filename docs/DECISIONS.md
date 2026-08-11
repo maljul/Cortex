@@ -395,3 +395,64 @@ anonymous visitor. It is worth having because it **fails closed**: unset, the pr
 is false and the demo reads and writes nothing. V5's lesson was that a forgotten scope
 filter fails open; this is the same mistake arranged to fail shut. `04` §3 says so in
 those terms rather than implying an account boundary that is not there.
+
+---
+
+## 2026-08-11 — The demo session scope binds as a parameter, not as a `SET`
+
+`05` §5 writes the demo write path's scoping requirement literally: "Every route MUST
+issue `SET cortex.demo_session = '<session repo_id>'` on its connection before touching a
+table." Implemented as written, that interpolates a browser-supplied value into SQL on the
+one surface in this project that anonymous strangers reach — invariant 7's exact subject.
+`SELECT set_config('cortex.demo_session', $1, true)` reaches the same setting through a
+function call, so the value binds, and V26 confirmed against the real cluster that U15's
+policies honour it identically.
+
+The decision is not merely "prefer a bind parameter", which needs no decision. It is that
+the spec's literal statement was not followed, and the reason is recorded here rather than
+left as a silent improvement in `src/db/retry.ts`. What settled it was the mutation:
+restoring the interpolated `SET` and running the suite showed the hostile session id
+`not-a-uuid'; DROP TABLE claims; --` **reaching the parser and attempting the DROP**,
+stopped only by `cortex_demo` lacking that privilege. The application would have passed it
+through; a grant caught it. Both layers are worth having and neither is a reason to skip
+the other.
+
+`is_local = true` came with it and was worth as much. The setting ends at `COMMIT`, so a
+pooled connection returns to the pool unscoped and one visitor's request cannot inherit
+another's scope. A non-local `SET` leaks across pooled requests, which the same mutation
+also demonstrated by failing the "releases the connection unscoped" test.
+
+## 2026-08-11 — `05` §5's five routes split between U14 and U16, and the line is here
+
+`05` §5 specifies five routes, and both U14 and U16 list §5 among their specs. U14 built
+`POST /demo/session`, `GET /demo/state` and `WSS /demo/stream`; `POST /demo/run` and
+`GET /demo/sql-log` are U16's.
+
+The split is by what a route is *for*, not by convenience. U14's done-when is "hosted demo
+reachable anonymously" and its title is the infrastructure and the change stream, so it
+owns the routes that make an anonymous visitor's session exist and stay visible. `/demo/run`
+starts a scenario in `replay` or `live` — the scenario is `07` §3's four beats, which are
+U16's done-when, and the mode is `04` §5's degradation ladder, which is U17's. `/demo/sql-log`
+is the "prove it" panel, and U16's named silent break is that panel printing SQL the system
+did not run. Building either inside U14 would have meant U14 deciding what U16's beats are.
+
+Recorded because the alternative reading — U14 builds all of §5 because §5 is in its spec
+list — is reasonable, and a later session that re-derives it differently would either build
+these twice or leave them for each other.
+
+## 2026-08-11 — The WebSocket connection registry is DynamoDB, not a seventh table
+
+A WebSocket fan-out needs somewhere to keep connection ids between the `$connect` that
+mints one and the changefeed event that posts to it. It is not in CockroachDB.
+
+`03` §2 defines six tables and they are the memory model: four tiers plus two identity
+tables. A connection id is deployment bookkeeping with a lifetime of minutes, no tenant
+meaning, and nothing any invariant in `03` §8 has an opinion about. Putting it in the
+cluster would also have meant a seventh table under `cortex_demo`'s row-level security —
+policies written for a row that has no `repo_id` and belongs to no scope — which is
+ceremony around a value that is not memory. DynamoDB with a TTL attribute is one table,
+on-demand billed, destroyed with the stack.
+
+This adds a service `04` §2's deployment table does not list. Recorded here for that
+reason; it is an addition to that table rather than a departure from it, and `04` §2's
+"no long-lived compute anywhere" is untouched.

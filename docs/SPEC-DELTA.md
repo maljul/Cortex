@@ -13,6 +13,57 @@ is not undone by a later reader.
 
 ## Open
 
+### `04` §5 brake 1 — reserved concurrency cannot be set on this account at all *(2026-08-11, V26)*
+
+§5 requires three independent brakes on LIVE mode and lists first: "**Reserved
+concurrency of 2** on the LIVE Lambda. A traffic spike physically cannot fan out."
+
+It is not implementable here. AWS refuses any reservation that drops the account's
+unreserved concurrency below 10, and this account's *total* limit is 10:
+
+```
+$ aws lambda put-function-concurrency --function-name …IdentityFn… \
+    --reserved-concurrent-executions 2
+InvalidParameterValueException: Specified ReservedConcurrentExecutions for function
+decreases account's UnreservedConcurrentExecution below its minimum value of [10].
+```
+
+Every value from 1 upwards is refused, so this is not "reserve less" — the mechanism is
+unavailable. It compounds V22 rather than repeating it: V22 found the pool small and
+unraisable from the CLI, and this finds it **indivisible**, so no function can be given a
+floor or a ceiling relative to the others.
+
+**Nothing was substituted in U14.** The stack carries no reservation on any function and
+says so in `infra/cdk/lib/cortex-stack.ts`, where the concurrency budget is written down
+as §5 asks. Choosing a replacement is `04` §5's decision to re-make and U17's to force —
+that unit already owns the ladder, already has to absorb overflow at 10, and already has
+to build a fifth rung for concurrency exhaustion. Picking a brake inside U14 would have
+been a §5 decision taken by the unit least equipped to verify it.
+
+The two remaining brakes are unaffected: the run counter in CockroachDB is application
+state, and an AWS Budget alarm targeting the LIVE function is unrelated to concurrency.
+
+### `03` §7 — demo rows are unreachable on expiry but are not reclaimed *(2026-08-11, U14)*
+
+§7 requires that "demo rows MUST carry a TTL and be reclaimed automatically. No manual
+cleanup between now and 2026-09-15." Half of that is built and the half that is missing
+is the cheaper half, which is why this is recorded rather than quietly counted as done.
+
+**Unreachability is enforced and tested**: `repos.demo_expires_at` is checked by the
+policy predicate at read time, so a scope goes dark the instant it passes, before any job
+runs (`04` §3 relies on exactly this, and `test/demo-stream.test.ts` asserts it by letting
+a one-second session expire). **Reclamation is not built.** `claims` has a row-level TTL
+from U1; `intents`, `findings`, `action_ledger`, `agents` and `repos` do not, so an
+expired demo scope's rows sit there permanently invisible.
+
+Not fixed inside U14 on purpose: a blanket row-level TTL on those tables would apply to
+**real repository memory too**, and `03` §7 says `findings` never expires. The correct
+shape is a TTL predicated on the scope being a demo scope, or a sweep that deletes where
+`demo_expires_at < now()`, and either is a `03` §2 schema decision rather than a
+deployment detail. `03` §7's own budget line — "the demo dataset MUST stay under a few
+hundred megabytes" — is what makes this eventually matter; at demo volumes it does not
+matter yet, and the security boundary does not depend on it.
+
 ### `08` §4 and `05` §2 name `cortex bench`; the command is `npm run bench` *(2026-08-10)*
 
 U12's done-when is "`cortex bench` runs both arms deterministically", and `05` §2 puts

@@ -26,7 +26,7 @@ bench/runs/
 # Neither is committed, and cdk.out in particular must not be: until V22 it carried the
 # reader DSN inline, which is the finding that moved the value into Secrets Manager.
 infra/lambda-dist/
-infra/cdk-spike/cdk.out/
+infra/cdk/cdk.out/
 .aws-sam/
 
 # OS / editor

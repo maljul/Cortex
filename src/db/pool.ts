@@ -1,38 +1,72 @@
 import { Pool } from 'pg';
 
-let pool: Pool | undefined;
+/**
+ * Which privilege plane a connection belongs to. `04-ARCHITECTURE.md` §3 defines three;
+ * two of them are reachable from code that opens a pool.
+ *
+ * - `write` — `cortex_writer`, via `CORTEX_DSN`. The CLI and the MCP tools.
+ * - `demo`  — `cortex_demo`, via `CORTEX_DEMO_DSN`. The hosted demo, and nothing else.
+ *
+ * The read plane is deliberately absent. `cortex_reader` is reached by agents with a
+ * DSN and a stock client (`skills/cortex-memory/SKILL.md`), not by this process.
+ */
+export type Plane = 'write' | 'demo';
+
+const DSN_VARIABLE: Record<Plane, string> = {
+  write: 'CORTEX_DSN',
+  demo: 'CORTEX_DEMO_DSN',
+};
+
+const pools = new Map<Plane, Pool>();
 
 /**
- * The write-plane connection pool. Lazily created so importing this module never
- * opens a socket, and so a missing DSN fails at first use with a clear message.
+ * The connection pool for one privilege plane. Lazily created so importing this module
+ * never opens a socket, and so a missing DSN fails at first use with a clear message.
+ *
+ * **One pool per plane, from one variable per plane, and never a shared default.** This
+ * function used to read `CORTEX_DSN` and nothing else, which made the demo's principal a
+ * deployment detail rather than a property of the code: pointing that single variable at
+ * a write principal to give one Lambda a write verb would have given it to every other
+ * function in the deployment at the same time. U14 named that as its silent break before
+ * building on top of it, and `test/demo-plane.test.ts` asserts the two planes connect as
+ * different SQL users rather than trusting this comment.
  */
-export function getPool(): Pool {
-  if (!pool) {
-    const connectionString = process.env.CORTEX_DSN;
+export function getPool(plane: Plane = 'write'): Pool {
+  const existing = pools.get(plane);
+  if (existing) return existing;
 
-    if (!connectionString) {
-      throw new Error(
-        'CORTEX_DSN is empty. The write plane needs a CockroachDB connection string in .env.',
-      );
-    }
+  const variable = DSN_VARIABLE[plane];
+  const connectionString = process.env[variable];
 
-    // Fail promptly rather than hanging. `04-ARCHITECTURE.md` §6 requires the CLI to
-    // fail closed when the cluster is unreachable; a hang is not a closed failure,
-    // it is an unbounded wait that reports someone else's timeout instead of ours.
-    pool = new Pool({
-      connectionString,
-      application_name: 'cortex',
-      connectionTimeoutMillis: 10_000,
-    });
+  if (!connectionString) {
+    throw new Error(
+      `${variable} is empty. The ${plane} plane needs a CockroachDB connection string in .env.`,
+    );
   }
 
+  // Fail promptly rather than hanging. `04-ARCHITECTURE.md` §6 requires the CLI to
+  // fail closed when the cluster is unreachable; a hang is not a closed failure,
+  // it is an unbounded wait that reports someone else's timeout instead of ours.
+  const pool = new Pool({
+    connectionString,
+    application_name: `cortex-${plane}`,
+    connectionTimeoutMillis: 10_000,
+  });
+
+  pools.set(plane, pool);
   return pool;
 }
 
-export async function closePool(): Promise<void> {
-  if (pool) {
-    const closing = pool;
-    pool = undefined;
-    await closing.end();
-  }
+/** Closes one plane's pool, or every open pool when called with no argument. */
+export async function closePool(plane?: Plane): Promise<void> {
+  const planes: Plane[] = plane ? [plane] : [...pools.keys()];
+
+  await Promise.all(
+    planes.map(async (p) => {
+      const closing = pools.get(p);
+      if (!closing) return;
+      pools.delete(p);
+      await closing.end();
+    }),
+  );
 }

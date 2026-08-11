@@ -18,21 +18,39 @@ What does not belong in a unit list, and so lives here:
   v5 reasoning models are **not entitled** on this account, so the reason model is
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
 - Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
-- **AWS is real and reachable, V22, 2026-08-10.** `infra/cdk-spike/` is deployed: Lambda
-  behind API Gateway HTTP returning `clusterIdentity()`, plus S3 + CloudFront. IaC is
-  **CDK** — `04` §2's `[OPEN]` is closed, and the ten-minute criterion tied rather than
-  decided (CDK 42s / SAM 33s redeploy). Lambda reaches CockroachDB Cloud with no TLS
-  work, no VPC: cold `queryMs` ~690, warm 3 on a reused pool. The DSN is a
-  `{{resolve:secretsmanager:...}}` dynamic reference, never a template value — the first
-  arrangement leaked it into `cdk.out/` and that is why. Rebuild the bundle with
-  `node infra/bundle.mjs` before every deploy; nothing does it automatically.
-- **This account's Lambda concurrency limit is 10, not 1000, and it cannot be raised from
-  the CLI (V22).** Ten simultaneous visitors already get `503`, which `04` §5's ladder
-  forbids and rule B4 makes a submission risk. It is an **account-level restriction below
-  AWS's default of 1000**, so `request-service-quota-increase` refuses every value that
-  would help (`IllegalArgumentException`, must exceed the default), and the Support API
-  needs a paid plan this account does not have. Console support case is the only route.
-  **Build for 10.** Do not spend time re-attempting the CLI — it has been tried.
+- **The hosted demo is deployed and anonymous, U14, V26, 2026-08-11.** `infra/cdk/` (was
+  `cdk-spike/`) deploys stack `CortexStack`: four Lambdas behind API Gateway HTTP, a
+  WebSocket API, a DynamoDB connection registry, S3 + CloudFront. IaC is **CDK** — `04`
+  §2's `[OPEN]` is closed, and the ten-minute criterion tied rather than decided (CDK 42s
+  / SAM 33s redeploy). Lambda reaches CockroachDB Cloud with no TLS work, no VPC: cold
+  `queryMs` ~690, warm 3 on a reused pool.
+  Site https://d11xbslgdgomdp.cloudfront.net · API
+  https://clotk5952m.execute-api.us-east-1.amazonaws.com · stream
+  `wss://4hiryvz6yd.execute-api.us-east-1.amazonaws.com/live`.
+  Every DSN is a `{{resolve:secretsmanager:...}}` dynamic reference, never a template
+  value — the first arrangement leaked one into `cdk.out/` and that is why. **Rebuild the
+  bundle with `node infra/bundle.mjs` before every deploy**; nothing does it
+  automatically, and `npm run deploy:secrets` must have run once or CloudFormation fails
+  on an unresolvable secret.
+- **Changefeed delivery is proven end to end, not just entitled (V26).** `npm run
+  gate:stream` takes a session anonymously from the hosted API, writes one row as
+  `cortex_demo`, and receives it back over the WebSocket in ~126ms. V25 established the
+  entitlement and refused to claim delivery; that gap is closed. `npm run changefeed
+  status|create|cancel` manages the job — `create` cancels existing feeds first, because
+  two feeds on one sink double every event on the panel.
+- **This account's Lambda concurrency limit is 10, not 1000; it cannot be raised from the
+  CLI (V22) and it cannot be subdivided either (V26).** Ten simultaneous visitors already
+  get `503`, which `04` §5's ladder forbids and rule B4 makes a submission risk. It is an
+  **account-level restriction below AWS's default of 1000**, so
+  `request-service-quota-increase` refuses every value that would help
+  (`IllegalArgumentException`, must exceed the default), and the Support API needs a paid
+  plan this account does not have. Console support case is the only route.
+  **`04` §5's brake 1 — reserved concurrency of 2 on the LIVE Lambda — is therefore
+  falsified and unimplemented.** AWS refuses any reservation that drops unreserved
+  concurrency below 10 and the total is 10, so every value from 1 up is rejected. U14
+  substituted nothing; U17 picks the replacement, constrained by §5 to target the LIVE
+  reasoning function and nothing else. **Build for 10.** Do not re-attempt either CLI
+  path — both have been tried.
 - **`cortex_demo` confinement is decided and built (U15, V24, 2026-08-11): row-level
   security on the one cluster.** `04` §3's `[OPEN]` is closed. Every one of the six
   tables carries `FORCE ROW LEVEL SECURITY` plus a policy admitting only rows whose repo
@@ -42,14 +60,24 @@ What does not belong in a unit list, and so lives here:
   contain a subquery** (42P01/42703 — that is why `is_current_demo_scope()` exists), and
   every policy is DROP-then-CREATE rather than `IF NOT EXISTS`, because the latter
   silently skips and an edited predicate would never reach a live cluster.
+- **The demo plane is a pool of its own, and its scope binds as a parameter (U14, V26).**
+  `getPool(plane)` takes `'write'` (`CORTEX_DSN`) or `'demo'` (`CORTEX_DEMO_DSN`) — one
+  variable per plane, so no deployment can promote one function's privileges into
+  another's. `withRetry(fn, { plane, demoSession })` issues `SELECT set_config(
+  'cortex.demo_session', $1, true)`, **not** the `SET` `05` §5 spells out: `SET` takes no
+  bind parameter, and restoring it showed a hostile session id reaching the parser and
+  attempting `DROP TABLE claims`, stopped only by the grant. `is_local = true` also ends
+  the scope at `COMMIT`, so a pooled connection cannot carry one visitor's scope into the
+  next request.
 - Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09; under
   test since V15.** Reader reads and cannot write; writer writes and cannot `DROP`;
   `cortex_demo` reaches its own live demo scope and nothing else. Do not re-check this
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 170/170** — it dropped from 174 because 13
-  blanket demo assertions became 9 sharper ones, not because anything was removed.
+  the weaker "no privilege at all". **Suite 197/197** — it was 170 after U15 (down from
+  174 because 13 blanket demo assertions became 9 sharper ones, not because anything was
+  removed), and U14 added 27.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the
@@ -160,7 +188,9 @@ Node + TypeScript, `pg` against CockroachDB Cloud (Basic tier, `agent-hack-30704
 ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 
 `npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
-`npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend`.
+`npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
+`npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
+`npm run changefeed status|create|cancel` · `npm run deploy:secrets` · `npm run deploy:site`.
 
 `npx tsc --noEmit` exits clean and must stay that way — it is what someone cloning
 the repo runs first, and Production Readiness is scored.

@@ -18,7 +18,11 @@
     "bench": "tsx scripts/bench.mts",
     "bench:results": "tsx scripts/bench-results.mts",
     "probe:read": "tsx scripts/probe-read-plane.mts",
-    "probe:reason": "tsx scripts/probe-reason.mts"
+    "probe:reason": "tsx scripts/probe-reason.mts",
+    "deploy:secrets": "tsx scripts/deploy-secrets.mts",
+    "deploy:site": "tsx scripts/deploy-site.mts",
+    "changefeed": "tsx scripts/changefeed.mts",
+    "gate:stream": "tsx scripts/gate-stream.mts"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +30,10 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1107.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
+    "@aws-sdk/client-dynamodb": "^3.1107.0",
+    "@aws-sdk/lib-dynamodb": "^3.1107.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.22.0"
   },

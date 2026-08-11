@@ -2183,3 +2183,199 @@ the kind of thing that is found at the worst moment if it is not written down he
 
 This is `08` §4's "without any bespoke client" in its literal, command-line form: a stock
 Postgres client, a `SELECT`-only role, real rows. The take U19 wants.
+
+---
+
+## V26 — U14: the hosted demo is reachable anonymously, and a committed row reaches a browser
+**2026-08-11 · U14 · PASS, with one spec claim falsified**
+
+Five things established live, in the order they were run. The last one is what V25
+deliberately did not claim.
+
+### 1. The session scope binds as a parameter — `SET` is not the only way
+
+`05` §5 writes the demo's scoping requirement as `SET cortex.demo_session = '<session
+repo_id>'`. That statement takes no bind parameter, so implementing it literally means
+interpolating a value that arrived from an anonymous browser into SQL — invariant 7, on
+the one surface in this project that strangers can reach. Checked before writing a line
+of it, as `cortex_demo` against the real cluster:
+
+```
+scope repo_id      : b977f3b6-697e-46d3-a144-876bcc4f718c
+
+=== A. does set_config exist, and does it bind? ===
+set_config(name,$2,false): OK {"applied":"b977f3b6-697e-46d3-a144-876bcc4f718c"}
+
+=== B. do the RLS policies honour it? ===
+repos rows visible in scope   : {"n":"1"} (expect n=1)
+real repositories visible     : {"n":"0"} (expect n=0)
+
+=== C. is_local = true — does it end at COMMIT? ===
+inside txn, set_config local  : {"applied":"b977f3b6-697e-46d3-a144-876bcc4f718c"}
+inside txn, rows visible      : {"n":"1"} (expect n=1)
+after COMMIT, setting         : {"v":""} (expect null/empty)
+after COMMIT, rows visible    : {"n":"0"} (expect n=0 — fails closed)
+```
+
+`set_config(name, $1, true)` is honoured by U15's policies exactly as `SET` is, and the
+`is_local` argument ends the setting at `COMMIT` — so a pooled connection goes back to
+the pool carrying no scope and the next visitor starts from `current_setting` returning
+empty, which matches nothing. Two properties for the price of one function call.
+
+**The mutation that proves it is load-bearing.** Replacing the bound call with the
+interpolated `SET` the spec prescribes, and running `test/demo-plane.test.ts`:
+
+```
+× scopes the transaction and releases the connection unscoped
+× treats a hostile session id as a value and not as SQL
+Caused by: error: user cortex_demo does not have DROP privilege on relation claims
+Tests  2 failed | 15 passed (17)
+```
+
+Read that second line carefully. Under interpolation the hostile session id
+`not-a-uuid'; DROP TABLE claims; --` **reached the parser and attempted the DROP**. The
+only thing that stopped it was `cortex_demo` not holding DROP — a grant, not the code.
+The privilege planes caught what the application would have let through, which is the
+argument for having both, and it is why this is a bound parameter now.
+
+### 2. Reserved concurrency cannot be set on this account. `04` §5 brake 1 is falsified.
+
+```
+$ aws lambda get-account-settings --query 'AccountLimit.{ConcurrentExecutions:…}'
+{ "ConcurrentExecutions": 10, "UnreservedConcurrentExecutions": 10 }
+
+$ aws lambda put-function-concurrency --function-name CdkSpikeStack-IdentityFn… \
+    --reserved-concurrent-executions 2
+An error occurred (InvalidParameterValueException) when calling the
+PutFunctionConcurrency operation: Specified ReservedConcurrentExecutions for function
+decreases account's UnreservedConcurrentExecution below its minimum value of [10].
+```
+
+The floor for unreserved concurrency is 10 and this account's ceiling is also 10, so
+every reservation from 1 upwards is refused. `04` §5's brake 1 — "reserved concurrency
+of 2 on the LIVE Lambda. A traffic spike physically cannot fan out" — is not
+implementable here. No function in the stack carries a reservation, `docs/SPEC-DELTA.md`
+records it, and the replacement brake is `04` §5's decision to re-make in U17 rather than
+something U14 invented. This compounds V22: the cap was already 10 and already
+unraisable from the CLI; what is new is that it cannot be *subdivided* either.
+
+### 3. The synthesized template carries no credential
+
+V22's finding was a reader DSN sitting in `cdk.out/`. Re-checked on the new stack, with
+two secrets in it rather than one:
+
+```
+$ grep -o "{{resolve:secretsmanager:[^}]*}}" cdk.out/CortexStack.template.json | sort -u
+{{resolve:secretsmanager:cortex/changefeed-token:SecretString:::}}
+{{resolve:secretsmanager:cortex/demo-dsn:SecretString:::}}
+
+$ grep -cE "cockroachlabs\.cloud|agent-hack-30704" cdk.out/asset.*/index.cjs
+none
+```
+
+The only `sslmode` match anywhere under `cdk.out/` is inside the bundled `pg` library:
+`"SECURITY WARNING: Using sslmode=verify-ca requires specifying a CA with…"`. Grepped
+rather than reasoned about, which is how V22 found the leak in the first place.
+
+### 4. The hosted surface answers anonymously, from outside, with no credential
+
+`curl` against the deployed API. No header, no account, no setup.
+
+```
+=== 1. identity, anonymous, no auth header ===
+{
+  "cluster": {
+    "version": "CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00, go1.25.5)",
+    "user": "cortex_demo",
+    "database": "defaultdb"
+  },
+  "bundleRevision": 4,
+  "timing": { "queryMs": 280, "sinceModuleLoadMs": 7, "invocationsOnThisSandbox": 1 }
+}
+
+=== 2. create a session anonymously ===
+{"sessionId":"2ac5583f-0085-488f-ad83-504c47d63751","expiresAt":"2026-08-11T11:59:16.170Z"}
+
+=== 3. read its state ===
+{"session":{"sessionId":"2ac5583f-…","expiresAt":"2026-08-11T11:59:16.170Z"},
+ "claims":[],"intents":[],"findings":[],"rows":{"used":0,"cap":200,"remaining":200}}
+
+=== 4. a credential-shaped field is refused ===
+{"error":"This demo never accepts a credential. No route takes a connection string,
+ key, token or role, and the field carrying one was refused rather than ignored.",
+ "field":"dsn"}
+
+=== 5. the changefeed sink refuses an unauthenticated post ===
+401
+```
+
+And the page itself, over CloudFront, in a request carrying nothing:
+
+```
+$ curl -s -o /tmp/site.html -w 'http %{http_code}  %{size_download} bytes\n' \
+    https://d11xbslgdgomdp.cloudfront.net/
+http 200  4060 bytes
+
+$ grep -icE 'password|dsn|api[_-]?key|<input' /tmp/site.html
+0
+```
+
+**The first deploy of route 1 failed, and the failure is worth keeping.** The identity
+handler still asked `clusterIdentity()` for the default write plane while the function
+had only the demo DSN, and it answered:
+
+```
+{"error":"CORTEX_DSN is empty. The write plane needs a CockroachDB connection string
+ in .env.","code":null,"sinceModuleLoadMs":7}
+```
+
+That is the plane separation **failing closed and saying which variable was missing**,
+rather than quietly connecting as somebody else — which is exactly the outcome the spike's
+own header predicted would need fixing in U14, arriving as a clear error instead of a
+silent privilege. Fixed by naming the plane: this public route runs as `cortex_demo`.
+
+### 5. A committed row reaches an anonymous browser's socket — what V25 would not claim
+
+V25 established that Basic permits a webhook changefeed and that the job starts, and
+recorded plainly that a `running` job is not a delivered message because its sink was a
+GET-only route. `npm run gate:stream` closes that gap: it takes a session from the hosted
+API anonymously, opens the WebSocket the SPA opens, writes one row as `cortex_demo`
+through `withRetry`, and waits for the cluster's own changefeed to bring it back.
+
+```
+api    https://clotk5952m.execute-api.us-east-1.amazonaws.com
+stream wss://4hiryvz6yd.execute-api.us-east-1.amazonaws.com/live
+
+PASS  1. session created anonymously             200 35ecb79a-9112-419d-a0e0-5e4129e55f17
+PASS  2. socket open, filtered to the session    wss://4hiryvz6yd.execute-api…/live
+PASS  3. row committed as cortex_demo            gate-stream 2026-08-11T11:03:26.859Z
+PASS  4. delivered over the changefeed           850ms  topic=findings
+
+{"type":"change","topic":"findings","scope":"35ecb79a-9112-419d-a0e0-5e4129e55f17",
+ "after":{"confidence":0.5,"contradictions":0,"corroborations":1,
+ "fact":"gate-stream 2026-08-11T11:03:26.859Z","id":"39892e0f-f547-43c8-b18b-171e22f9df03",
+ "last_confirmed_at":"2026-08-11T11:03:27.898662Z",
+ "repo_id":"35ecb79a-9112-419d-a0e0-5e4129e55f17","source_intent_id":null},
+ "updated":"1786446207898819615.0000000000"}
+
+GATE PASSED
+```
+
+126ms on the first run, 850ms on the second; both are the changefeed's own latency and
+neither was tuned for. `04` §2's flow E is now a measured path rather than a diagram.
+
+**The first delivered message carried the whole `VECTOR(1024)`** — about 20KB of zeroes
+and decimals pushed to every listening browser for a field no panel renders. The fan-out
+now drops `embedding` and nothing else, which is the difference between projecting a row
+and editing one; `test/demo-stream.test.ts` asserts that distinction.
+
+### What this does not claim
+
+- **Nothing about the four beats.** `07` §3's demo is U16; this is the surface it will be
+  built on. The page deployed here starts a session and prints the change stream, and it
+  says so.
+- **Nothing about the degradation rungs.** None has been forced. `04` §5's ladder is U17's
+  done-when, and brake 1 now needs a replacement before that unit can claim it.
+- **Nothing about `POST /demo/run` or `GET /demo/sql-log`.** Both are specified in `05` §5
+  and neither is built: they serve `07` §3's beats and belong to U16, which lists `05` §5
+  as its own spec.

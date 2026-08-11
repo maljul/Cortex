@@ -11,13 +11,18 @@
  * `src/db/identity.ts` is reused unchanged: read-only, no transaction, no tenant data,
  * so invariant 5 has nothing to filter here and this adds no new SQL to the project.
  *
- * ON THE DSN, stated rather than papered over: `clusterIdentity()` goes through
- * `getPool()`, which reads `CORTEX_DSN`. This function's `CORTEX_DSN` is set to the
- * **reader** principal's connection string — the spike has no business holding a write
- * credential, and `05` §6 keeps every DSN server side. The variable therefore names the
- * write plane while carrying the read plane's value, which is fine for a spike and is
- * not fine for U14: the real write path needs `getPool()` to take a DSN, or a second
- * pool. That is U14's scope, not this file's.
+ * ON THE DSN, and the mistake this paragraph used to describe: as a spike, this function
+ * was given the *reader* principal's connection string under the name `CORTEX_DSN`, so
+ * the variable named the write plane while carrying the read plane's value. That was
+ * flagged here as U14's problem to fix, and U14 fixed it — `getPool()` now takes a plane
+ * and each plane reads its own variable (`src/db/pool.ts`).
+ *
+ * This route asks for the **demo** plane, and so runs as `cortex_demo`: it is a public,
+ * anonymous URL that anyone may curl, and the least-privileged principal in the project
+ * is the only defensible thing to answer it with. The first deploy of U14 still asked for
+ * the default write plane and returned "CORTEX_DSN is empty" from a function that had
+ * only the demo DSN — which is the arrangement failing **closed** and saying so, rather
+ * than quietly connecting as somebody else.
  *
  * No credential is ever returned. `ClusterIdentity` carries `version`, `user` and
  * `database`; the DSN is never echoed, per that module's own header.
@@ -43,14 +48,14 @@ let invocations = 0;
  * indistinguishable from outside, and the redeploy timing in V22 would be measuring a
  * command rather than an effect.
  */
-const BUNDLE_REVISION = 3;
+const BUNDLE_REVISION = 4;
 
 export async function handler(): Promise<Response> {
   const startedAt = Date.now();
   invocations += 1;
 
   try {
-    const identity = await clusterIdentity();
+    const identity = await clusterIdentity('demo');
 
     return {
       statusCode: 200,

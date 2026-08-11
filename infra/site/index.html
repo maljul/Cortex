@@ -1,3 +1,89 @@
+<!--
+  The hosted demo's landing page. `08` §5's "hosted demo reachable anonymously".
+
+  Deliberately plain. The three-panel SPA with the naive toggle and the show-SQL panel is
+  U16, built against `07` §2 and §3; what this page is for is U14's done-when — that an
+  anonymous visitor with no account, no setup and no credential reaches a real session on
+  a real cluster, and that the change stream reaches their browser.
+
+  There is no credential field on this page, under any name, on any path, commented out
+  or feature flagged off. That is `03` §8 invariant 8 and `05` §5, and it is a property of
+  every version of this file, not of this one.
+-->
 <meta charset="utf-8">
-<title>CORTEX — deploy spike</title>
-<p>CORTEX deploy spike. S3 + CloudFront reached this file. No credential field exists on this page.
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CORTEX — arbitrated memory for agent fleets</title>
+
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0 auto; padding: 2rem 1.25rem; max-width: 46rem;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
+  p.lede { margin: 0 0 2rem; opacity: .75; }
+  section { border: 1px solid currentColor; border-radius: 6px; padding: 1rem; margin: 0 0 1rem; opacity: .95; }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 .75rem; opacity: .6; }
+  pre { overflow-x: auto; margin: 0; font-size: .8rem; }
+  button { font: inherit; padding: .4rem .9rem; cursor: pointer; }
+  .stream { max-height: 12rem; overflow-y: auto; font-size: .78rem; }
+</style>
+
+<h1>CORTEX</h1>
+<p class="lede">Shared, arbitrated memory for a fleet of coding agents, on CockroachDB.</p>
+
+<section>
+  <h2>Your sandbox session</h2>
+  <p>No account, no key, nothing to install. This starts a scope of your own on the live
+     cluster; it expires by itself.</p>
+  <button id="start">Start a session</button>
+  <pre id="session">not started</pre>
+</section>
+
+<section>
+  <h2>What the cluster says it is</h2>
+  <pre id="identity">…</pre>
+</section>
+
+<section>
+  <h2>Live change stream</h2>
+  <p>Rows as the database emits them, over a changefeed — not echoes of what this page
+     believes it sent.</p>
+  <pre class="stream" id="stream">not connected</pre>
+</section>
+
+<script>
+  // Written into the page at deploy time by `scripts/deploy-site.mts`, because the API
+  // and WebSocket endpoints are CloudFormation outputs and are not knowable when this
+  // file is written. Neither is a credential: both are public endpoints that anyone may
+  // call, which is the whole point of `05` §5.
+  const API = window.CORTEX_API_URL || '';
+  const STREAM = window.CORTEX_STREAM_URL || '';
+
+  const show = (id, value) => { document.getElementById(id).textContent = value; };
+
+  fetch(`${API}/identity`)
+    .then((r) => r.json())
+    .then((d) => show('identity', `${d.cluster.version}\nconnected as ${d.cluster.user}`))
+    .catch(() => show('identity', 'the backend is not reachable right now'));
+
+  document.getElementById('start').addEventListener('click', async () => {
+    show('session', 'starting…');
+    const response = await fetch(`${API}/demo/session`, { method: 'POST' });
+    const session = await response.json();
+    if (!response.ok) { show('session', session.error); return; }
+
+    show('session', `session ${session.sessionId}\nexpires ${session.expiresAt}`);
+
+    const socket = new WebSocket(`${STREAM}?session=${session.sessionId}`);
+    socket.addEventListener('open', () => show('stream', 'connected, waiting for changes…'));
+    socket.addEventListener('message', (event) => {
+      const line = document.getElementById('stream');
+      if (line.textContent.startsWith('connected')) line.textContent = '';
+      line.textContent += `${event.data}\n`;
+    });
+    socket.addEventListener('close', () => {
+      document.getElementById('stream').textContent += '\nstream closed';
+    });
+  });
+</script>

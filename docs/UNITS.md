@@ -417,26 +417,48 @@ the position its dependencies put it, rather than being renamed into the day-thr
 
 Order of work: **U14 → U15 → U16 → U17 → U2 → U18 → U19 → U20.**
 
-### U14 — Infrastructure as code, deploy, changefeed to WebSocket ⬜
+### U14 — Infrastructure as code, deploy, changefeed to WebSocket ✅ 2026-08-11
 **Done when:** "hosted demo reachable anonymously." *(08 §5, 32–38h, verbatim)*
 **Specs:** `04` §2, `05` §5, `04` §5
-**Verify live first: DONE 2026-08-11 (V25) — it works, and the unit does not reshape.**
-`CREATE CHANGEFEED … INTO 'webhook-https://…'` is permitted on Basic, the job reaches
-`running` with no error, and `kv.rangefeed.enabled` is already true. **What is not yet
-proven is delivery**: the probe's sink was the GET-only spike route, so this establishes
-the entitlement and job startup, not that a message arrived. Standing up a receiver that
-accepts POST and watching a row change come through is the first thing to build in this
-unit, before anything is designed on top of it.
-**Silent break:** promoting the spike's reader DSN into the write path. `infra/` today
-deploys `cortex_reader` because a spike has no business holding a write verb.
-`getPool()` reads one variable, `CORTEX_DSN`, so wiring a write Lambda by pointing that
-variable at `cortex_writer` silently gives the *read* Lambda write privileges too. The
-write path needs its own pool or a DSN parameter — that is this unit's scope, and B2
-deliberately left it undone rather than guess.
-**Starting point:** `infra/cdk-spike/` is deployed and working (B2, V22). Rename it to
-`infra/cdk/` here; `04` §2 says a single app in `infra/` and "spike" stops being true.
-**Budget the concurrency.** 10 account-wide (V22). `04` §5 reserves 2 for LIVE. Decide
-and write down what the other 8 are for before adding functions that quietly compete.
+
+**Evidence:** `infra/cdk/` (renamed from `cdk-spike/`, stack `CortexStack`),
+`infra/lambda/{identity,demo,changefeed,connections}.ts`, `src/db/pool.ts` planes,
+`src/demo/{api,stream}.ts`, `src/memory/demo.ts`, `scripts/{deploy-secrets,deploy-site,
+changefeed,gate-stream}.mts`, and `test/demo-{plane,stream}.test.ts` — 27 tests. V26 has
+the output. Suite 197/197, `tsc` clean.
+
+- **Site** https://d11xbslgdgomdp.cloudfront.net · **API**
+  https://clotk5952m.execute-api.us-east-1.amazonaws.com · **stream**
+  `wss://4hiryvz6yd.execute-api.us-east-1.amazonaws.com/live`
+- `npm run gate:stream` is the reproducible proof and **it is the take to record for the
+  video**: a session taken anonymously from the hosted API, a real row written as
+  `cortex_demo`, and the cluster's own changefeed delivering it to a browser socket in
+  126ms. V25 explicitly refused to claim delivery; this is where that closes.
+
+**The named silent break did not happen, because the shape that caused it was removed.**
+`getPool()` now takes a plane and each plane reads its own variable, so no single DSN can
+promote one function's privileges into another's. It was replaced by a smaller version of
+itself that is worth reading: the identity handler still asked for the default *write*
+plane on the first deploy while holding only the demo DSN, and answered `CORTEX_DSN is
+empty` — the separation failing **closed and naming the missing variable** instead of
+connecting as somebody else.
+
+**`04` §5's brake 1 is falsified and is not implemented.** Reserved concurrency cannot be
+set on this account **at any value**: AWS refuses a reservation that drops unreserved
+concurrency below 10, and the account's total is 10. V22 found the pool small and
+unraisable; U14 finds it indivisible. The budget is written down in
+`infra/cdk/lib/cortex-stack.ts` as §5 asks — four functions sharing 10, none reserved —
+and choosing a replacement brake is left to U17 with the ladder it already owns. See
+`docs/SPEC-DELTA.md`.
+
+**Two of `05` §5's five routes are deliberately U16's**, and the reasoning is in
+`docs/DECISIONS.md`: `POST /demo/run` starts `07` §3's beats in a mode `04` §5 governs,
+and `GET /demo/sql-log` is the panel U16's own silent break is written about.
+
+**Also found:** `03` §7's "demo rows MUST be reclaimed automatically" is half built —
+expiry makes a scope unreachable at read time and is tested, but nothing deletes the rows,
+and a blanket TTL would reach real memory. Recorded in `docs/SPEC-DELTA.md` rather than
+guessed at, because the fix is a `03` §2 schema decision.
 
 ### U15 — `cortex_demo` confinement, and `03` §8 test 9 ✅ 2026-08-11
 **Done when:** `cortex_demo` cannot read or write any row outside a live demo session
@@ -493,6 +515,14 @@ plainly in `04` §3 rather than left for a reader to infer.
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(08 §5, 38–44h, verbatim)*
 **Specs:** `07` §2, `07` §3, `05` §5
+**Two of `05` §5's routes are this unit's, decided in U14 (`docs/DECISIONS.md`):**
+`POST /demo/run` and `GET /demo/sql-log`. U14 built session, state and the WebSocket
+stream and stopped there, because a scenario runner is a decision about what the beats
+*are*. `POST /demo/session`, `GET /demo/state` and `WSS /demo/stream` are deployed and
+proven (V26) — build on them, do not rebuild them.
+**Starting point:** the deployed page at https://d11xbslgdgomdp.cloudfront.net is a
+placeholder that starts a session and prints the change stream. It is not a first draft
+of the SPA and carries no panel layout worth keeping; `07` §2 is where that comes from.
 **Verify live first:** the four beats end to end against the deployed stack, in the
 order `07` §3 gives them. Beat 4 is consolidation arriving over the change stream, and
 `03` §4.4 is **not built** — see the note under U12. Either this unit builds enough
@@ -519,13 +549,21 @@ safe.
 explicit that a budget action disabling the API, the SPA, the read path or the cluster
 converts a cost control into a **rules violation**, because B4 requires availability
 until 2026-09-15. Fire each brake deliberately and confirm the demo stayed up.
-**Carry V22's finding in, and note it hardened on 2026-08-11:** at 10 account-wide Lambda
-concurrency a `503` is reachable by ten simultaneous visitors, and a `503` is an error
-page, which rung invariant 1 forbids. The increase **cannot be requested from the CLI** —
-it is an account restriction below AWS's default, Service Quotas refuses every useful
-value, and the Support API needs a paid plan. A console case is the only route and its
-turnaround is unknown. **So this is no longer "absorb overflow or rely on the increase".
-It is: absorb overflow. Build for 10 and treat any lift as a bonus.**
+**Carry V22's finding in, and note it hardened twice on 2026-08-11:** at 10 account-wide
+Lambda concurrency a `503` is reachable by ten simultaneous visitors, and a `503` is an
+error page, which rung invariant 1 forbids. The increase **cannot be requested from the
+CLI** — it is an account restriction below AWS's default, Service Quotas refuses every
+useful value, and the Support API needs a paid plan. A console case is the only route and
+its turnaround is unknown. **So this is no longer "absorb overflow or rely on the
+increase". It is: absorb overflow. Build for 10 and treat any lift as a bonus.**
+**And `04` §5's brake 1 is not available to you (V26).** Reserved concurrency cannot be
+set on this account at *any* value — the unreserved floor is 10 and the ceiling is also 10
+— so the pool cannot be subdivided either, and the LIVE function cannot be given a
+physical cap of 2 the way §5 assumes. U14 deliberately substituted nothing.
+**This unit picks the replacement**, and §5 constrains the choice hard: whatever it is, it
+must target the LIVE reasoning function and nothing else, because a brake that disables
+the API, the SPA, the read path or the cluster is a rules violation under B4. API Gateway
+route-level throttling is the obvious candidate and has not been evaluated.
 A fifth rung is the likely shape — concurrency exhausted → a queued or cached page that
 says so — and it must not be an error status, per invariant 1.
 **The last clause of the done-when is a separate act:** a private window, on a machine
@@ -585,7 +623,17 @@ the video to show the project **functioning**, and A7 requires it to function as
   of real time against the cluster; cut or speed it.
 - **`curl` against the hosted API route returning the cluster's own version string**
   (new, from V22). Five seconds, and it is the shortest demonstration that the hosted
-  surface talks to a real CockroachDB cluster.
+  surface talks to a real CockroachDB cluster. Since U14 it answers as `cortex_demo`,
+  which makes the same take also show the least-privileged principal serving the public
+  route: `curl -s https://clotk5952m.execute-api.us-east-1.amazonaws.com/identity`.
+- **`npm run gate:stream`** (new, from V26). Four lines of PASS and then the actual JSON
+  the browser received. It is the whole of `04` §2's flow E in one command — a row
+  committed as `cortex_demo`, carried by CockroachDB's own changefeed, arriving on a
+  socket in ~126ms — and it is far more convincing than the architecture diagram it
+  corresponds to. Run it after `npm run changefeed status` shows a running job.
+- **A credential-shaped field being refused by the hosted API**, in one `curl`:
+  `-d '{"dsn":"postgresql://u:p@h/db"}'` comes back 400 with the reason. `02` B3 is a
+  rule most submissions can only assert; this shows it being enforced.
 
 ### U20 — Devpost description, B10 and B11 answers, feedback field ⬜
 **Done when:** "walk the checklist in `02` §F." *(08 §5, 58–60h, verbatim)*

@@ -36,14 +36,26 @@ const resolveTsFromJs = {
   },
 };
 
-await build({
-  entryPoints: [resolve(here, 'lambda/identity.ts')],
-  outfile: resolve(here, 'lambda-dist/index.cjs'),
-  bundle: true,
-  platform: 'node',
-  target: 'node22',
-  format: 'cjs',
-  external: ['pg-native'],
-  plugins: [resolveTsFromJs],
-  logLevel: 'info',
-});
+/**
+ * One directory per function, each containing a single `index.cjs`.
+ *
+ * Not one shared directory with four entry files: CDK hashes the asset directory, so a
+ * shared one makes every function's asset change whenever any handler does, and a
+ * one-line edit to the demo router redeploys the changefeed sink as well. Separate
+ * directories keep a redeploy to the function that actually changed.
+ */
+const FUNCTIONS = ['identity', 'demo', 'changefeed', 'connections'];
+
+for (const name of FUNCTIONS) {
+  await build({
+    entryPoints: [resolve(here, `lambda/${name}.ts`)],
+    outfile: resolve(here, `lambda-dist/${name}/index.cjs`),
+    bundle: true,
+    platform: 'node',
+    target: 'node22',
+    format: 'cjs',
+    external: ['pg-native'],
+    plugins: [resolveTsFromJs],
+    logLevel: 'info',
+  });
+}

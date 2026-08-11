@@ -10,18 +10,18 @@
  * `current_user` and `current_database` are properties of the connection, so invariant
  * 5 has nothing to filter here. Prints no credential: the DSN is never echoed.
  */
-import { getPool } from './pool.js';
+import { getPool, type Plane } from './pool.js';
 
 export interface ClusterIdentity {
   /** e.g. `CockroachDB CCL v25.x …`. The build string, verbatim. */
   version: string;
-  /** The SQL user the write plane connects as. Not a secret; the password is. */
+  /** The SQL user the named plane connects as. Not a secret; the password is. */
   user: string;
   database: string;
 }
 
-export async function clusterIdentity(): Promise<ClusterIdentity> {
-  const { rows } = await getPool().query(
+export async function clusterIdentity(plane: Plane = 'write'): Promise<ClusterIdentity> {
+  const { rows } = await getPool(plane).query(
     'SELECT version() AS version, current_user AS "user", current_database() AS database',
   );
   const row = rows[0] as ClusterIdentity;

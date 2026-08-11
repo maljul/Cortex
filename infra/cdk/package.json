@@ -1,5 +1,5 @@
 {
-  "name": "cdk-spike",
+  "name": "cortex",
   "version": "0.1.0",
   "scripts": {
     "build": "tsc",
