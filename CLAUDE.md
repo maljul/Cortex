@@ -74,10 +74,14 @@ What does not belong in a unit list, and so lives here:
   sentence — an exhausted agent **re-plans once**, visibly (`replanOnce` in
   `src/demo/scenario.ts`) — and an exhausted re-plan is reported as `contended`, never as an
   exception, because that path is behind the run button and `04` §5 invariant 1 admits no
-  error page. **`src/db/retry.ts` is deliberately untouched**: raising the cap contradicts
-  §5, and widening the jitter reverses a documented, tested property of `backoffMs` — either
-  changes invariant 6's mechanism for every write path on the strength of one demo. It is
-  Julian's call, with the measurement in `docs/SPEC-DELTA.md`.
+  error page. **`backoffMs`'s base delay was 20ms and is now 250ms** —
+  Julian's call on 2026-08-12 after the measurement (V31), because 20ms against a
+  one-second transaction is a third of the window the agents collided in. Exhaustions went
+  **1/12 → 0/12** and retries settled at 1, which is what the loop converging looks like.
+  Every documented property of `backoffMs` survives, because each is stated relative to the
+  constant — `test/retry.test.ts` asserts against `BASE_DELAY_MS` rather than literals and
+  needed no edit. The cap stays at five: raising it would contradict §5. `replanOnce` stays
+  too; it is §5's own instruction, not a workaround for it.
 - **LIVE reasoning is not built and is blocked on two decisions.** `04` §5 brake 2's global
   run counter has nowhere to live but a **new table**, and `03` §2's six are the memory
   model — that is a stop-and-ask. And the actual Bedrock rate for Sonnet 4.5 is **TBD**: two

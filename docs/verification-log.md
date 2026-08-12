@@ -3023,3 +3023,53 @@ Suite **256/256 across 21 files, 485s** against the real cluster. `npx tsc --noE
   so it has been failing since those landed; hook mode scans the staged diff and passes. The
   script's own comment warns that a permanently-red row is one nobody reads. Flagged for
   Julian, not edited — the file says to say so rather than narrow the check.
+
+---
+
+## V31 — `03` §5's base back-off: 20ms → 250ms, and the loop converges
+
+Date: 2026-08-12 · Julian's call, taken after V30's measurement · Cluster `agent-hack-30704`
+
+V30 recorded that genuine contention made §5's five-attempt cap reachable and left the fix
+open, because both candidates change invariant 6's helper for every write path. Julian chose
+the larger base delay, measured. This is that measurement.
+
+**The same 12-run probe, run in isolation both times** — same script, same cluster, nothing
+else touching it:
+
+```
+BASE_DELAY_MS = 20    ladder  37/56/87/161ms
+  cortex: threw 1/12 · retries 0,1,8,1,1,1,6,1,1,1,1,1
+  naive:  threw 0/12 · retries 0,2,2,2,3,2,2,1,1,2,2,3
+
+BASE_DELAY_MS = 250   ladder  396/585/1009/2193ms
+  cortex: threw 0/12 · retries 0,1,1,1,1,1,1,1,3,3,1,1 · winners 355555553555
+  naive:  threw 0/12 · retries 2,2,2,2,2,2,2,2,2,2,2,2
+```
+
+Three things to read off that:
+
+1. **Exhaustions go 1/12 → 0/12.** The `8` and the `6` in the before-row are two agents each
+   burning four retries and both giving up — the loop not converging. They are gone.
+2. **Retries settle at 1**, which is what convergence looks like: the loser conflicts once,
+   backs off past the winner's commit, retries alone, and is cleanly blocked. The two 3s are
+   ordinary clock-uncertainty restarts, not thrash.
+3. **The race is still a race.** Winners `355555553555` — agent-3 four times, agent-5 eight.
+   A bigger back-off separates the contenders; it does not decide between them.
+
+**Why this was one line and not a rewrite.** Every property `src/db/retry.ts` documents is
+stated relative to the constant — exponential growth, a jitter window of exactly one base,
+non-overlapping consecutive windows — and `test/retry.test.ts` asserts each of them against
+`BASE_DELAY_MS` rather than against literals. It needed no edit. That is the payoff of a test
+written against the constant, and it is worth noticing because the alternative fix (full
+jitter) would have required rewriting both the comment and the assertions.
+
+**What it costs, stated rather than buried:** a transaction that exhausts all five attempts
+now spends up to ~4.7s sleeping rather than ~0.4s. It is paid only on a path that was
+previously failing outright, and fewer collisions means fewer attempts to sleep between.
+`03` §5's five-attempt cap is untouched — raising it would contradict the spec — and
+`replanOnce` stays, because it is §5's own instruction rather than a workaround for it.
+
+**Not established here:** whether 250 is optimal. It was chosen as "the same order as one
+statement's round trip", which is the property that was violated, and it is the first value
+tried. A sweep would tell you more; nothing currently depends on the difference.

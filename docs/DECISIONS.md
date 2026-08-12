@@ -565,13 +565,20 @@ and for an agent whose plan is one proposal that means proposing again. It does 
 and the step carries `replanned: true` so the panel says it happened. A second exhaustion
 is reported as `contended` — an outcome, never an exception.
 
-**What was deliberately not done, and why it is Julian's.** The underlying cause is that
-`backoffMs` sleeps 20–320 ms while a propose transaction against CockroachDB Cloud takes
-about a second, so two agents that collide restart into each other. The two candidate fixes
-are a larger `BASE_DELAY_MS` and full jitter, and both change the mechanism *every* write
-path in this project depends on (invariant 6) on the strength of one demo. Full jitter
+**Escalated to Julian, and decided by him the same day.** The underlying cause is that
+`backoffMs` slept 20–320 ms while a propose transaction against CockroachDB Cloud takes
+about a second, so two agents that collided restarted into each other. The two candidate
+fixes were a larger `BASE_DELAY_MS` and full jitter, and both change the mechanism *every*
+write path in this project depends on (invariant 6) on the strength of one demo. Full jitter
 additionally overturns a documented, tested property — `src/db/retry.ts` states that the
 jitter window is deliberately narrower than the gap between attempts so successive delays
-cannot overlap, and `test/retry.test.ts` asserts it over 200 draws. Reversing that is a
-decision with a rationale to argue with, not a tuning tweak, so it is recorded here with
-the measurement and left open.
+cannot overlap, and `test/retry.test.ts` asserts it over 200 draws. That made it his call
+rather than U16b's.
+
+**He chose the larger base delay, measured (2026-08-12, V31): 20 → 250ms.** The same 12-run
+probe, in isolation before and after, went from `threw 1/12 · retries 0,1,8,1,1,1,6,1,1,1,1,1`
+to `threw 0/12 · retries 0,1,1,1,1,1,1,1,3,3,1,1`. Every documented property survives because
+each is stated relative to the constant, so `test/retry.test.ts` needed no edit at all — which
+is the argument for that test having been written against `BASE_DELAY_MS` rather than against
+literals in the first place. `replanOnce` stays regardless: it is `03` §5's own instruction,
+and it is what keeps an exhausted agent an outcome rather than an exception.

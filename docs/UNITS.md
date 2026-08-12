@@ -584,14 +584,17 @@ were wrong and both were found by reading the code rather than the screen. They 
   CORTEX run), which closes U12's note that the benchmark's serialised scheduler makes that
   metric 0 by construction.
 
-**One finding that is not this unit's to fix, and is recorded rather than patched.** Genuine
+**One finding this unit surfaced and Julian closed the same day.** Genuine
 concurrency made `03` §5's five-attempt cap reachable — both beat-3 agents exhausting it on
 about **one run in twelve**. `backoffMs` sleeps 20–320 ms in total while a propose transaction
 takes about a second, so two colliding agents restart into each other. The demo now follows
 §5's own next sentence — an agent that has lost fast **re-plans**, once, visibly
-(`replanOnce`) — and `src/db/retry.ts` is untouched, because changing its base delay or its
-jitter policy changes invariant 6's mechanism for every write path on the strength of one
-demo. `docs/SPEC-DELTA.md` carries the measurement; the choice is Julian's.
+(`replanOnce`), and Julian chose the larger base delay: **`BASE_DELAY_MS` 20 → 250** (V31),
+which took exhaustions from **1/12 to 0/12** and settled retries at 1. Every documented
+property of `backoffMs` survives because each is relative to the constant, so
+`test/retry.test.ts` needed no edit. The five-attempt cap is untouched — raising it would
+contradict §5 — and `replanOnce` stays, because it is §5's instruction rather than a
+workaround for it.
 
 **LIVE reasoning (`U16b` §3c) is NOT built, and is blocked on two things Julian owns.**
 `04` §5 brake 2 — the global run counter — has nowhere to live but a new table, and `03` §2's
@@ -627,7 +630,27 @@ flagged off. That is invariant 8, and the SPA is the surface it was written abou
 **Second silent break:** the show-SQL panel printing SQL the system did not run. It is
 the "prove it" panel; a hand-written sample there is worse than no panel.
 
-### U17 — Guardrails and all four degradation rungs ⬜
+### U17 — Guardrails and all four degradation rungs ⬜ **also owns LIVE reasoning now**
+**Added 2026-08-12, Julian's call.** U16b §3c proposed giving each demo agent one real
+Bedrock call. It is deferred here rather than built there, because its prerequisite *is* this
+unit's work: `04` §5 brake 2 — a global run counter in CockroachDB, default 40 LIVE runs a day
+— is what authorises a LIVE run at all, and rung 1 (quota exhausted → REPLAY, stated on
+screen) is the same mechanism seen from the other end. Building the counter inside U16b would
+have meant U16b deciding U17's ladder.
+Two things this unit inherits with it:
+- **The counter needs a table `03` §2 does not define**, so adding it is a schema decision
+  taken deliberately here. It must be checked and incremented **in the same transaction as
+  the run it authorises**, or concurrent visitors race past it.
+- **The Bedrock rate for Sonnet 4.5 is TBD.** `04` §5 and U16b §6 both require the real
+  per-token figure written down before LIVE is enabled; two fetches of AWS's pricing page did
+  not return it (V30) and this repository does not write placeholder numbers. The token
+  volume *is* known from the committed cassettes: ~501 input and ~72 output tokens per call,
+  so five agents is on the order of 3k tokens per run.
+- `07` §4's mode line becomes a real two-value mode at that point, which closes the
+  `docs/SPEC-DELTA.md` entry about it. `bench/reason.ts` is the reasoner to reuse — do not
+  write a second one — and Sonnet 4.5 is pre-4.6, so `output_config.effort` **errors** on it
+  and `thinking` must be omitted rather than configured.
+
 **Done when:** "each rung forced deliberately and each produces a working page; each
 brake fired deliberately and the demo stayed reachable; no credential field anywhere in
 the UI; demo loads in a private window on a machine that never touched the project."

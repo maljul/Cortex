@@ -9,7 +9,30 @@ const SERIALIZATION_FAILURE = '40001';
 /** spec/03-MEMORY-MODEL.md §5: capped at five attempts. */
 const MAX_ATTEMPTS = 5;
 
-const BASE_DELAY_MS = 20;
+/**
+ * The first back-off, doubled per attempt. **Raised from 20ms to 250ms on 2026-08-12
+ * (V31), and the reason is a measurement rather than a preference.**
+ *
+ * At 20ms the four sleeps totalled 20+40+80+160 ≈ 300ms plus jitter, against a `propose`
+ * transaction that spends about a second in round trips to CockroachDB Cloud. Two agents
+ * that collide therefore back off by roughly a third of the window they collided in and
+ * restart into each other — so the loop did not converge, and both of `07` §3 beat 3's
+ * contenders exhausted all five attempts on about one run in twelve (V30). Nothing before
+ * U16b had two genuinely concurrent writers, which is why the cap had never been reached.
+ *
+ * 250ms puts the first sleep on the order of one statement's round trip and the jitter
+ * window with it, so two colliding agents actually separate. Every property this module
+ * documents is stated relative to this constant and is unchanged: the ladder is still
+ * exponential, the jitter window is still exactly one base, consecutive windows still
+ * cannot overlap, and `03` §5's five-attempt cap is untouched. `test/retry.test.ts` asserts
+ * all of that against `BASE_DELAY_MS` rather than against literals, so it needed no edit.
+ *
+ * The cost is bounded and worth naming: a transaction that exhausts all five attempts now
+ * spends up to ~4.7s sleeping rather than ~0.4s. That is the price of converging, it is
+ * only paid on a path that was previously failing, and fewer collisions means fewer
+ * attempts to sleep between.
+ */
+const BASE_DELAY_MS = 250;
 
 let retries = 0;
 
@@ -43,10 +66,14 @@ export function isSerializationFailure(error: unknown): boolean {
  * Exponential, with jitter on top so a fleet of agents does not retry in lockstep.
  *
  * Exported for the tests. The growth cannot be observed end to end: an attempt against
- * CockroachDB Cloud spends roughly a second in round trips and 20–180ms in here, so a
- * test that times the gaps between attempts is measuring the network. It read
- * `expected 1048 to be greater than 1048` once, and would equally have passed with the
- * backoff removed entirely. The property is tested directly instead.
+ * CockroachDB Cloud spends roughly a second in round trips, so a test that times the gaps
+ * between attempts is measuring the network. It read `expected 1048 to be greater than
+ * 1048` once, and would equally have passed with the backoff removed entirely. The
+ * property is tested directly instead.
+ *
+ * That same ratio — a second on the wire against a sleep measured in tens of milliseconds
+ * — is what made the loop fail to converge under real contention, and is why
+ * `BASE_DELAY_MS` is now 250 rather than 20. See its comment.
  *
  * The jitter window is one `BASE_DELAY_MS`, which is deliberately narrower than the
  * gap between consecutive attempts, so successive delays cannot overlap however the

@@ -238,32 +238,6 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
-### `03` §5's five-attempt cap is reachable, and the backoff is why *(2026-08-12, U16b)*
-
-§5 requires every write transaction to retry a 40001 "with exponential backoff plus jitter,
-capped at five attempts". Nothing in this project had genuinely concurrent writers until the
-demo's agents became concurrent, so the cap had never been reached. It is now: two
-proposals racing for one claim key exhaust all five attempts, **both of them**, on roughly
-one run in twelve against this cluster (V30).
-
-The cap is not the problem and must not be raised — §5's next bullet is what makes it
-right, and the demo now follows it (`docs/DECISIONS.md`, `replanOnce`). What is worth
-recording against the spec is the cause: `backoffMs` sleeps 20–320 ms in total while one
-propose transaction against CockroachDB Cloud takes about a second, so two agents that
-collide back off by far less than the window they collided in and restart into each other.
-The jitter draw is one `BASE_DELAY_MS` wide, which is a twelfth of that window, so it
-decorrelates almost nothing — and decorrelation is the entire reason §5 asks for jitter.
-
-**This is an observation, not a change.** Both candidate fixes — a larger base, or full
-jitter — alter the helper every write path in the project depends on under invariant 6, and
-full jitter reverses a property `src/db/retry.ts` states deliberately and
-`test/retry.test.ts` asserts over 200 draws. §5 specifies "exponential backoff plus jitter"
-and names no constants, so neither fix would be a spec deviation; choosing one is Julian's.
-
-**Closes when a base delay or jitter policy is chosen and measured**, or when it is decided
-that a re-plan at the agent level is the right answer and the helper stays as it is. Either
-way the entry is deleted rather than amended.
-
 ## Corrected in the spec already — do not re-open
 
 ### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*
@@ -580,3 +554,29 @@ specifying is *last-write-wins on a whole-artifact rewrite*, which is preserved 
 read the whole cell, hold it while working, write the whole cell back. Recorded because a
 reader comparing `bench/arms/naive.ts` with `src/memory/shared-state.ts` will find two
 implementations of one specified behaviour and should know that is deliberate.
+
+### `03` §5's base back-off moved from 20ms to 250ms *(2026-08-12, V31 — closed)*
+
+This was an **Open** entry between V30 and V31 and is closed, so it sits here rather than
+above: §5 was never wrong. It requires "exponential backoff plus jitter, capped at five
+attempts" and names no constant, so choosing one is implementation, not deviation.
+
+What made it worth recording is that the constant was wrong in a way only genuine
+concurrency could reveal. At 20ms the four sleeps totalled ~300ms against a `propose`
+transaction that spends about a second on the wire, so two colliding agents backed off by a
+third of the window they collided in and restarted into each other. Measured with the same
+12-run probe before and after, in isolation both times:
+
+```
+BASE_DELAY_MS = 20    cortex: threw 1/12 · retries 0,1,8,1,1,1,6,1,1,1,1,1
+BASE_DELAY_MS = 250   cortex: threw 0/12 · retries 0,1,1,1,1,1,1,1,3,3,1,1
+                      naive:  threw 0/12 · retries 2,2,2,2,2,2,2,2,2,2,2,2
+```
+
+`retries 8` is two agents each exhausting four attempts — the loop failing to converge. After
+the change the modal value is 1, which is what convergence looks like: the loser conflicts
+once, backs off past the winner's commit, retries alone and is cleanly blocked.
+
+Every property `src/db/retry.ts` documents is stated relative to the constant and is
+unchanged, so `test/retry.test.ts` needed no edit — that it asserts against `BASE_DELAY_MS`
+rather than against literals is why this was a one-line change and not a rewrite.
