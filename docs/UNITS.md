@@ -670,7 +670,42 @@ flagged off. That is invariant 8, and the SPA is the surface it was written abou
 **Second silent break:** the show-SQL panel printing SQL the system did not run. It is
 the "prove it" panel; a hand-written sample there is worse than no panel.
 
-### U17 — Guardrails and all four degradation rungs ⬜ **also owns LIVE reasoning now**
+### U17 — Guardrails and all four degradation rungs 🔶 **brake 2 and rung 2 done; also owns LIVE reasoning**
+
+**Done so far (2026-08-12, V36 + V37).** Both of the things this unit was blocked on are
+closed, and the two pieces that did not depend on LIVE reasoning are built and forced.
+
+- **Brake 2 is built: `live_run_budget`, a seventh table, capped at 10 LIVE runs a day.**
+  Julian's call on where the counter lives (a new table with its own narrow policy, not a
+  singleton row on `repos` and not DynamoDB) and on the cap. Reasoning in `docs/DECISIONS.md`.
+  `cortex_demo` reaches exactly today's row and holds no DELETE — a principal that can drop
+  today's row can reset the brake that governs it. `test/privilege-planes.test.ts` attempts
+  all three refusals rather than trusting the grant list.
+- **The Bedrock rate is no longer TBD, and it did not come from a pricing page.** AWS's
+  machine-readable Price List API does not carry Sonnet 4.5 at all — its Claude catalogue for
+  `us-east-1` stops at Claude 3. The rate came from this account's own billing:
+  `Claude Sonnet 4.5 (Amazon Bedrock Edition)` is a **service of its own**, separate from
+  `Amazon Bedrock`, at **$3.30 per 1M input and $16.50 per 1M output**. V36 has the commands.
+- **`04` §5's own default of 40 runs a day breaks `04` §5's own budget**, and that is why the
+  cap is 10: at the measured rate 40/day is $19–36 through 2026-09-15 against §5's
+  "single-digit dollars". Recorded in `docs/SPEC-DELTA.md`.
+- **A finding brake 3 depends on:** an AWS Budget filtered on the `Amazon Bedrock` service
+  would **never fire**, because the reasoning spend is billed under a different service name
+  entirely. `Amazon Bedrock` on the same days carries only the Titan embedding line.
+- **Rung 2 is built and forced — `npm run gate:degrade`, 7/7 (V37).** Every embedding call
+  refused with a 429; all four beats still ran, 51 statements reached the driver, every intent
+  written was marked in the database, and the show-SQL transcript contains no similarity
+  search at all. Forced first because §5 names it the rung most likely to fire unnoticed.
+  It needed a `03` §2 column (`intents.embedding_degraded`) — see `docs/SPEC-DELTA.md`; the
+  column is not primarily a UI flag, it is what keeps a hash vector out of every later dedupe
+  candidate set.
+
+**Still to do in this unit:** rung 1 (needs LIVE reasoning, which needs the demo's own
+cassettes so REPLAY is a real second value), rung 3 (per-session row cap → read-only session),
+rung 4 (cluster unavailable → pre-recorded walkthrough behind a banner), the brake 1
+replacement, brake 3 itself, the SPA surfacing all of it, a redeploy, and the last clause of
+the done-when — a private window on a machine that never touched the project, which is
+Julian's act and not a script's.
 **Added 2026-08-12, Julian's call.** U16b §3c proposed giving each demo agent one real
 Bedrock call. It is deferred here rather than built there, because its prerequisite *is* this
 unit's work: `04` §5 brake 2 — a global run counter in CockroachDB, default 40 LIVE runs a day

@@ -313,6 +313,27 @@ scoped the natural way would watch the wrong meter and report zero while the met
 Recorded here rather than fixed silently because §5's wording is what invites the mistake.
 Whatever brake 3 ends up as, its filter is named by this entry.
 
+### `03` §2 has nowhere to put `04` §5 rung 2's "intent marked `degraded`" *(2026-08-12, U17)*
+
+§5's ladder requires, when Bedrock embeddings are throttled or unavailable: "deterministic
+local hash embedding, **intent marked `degraded`**, dedupe skipped for that intent". `03` §2's
+`intents` table has no such field, and `status` cannot carry it — the CHECK admits
+`proposed | in_flight | done | abandoned | deduped`, which is a lifecycle, and an intent
+written during a throttle is `in_flight` like any other. What differs is the *embedding*.
+
+**Added as `intents.embedding_degraded BOOL NOT NULL DEFAULT false`**, `ADD COLUMN IF NOT
+EXISTS` so U1's idempotence survives (`sql/001_init.sql` applies 72/72 twice).
+
+**It is not primarily a UI flag, which is why it is a column and not a response field.** A
+hash vector sits at an arbitrary distance from every real embedding, so a degraded intent left
+in the dedupe candidate set corrupts every decision taken after it — indefinitely, long after
+Bedrock recovers. `findDuplicate` carries `AND NOT embedding_degraded` for that reason, and
+deleting that predicate fails `test/degraded-embedding.test.ts`'s poisoning test and nothing
+else. A flag that lived in a response body could not have done this job.
+
+This closes when `03` §2 gains the column, or when §5's rung 2 is restated in terms the memory
+model already has.
+
 ## Corrected in the spec already — do not re-open
 
 ### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*

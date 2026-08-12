@@ -3475,3 +3475,82 @@ Six of the ten fail:
 266 → 278 against the real cluster: 10 in `test/live-budget.test.ts` and 2 added to
 `test/privilege-planes.test.ts` — the read plane's refusal on the new table, and the demo
 principal's confinement to today's row. `npx tsc --noEmit` clean.
+
+---
+
+## V37 — `04` §5 rung 2 forced against the real cluster: the demo degrades and keeps working
+
+**2026-08-12, U17.** `04` §5 invariant 4 requires every rung to be verified by forcing its
+limit rather than by reasoning about it, and `docs/UNITS.md` names rung 2 as the one to force
+first — §5 calls it "the rung most likely to fire unnoticed", because REPLAY caches reasoning
+but not embeddings, so the demo keeps a Bedrock dependency even with LIVE off entirely.
+
+`npm run gate:degrade` forces it: every embedding call is refused with a `ThrottlingException`
+carrying HTTP 429, against the real cluster, as the real `cortex_demo` principal, inside a real
+demo session scope. The only thing faked is the refusal.
+
+```
+forcing rung 2 in demo session a15ae663-63eb-463b-947b-fd4010832d22
+every embedding call will be refused with ThrottlingException
+
+PASS  the run produced a page, not an error (§5 invariant 1) — 8746ms
+PASS  the page reports rung 2 and how much degraded — 7 embedding calls refused
+PASS  the reason names dedupe as degraded and the database as live (§5 invariant 2)
+PASS  no similarity search reached the driver — dedupe was skipped, per the transcript — 0 found in 51 statements
+PASS  the beats still ran — beats present: 1, 2, 3, 4
+PASS  every intent it wrote is marked degraded in the database — 3/3 marked
+PASS  the stored vector is the deterministic local one, round trip included — distance 0.00e+0
+
+Bedrock declined 7 embedding requests, so those intents were written with a deterministic
+local vector and dedupe was skipped for them. Every row on this page was still committed by
+CockroachDB just now — arbitration, claims and the change stream are unaffected. What is
+degraded is similarity, and only for the intents marked below.
+
+rung 2 holds: the limit was forced and the page still works.
+```
+
+**All four beats still ran with Bedrock refusing every request**, and 51 statements reached the
+driver. That is what §5's "database behaviour fully live" means in practice and it is measured
+rather than asserted.
+
+**"Dedupe was skipped" is checked against the transcript, not against a code path.** The
+obvious implementation passes a threshold of zero, which never matches — and leaves the
+similarity search in `05` §5's show-SQL panel, telling a judge that a dedupe happened when §5
+says it was skipped. The panel is the one surface that must not lie (U16), so the search is
+genuinely not issued and the gate counts `<=>` statements in the recorder to prove it.
+
+**Two design points that the tests, not the reasoning, settled.**
+
+`degradedEmbedding` is deliberately one flag rather than a `skipDedupe` boolean. Skipping
+dedupe is skipping the mechanism this project argues for, so the only way to ask for it is to
+simultaneously assert the vector is untrustworthy and record that assertion in the row. §8
+invariant 1 is untouched: it forbids a similarity check and a claim insert landing in
+*different* transactions, and not running a check is not splitting one.
+
+The exclusion of marked rows from later searches is the half that would have been easy to omit,
+and it is the one the mutation catches. Removing `AND NOT embedding_degraded` from
+`findDuplicate` fails exactly one test:
+
+```
+     × is invisible to the next agent’s similarity search
+      Tests  1 failed | 14 passed (15)
+```
+
+Without it, an intent written during a throttle stays in the candidate set forever, and every
+dedupe decision after it is taken against a distance to a hash.
+
+**The boundary of what rung 2 catches is deliberate.** `isEmbeddingUnavailable` matches
+throttling, service unavailability, 429/500/503/504, and socket-level failures. A `TypeError`
+is not Bedrock being down, it is this repository being wrong, and degrading quietly around it
+would hide a defect behind a banner reading "everything else is live". Rung 4 is the catch-all
+for keeping the page up, and rung 4's whole job is to say that nothing is live.
+
+### Suite
+
+```
+ Test Files  24 passed (24)
+      Tests  297 passed (297)
+   Duration  582.28s
+```
+
+278 → 297: 19 in `test/degraded-embedding.test.ts`. `npx tsc --noEmit` clean.

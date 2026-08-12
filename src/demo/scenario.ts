@@ -50,6 +50,7 @@
  */
 import { claimLatenciesMs, type StatementRecorder } from '../db/recorder.js';
 import { getRetryCount, isSerializationFailure } from '../db/retry.js';
+import { withDegradedFallback, type MaybeDegraded } from '../embed/degraded.js';
 import { close } from '../memory/close.js';
 import { consolidate } from '../memory/consolidate.js';
 import { survivingWork } from '../memory/demo.js';
@@ -138,6 +139,21 @@ export interface RunResult {
   arm: DemoArm;
   sessionId: string;
   steps: BeatStep[];
+  /**
+   * `04` §5 rung 2, as the page has to be able to state it. Absent when nothing degraded,
+   * so the ordinary run carries no "everything is fine" banner to be ignored.
+   *
+   * Invariant 2 — no rung may misrepresent liveness — cuts both ways here. A run with two
+   * hash vectors in it has *not* deduped, and a page that showed the usual dedupe panel
+   * beside it would be depicting a mechanism that did not run. `04` §5's "what is still
+   * true" for this rung is "database behaviour fully live, dedupe degraded and labelled as
+   * such", and `reason` is that sentence.
+   */
+  degraded?: {
+    rung: 2;
+    embeddings: number;
+    reason: string;
+  };
   meter: {
     duplicateWorkAvoided: number;
     /**
@@ -186,6 +202,30 @@ export interface RunOptions {
 
 type Actor = { agent: string; statement: string };
 
+/**
+ * `04` §5 rung 2, wired into the run.
+ *
+ * Every embedding this scenario asks for goes through `withDegradedFallback`, so a throttled
+ * or unavailable Bedrock produces a deterministic hash vector and a `degraded: true` instead
+ * of an exception. §5's ladder requires the limit to resolve to a working page, and this is
+ * the path behind the run button.
+ *
+ * **Per call, not per run**, because §5 marks the *intent*: "dedupe skipped for that intent".
+ * Bedrock throttling is intermittent, so a run can quite legitimately embed four statements
+ * successfully and degrade on the fifth, and the four that succeeded arbitrate normally. The
+ * counter below is only for what the page says about itself.
+ */
+type Embedder = (text: string) => Promise<MaybeDegraded>;
+
+function embedderFor(options: RunOptions, tally: { degraded: number }): Embedder {
+  const fallback = withDegradedFallback(options.embed);
+  return async (text: string) => {
+    const result = await fallback(text);
+    if (result.degraded) tally.degraded += 1;
+    return result;
+  };
+}
+
 /** Every call in this file writes as `cortex_demo`, scoped to the visitor's session. */
 function planeFor(options: RunOptions): {
   plane: 'demo';
@@ -206,16 +246,18 @@ function planeFor(options: RunOptions): {
  * of distance, so beat 1's "with a note that a prior attempt was reverted" is not a caption
  * — it is the ordering the query returns, and it reaches it through this intent.
  */
-async function seedPast(options: RunOptions): Promise<BeatStep[]> {
-  const embedding = await options.embed(SCRIPT.seedFact);
+async function seedPast(options: RunOptions, embed: Embedder): Promise<BeatStep[]> {
+  const fact = await embed(SCRIPT.seedFact);
   const scope = planeFor(options);
+  const statement = await embed(SCRIPT.seedStatement);
 
   const intentId = await propose({
     repoId: options.sessionId,
     agentId: 'agent-0',
     statement: SCRIPT.seedStatement,
     resourceKeys: ['file:src/orders/queue.ts'],
-    embedding: await options.embed(SCRIPT.seedStatement),
+    embedding: statement.embedding,
+    degradedEmbedding: statement.degraded,
     ...scope,
   }).then((decision) => (decision.decision === 'granted' ? decision.intentId : null));
 
@@ -242,7 +284,7 @@ async function seedPast(options: RunOptions): Promise<BeatStep[]> {
   await consolidate({
     repoId: options.sessionId,
     fact: SCRIPT.seedFact,
-    embedding,
+    embedding: fact.embedding,
     ...(intentId ? { sourceIntentId: intentId } : {}),
     ...scope,
   });
@@ -337,6 +379,7 @@ function median(values: readonly number[]): number | null {
  */
 async function naiveAgent(
   options: RunOptions,
+  embed: Embedder,
   actor: Actor,
   keys: readonly string[],
   /** Stamps the order the saves actually returned in. See `finishedAt` below. */
@@ -361,7 +404,7 @@ async function naiveAgent(
   const snapshot = await loadSharedState(options.sessionId, scope);
   const knownWhenLoaded = Object.keys(snapshot.completed).length;
 
-  const embedding = await options.embed(actor.statement);
+  const { embedding } = await embed(actor.statement);
 
   snapshot.completed[actor.agent] = {
     agent: actor.agent,
@@ -389,6 +432,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
   const steps: BeatStep[] = [];
   const retriesBefore = getRetryCount();
   const scope = planeFor(options);
+  const tally = { degraded: 0 };
+  const embed = embedderFor(options, tally);
 
   /**
    * What each arm actually did, in completion order. Both meters are derived from this and
@@ -408,11 +453,11 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
   // handicap: an agent with no shared memory has nothing to be handed. `06` §2 draws the
   // arms exactly this way, and U12 found the same asymmetry honestly in the benchmark.
   if (options.arm === 'cortex') {
-    steps.push(...(await seedPast(options)));
+    steps.push(...(await seedPast(options, embed)));
 
     const found = await recall({
       repoId: options.sessionId,
-      embedding: await options.embed(SCRIPT.dedupeHolder.statement),
+      embedding: (await embed(SCRIPT.dedupeHolder.statement)).embedding,
       plane: 'demo',
       demoSession: options.sessionId,
       ...(options.recorder ? { recorder: options.recorder } : {}),
@@ -459,7 +504,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
 
   if (options.arm === 'cortex') {
     // ---- Beat 2 — dedupe. A sequence, not a race; see this file's header. ----------
-    const holderEmbedding = await options.embed(SCRIPT.dedupeHolder.statement);
+    const holderEmbedded = await embed(SCRIPT.dedupeHolder.statement);
+    const holderEmbedding = holderEmbedded.embedding;
 
     const holder = await propose({
       repoId: options.sessionId,
@@ -467,6 +513,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       statement: SCRIPT.dedupeHolder.statement,
       resourceKeys: [...SCRIPT.dedupeKeys],
       embedding: holderEmbedding,
+      degradedEmbedding: holderEmbedded.degraded,
       ...scope,
     });
     holderIntentId = holder.decision === 'granted' ? holder.intentId : null;
@@ -486,13 +533,15 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       detail: { keys: SCRIPT.dedupeKeys },
     });
 
-    const callerEmbedding = await options.embed(SCRIPT.dedupeCaller.statement);
+    const callerEmbedded = await embed(SCRIPT.dedupeCaller.statement);
+    const callerEmbedding = callerEmbedded.embedding;
     const caller = await propose({
       repoId: options.sessionId,
       agentId: SCRIPT.dedupeCaller.agent,
       statement: SCRIPT.dedupeCaller.statement,
       resourceKeys: [...SCRIPT.dedupeKeys],
       embedding: callerEmbedding,
+      degradedEmbedding: callerEmbedded.degraded,
       ...scope,
     });
     if (caller.decision === 'deduped') duplicateWorkAvoided += 1;
@@ -522,7 +571,8 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     // held key, and `withRetry` turns the first into the second. `07` §3 beat 3 says "in
     // the same instant" and until now that was the one word in the table that was not true.
     const contenders = [SCRIPT.contenderA, SCRIPT.contenderB] as const;
-    const embeddings = await Promise.all(contenders.map((c) => options.embed(c.statement)));
+    const embedded = await Promise.all(contenders.map((c) => embed(c.statement)));
+    const embeddings = embedded.map((e) => e.embedding);
 
     const raced = await Promise.all(
       contenders.map(
@@ -542,6 +592,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
               statement: contender.statement,
               resourceKeys: [...SCRIPT.claimKeys],
               embedding: embeddings[index]!,
+              degradedEmbedding: embedded[index]!.degraded,
               ...scope,
             }),
           );
@@ -616,7 +667,7 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     let completions = 0;
     const outcomes = await Promise.all(
       cast.map((member) =>
-        naiveAgent(options, member.actor, member.keys, () => (completions += 1)),
+        naiveAgent(options, embed, member.actor, member.keys, () => (completions += 1)),
       ),
     );
 
@@ -752,6 +803,23 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
     arm: options.arm,
     sessionId: options.sessionId,
     steps,
+    ...(tally.degraded > 0
+      ? {
+          degraded: {
+            rung: 2 as const,
+            embeddings: tally.degraded,
+            reason:
+              `Bedrock declined ${tally.degraded} embedding ` +
+              `${tally.degraded === 1 ? 'request' : 'requests'}, so ` +
+              `${tally.degraded === 1 ? 'that intent was' : 'those intents were'} written ` +
+              'with a deterministic local vector and dedupe was skipped for ' +
+              `${tally.degraded === 1 ? 'it' : 'them'}. Every row on this page was still ` +
+              'committed by CockroachDB just now — arbitration, claims and the change ' +
+              'stream are unaffected. What is degraded is similarity, and only for the ' +
+              'intents marked below.',
+          },
+        }
+      : {}),
     meter: {
       duplicateWorkAvoided,
       duplicateWorkDone: duplicates.length,

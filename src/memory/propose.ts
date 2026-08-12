@@ -44,6 +44,23 @@ export interface ProposeInput {
   embedding: readonly number[];
   leaseSeconds?: number;
   dedupeThreshold?: number;
+  /**
+   * `04` §5 rung 2: this vector is a deterministic local hash, not a Bedrock embedding,
+   * because Bedrock was throttled or unavailable. Two things follow and they are one flag
+   * on purpose — **dedupe is skipped for this intent, and the row is marked.**
+   *
+   * Deliberately not a general `skipDedupe`. Skipping dedupe is skipping the mechanism this
+   * project exists to argue for, so the only way to ask for it is to simultaneously assert
+   * that the embedding is untrustworthy and record that assertion in the database, where
+   * `findDuplicate` and the panel can both see it. A boolean meaning "turn arbitration's
+   * memory half off" would be one careless default away from falsifying the thesis.
+   *
+   * §8 invariant 1 is untouched and the distinction is worth being precise about: the
+   * invariant is that a similarity check and a claim insert never land in *different*
+   * transactions. Not performing a check is not splitting one. What falsifies the thesis is
+   * a dedupe that happened somewhere else, not a dedupe that honestly did not happen.
+   */
+  degradedEmbedding?: boolean;
   /** Omit for claims with no `glob:` keys; a glob without a resolver is an error. */
   resolveGlob?: GlobResolver;
   /**
@@ -117,10 +134,17 @@ async function findDuplicate(
   threshold: number,
 ): Promise<ProposeResult | null> {
   const { rows } = await client.query(
+    // `NOT embedding_degraded` is `04` §5 rung 2's other half, and it is the half that is
+    // easy to leave out. A row written while Bedrock was down carries a hash, which sits at
+    // an arbitrary distance from every real embedding — so leaving it in the candidate set
+    // would not merely fail to help, it would corrupt every dedupe decision taken after it,
+    // indefinitely, long after Bedrock came back. Degrading has to be temporary in its
+    // effects as well as in its cause.
     `SELECT id, agent_id, status, outcome, embedding <=> $2 AS dist
        FROM intents
       WHERE repo_id = $1
         AND status IN ('in_flight', 'done')
+        AND NOT embedding_degraded
       ORDER BY embedding <=> $2
       LIMIT 5`,
     [repoId, vector],
@@ -181,6 +205,7 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
     embedding,
     leaseSeconds = 600,
     dedupeThreshold = DEFAULT_DEDUPE_THRESHOLD,
+    degradedEmbedding = false,
     resolveGlob = () => {
       throw new Error('a glob: key was requested but no resolveGlob was supplied');
     },
@@ -197,14 +222,20 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
 
   try {
     return await withRetry(async (client) => {
-      const duplicate = await findDuplicate(client, repoId, vector, dedupeThreshold);
-      if (duplicate) throw new Decided(duplicate);
+      // Not a threshold of zero. That would leave the search in the transcript, telling a
+      // judge reading `05` §5's show-SQL panel that a dedupe happened when §5's rung 2 says
+      // it was skipped — the panel exists to be the one thing that cannot lie.
+      if (!degradedEmbedding) {
+        const duplicate = await findDuplicate(client, repoId, vector, dedupeThreshold);
+        if (duplicate) throw new Decided(duplicate);
+      }
 
       const { rows: intentRows } = await client.query(
-        `INSERT INTO intents (repo_id, agent_id, statement, resource_keys, embedding, status)
-         VALUES ($1, $2, $3, $4::STRING[], $5, 'in_flight')
+        `INSERT INTO intents
+           (repo_id, agent_id, statement, resource_keys, embedding, status, embedding_degraded)
+         VALUES ($1, $2, $3, $4::STRING[], $5, 'in_flight', $6)
          RETURNING id`,
-        [repoId, agentId, statement, keys, vector],
+        [repoId, agentId, statement, keys, vector, degradedEmbedding],
       );
       const intentId = (intentRows[0] as { id: string }).id;
 

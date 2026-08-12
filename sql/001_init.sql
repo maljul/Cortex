@@ -105,6 +105,22 @@ CREATE TABLE IF NOT EXISTS intents (
   CHECK (status IN ('proposed', 'in_flight', 'done', 'abandoned', 'deduped'))
 );
 
+-- spec/04-ARCHITECTURE.md section 5's rung 2: "deterministic local hash embedding, intent
+-- marked `degraded`, dedupe skipped for that intent". This is the mark (U17).
+--
+-- NOT a status. The five values above are a lifecycle and an intent written while Bedrock
+-- was throttled is `in_flight` like any other; what is different is that its vector is a
+-- hash, which is a fact about the embedding column and belongs beside it.
+--
+-- It has to be a column rather than a field on the run's response, for a reason that is not
+-- about the interface: a hash vector sits at an arbitrary distance from every real
+-- embedding, so leaving it in the candidate set corrupts every dedupe decision taken after
+-- it — permanently, long after Bedrock came back. src/memory/propose.ts excludes marked rows
+-- from findDuplicate, and it cannot do that against a flag that lived in a response body.
+--
+-- ADD COLUMN IF NOT EXISTS, like repos.demo_expires_at, so U1's idempotence survives.
+ALTER TABLE intents ADD COLUMN IF NOT EXISTS embedding_degraded BOOL NOT NULL DEFAULT false;
+
 -- ---------------------------------------------------------------------
 -- SEMANTIC MEMORY
 -- Never expires. Confidence decays instead, via consolidation.

@@ -104,11 +104,29 @@ What does not belong in a unit list, and so lives here:
   constant — `test/retry.test.ts` asserts against `BASE_DELAY_MS` rather than literals and
   needed no edit. The cap stays at five: raising it would contradict §5. `replanOnce` stays
   too; it is §5's own instruction, not a workaround for it.
-- **LIVE reasoning is not built and is blocked on two decisions.** `04` §5 brake 2's global
-  run counter has nowhere to live but a **new table**, and `03` §2's six are the memory
-  model — that is a stop-and-ask. And the actual Bedrock rate for Sonnet 4.5 is **TBD**: two
-  fetches of AWS's pricing page did not return it, and this repository does not write
-  placeholder numbers. Do not enable LIVE until both are closed.
+- **LIVE reasoning is still not built, but both things that blocked it are now closed
+  (U17, V36, 2026-08-12).** `04` §5 brake 2's global run counter is built on a **seventh
+  table**, `live_run_budget` — Julian's call, reasoning in `docs/DECISIONS.md`. It carries
+  no `repo_id` because §5's counter is global, and that exemption from invariant 5 is
+  asserted against `information_schema` so it cannot widen. `cortex_demo` reaches today's
+  row and no other day, and holds no DELETE.
+  **The cap is `LIVE_RUNS_PER_DAY = 10`, not §5's 40**, because the Bedrock rate is now
+  measured: **$3.30 per 1M input, $16.50 per 1M output**, taken from this account's own
+  billing after AWS's pricing page failed twice (V30) and its **Price List API turned out
+  not to carry Sonnet 4.5 at all**. At that rate §5's own default costs $19–36 through
+  2026-09-15 against §5's own "single-digit dollars" — the deviation is in
+  `docs/SPEC-DELTA.md`. **Cost Explorer bills it under `Claude Sonnet 4.5 (Amazon Bedrock
+  Edition)`, a service distinct from `Amazon Bedrock`** — so brake 3's Budget must filter on
+  that name or it will watch a meter carrying only the Titan line and never fire.
+- **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
+  Bedrock yields a deterministic local vector, the intent is marked
+  (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is
+  **skipped rather than run with a threshold of zero**, because the show-SQL panel would
+  otherwise show a search that §5 says did not happen. `findDuplicate` carries
+  `AND NOT embedding_degraded`: a hash vector left in the candidate set corrupts every later
+  dedupe decision, long after Bedrock recovers. Forced first because §5 names this the rung
+  most likely to fire unnoticed — it is reachable in REPLAY, which caches reasoning but not
+  embeddings.
 - **Changefeed delivery is proven end to end, not just entitled (V26).** `npm run
   gate:stream` takes a session anonymously from the hosted API, writes one row as
   `cortex_demo`, and receives it back over the WebSocket in ~126ms. V25 established the
@@ -152,11 +170,12 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 266/266 across 22 files, 482s against the real
-  cluster (2026-08-12, V34)** — 170 after U15 (down from 174 because 13 blanket demo
+  the weaker "no privilege at all". **Suite 297/297 across 24 files, 582s against the real
+  cluster (2026-08-12, V37)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
-  took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, and V34's skill
-  threshold assertion to 266.
+  took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
+  threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
+  refusals to 278, and `test/degraded-embedding.test.ts` to 297.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the
@@ -269,7 +288,8 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
-`npm run gate:consolidate` (hosted) · `npm run changefeed status|create|cancel` ·
+`npm run gate:consolidate` (hosted) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
+`npm run changefeed status|create|cancel` ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +
 cluster `<=>`; republishes the recall threshold table).
 
