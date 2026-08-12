@@ -843,3 +843,78 @@ has no primary key and nothing may imply it does.
 
 This needs U22's async run: a ten-task two-arm run will not fit inside API Gateway's
 integration ceiling, so `POST /demo/run` returns a run id and the work streams.
+
+---
+
+## U21 — the agents build a working app, and the demo runs both versions side by side
+
+**2026-08-13. Julian's call:** the tasks should be more complex, the agents should produce
+something visible — a small app — and the comparison should be visible *in* the app, showing
+the difference in journey and in results, with numbers.
+
+### What changes
+
+The agents stop patching library files nobody runs and start building a **small orders
+dashboard that renders in a browser**. The demo page shows **both final apps side by side, live
+in iframes**, plus the live agent journey and the meter.
+
+The argument stops being *"this diff is missing a hunk"* and becomes *"this one lets you order
+999 items when 3 are in stock, and this one refuses."* Same evidence; no code-reading required.
+
+### Why the domain stays orders
+
+Everything measurable about this cut is tied to the statements. V38 measured 253 pairwise Titan
+distances to choose the eleven tickets — the two dedupe pairs at 0.0610 and 0.2058, the recall
+pair at 0.4293 sitting precisely between the dedupe and recall thresholds, the seed at 0.7372
+from its nearest neighbour. **Changing the domain voids all of it.** An orders dashboard keeps
+every statement usable as written, so the measurements stand and only the patch bodies change.
+
+### The ticket → visible feature mapping is the design
+
+| Ticket | Feature a judge can see | What its loss looks like |
+| --- | --- | --- |
+| C1 pagination | the order list has a pager | the list dumps every row |
+| C2 status history | order detail shows a timeline | the panel is empty |
+| C3 stock check | the form refuses an oversell | you can order 999 of 3 |
+| P6a/P6b confirmation | one "confirmation sent" banner | naive renders it **twice**, from two files |
+| I3 minor units | prices read `£12.34` | `12.340000000000002` on screen |
+| R3 shipping quote | the quote line is right | it is not |
+
+C1, C2 and C3 all edit the **same file** and are **three separate, non-conflicting features** —
+exactly the structure already built and tested for `orders/repository.ts`. That is what makes
+the naive lane lose two of three without a merge conflict anywhere in sight.
+
+### What this does not cost
+
+**The patch machinery transfers unchanged.** `src/demo/patches.ts`, the anchored-replacement
+model, `bench/demo-workload.ts`'s shape and `test/patches.test.ts`'s structure are all corpus
+-agnostic. Only the corpus and the patch bodies are new work.
+
+**The benchmark is untouched.** `bench/fixtures/` and `bench/tasks.json` stay exactly as they
+are, so `08` §4's passed gate and the committed results are unaffected. The demo app is a new,
+demo-owned corpus under `bench/demo-app/`.
+
+### The honesty requirement, and it is the sharp edge of this idea
+
+A broken app invites the reading *"you just wrote a broken app."* So every missing feature must
+be **attributable on screen**: the agent that reported it done, its intent id, its patch, and
+the file where the change is not. Without that link the naive lane is an assertion rather than
+evidence, and rule A7 is not satisfied by a page that is merely correct.
+
+### Rejected
+
+**A richer or unfamiliar app** — a chat client, a game, anything outside the orders domain. It
+would read better as a product and it would throw away every measured distance in V38 four days
+before ship.
+
+**Screenshots of the two apps instead of live iframes.** Cheaper and safer to render, and it
+converts the strongest thing on the page into a picture of itself. `srcdoc` needs no network,
+so live costs nothing extra.
+
+### The risk, and the fallback
+
+This materially grows U21 with four days left. Design decision 13 already names the SPA as the
+cut line and decision 7 keeps the current deployed page serving throughout, so the downside is
+bounded. **If the app corpus is not ready, the existing TypeScript fixtures still work and the
+demo shows diffs rather than running apps** — everything built so far stands, and only the last
+presentation step is lost.

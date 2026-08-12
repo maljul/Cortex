@@ -824,7 +824,37 @@ the statements when they are written into code:
   as a task pair.
 - The seed statement is **0.7372** from its nearest cut member and carries forward unchanged.
 - 6/6 declared pairs fire; **0 undeclared collisions** across all 253 measured pairs.
-**The agents produce real code, and the code is committed (Julian, 2026-08-13).** This is the
+**The agents build a working app, and both versions run side by side on the page (Julian,
+2026-08-13).** The tasks become real features rather than library edits, the agents' output is
+a **small orders dashboard that renders in a browser**, and the demo shows **both final apps
+live in iframes** next to the journey and the meter. Reasoning in `docs/DECISIONS.md`.
+
+The corpus is new and demo-owned: **`bench/demo-app/`**, roughly six files. `bench/fixtures/`
+and `bench/tasks.json` are untouched, so `08` §4's passed gate is unaffected.
+
+**The domain stays orders, and that is not aesthetic.** V38 measured 253 pairwise Titan
+distances to pick these eleven tickets. Changing the domain voids every one of them. An orders
+dashboard keeps each statement usable as written, so only the patch bodies are new work.
+
+**The ticket → visible feature map is the design.** C1 → a pager on the list; C2 → a status
+timeline in order detail; C3 → the form refusing an oversell; P6a/P6b → one confirmation
+banner, which the naive lane renders **twice** from two files; I3 → prices as `£12.34` rather
+than `12.340000000000002`. C1, C2 and C3 all edit the **same file** as three non-conflicting
+features, which is the structure already built and tested against `orders/repository.ts`.
+
+**The patch machinery transfers unchanged** — `src/demo/patches.ts`, `bench/demo-workload.ts`'s
+shape and `test/patches.test.ts` are all corpus-agnostic.
+
+**Third silent break, and it is the sharp edge:** a broken app reads as *"they wrote a broken
+app"* unless every missing feature is **attributable on screen** — the agent that reported it
+done, its intent id, its patch, and the file where the change is not. Without that link the
+naive lane is an assertion rather than evidence, and A7 is not satisfied by a page that is
+merely correct.
+
+**Fallback if the corpus is not ready:** the existing TypeScript fixtures still work and the
+demo shows diffs instead of running apps. Nothing built is lost.
+
+**The patches are committed, not model-authored (Julian, 2026-08-13).** This is the
 unit's biggest change since it was written, and it came from the right question — the deployed
 page could only show verdicts and counters, because `bench/types.ts` defines an agent's output
 as `Effect { file, startLine, endLine }`, **line numbers with no code**, and nothing anywhere
@@ -940,6 +970,10 @@ Bedrock Edition)`, a separate service; `Amazon Bedrock` carries only the Titan e
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(design §11, verbatim — the same sentence U16 was held to)*
 **Specs:** `07` §2, `07` §3, `02` §B
+**Now also renders both apps.** Two iframes fed by `srcdoc` from the two final file trees —
+no network, so nothing to fail — with each missing feature linked to the agent that reported it
+done. That link is what makes the naive app evidence rather than an assertion.
+
 **If time runs out, this is what gets cut** (design §11). The current page then renders the new
 run through its existing three panels: uglier, real, already gate-passed, and nothing built is
 lost. Design decision 13: the runner is the evidence, the page is the presentation.
