@@ -156,6 +156,27 @@ describe('the reader plane reads and cannot write (`04` §3)', () => {
       );
     }
   });
+
+  /**
+   * `live_run_budget` is deliberately outside `TABLES` above, because it is not memory —
+   * it is `04` §5 brake 2's cost control (U17). The read plane is the agents' recall path
+   * and nothing on it reads the budget, so it is not granted there. Asserted rather than
+   * left to the absence of a GRANT line: "we did not grant it" and "the cluster refuses
+   * it" are different claims, and V9 is the whole reason this file prefers the second.
+   */
+  it('cannot even SELECT the cost-control table — it is not memory', async () => {
+    const result = await attempt(
+      dsn('CORTEX_READER_DSN'),
+      'SELECT count(*) FROM live_run_budget',
+      false,
+    );
+    expect(result.allowed, 'the read plane reached the LIVE budget, which it has no use for').toBe(
+      false,
+    );
+    expect(result.code, `refused for the wrong reason: ${result.message}`).toBe(
+      INSUFFICIENT_PRIVILEGE,
+    );
+  });
 });
 
 /**
@@ -448,5 +469,59 @@ describe('`03` §8 test 9 — cortex_demo is confined to a live demo session sco
       ]);
       expect(rows, 'an expired demo session can still read its own rows').toEqual([]);
     });
+  }, 60_000);
+
+  /**
+   * The one row outside a session scope that `cortex_demo` may touch, and the boundary
+   * drawn round it — `04` §5 brake 2's counter (U17).
+   *
+   * It is a real exception to everything above: the budget is global, so its policy is
+   * `day = current_date` and not `is_current_demo_scope(...)`. The exception is only
+   * defensible while it is one row wide, so that is what is asserted. An earlier day must
+   * be invisible, unwritable and unremovable — otherwise a compromised demo path could
+   * rewrite history or, worse, delete today's row and reset the brake that governs it.
+   */
+  it('reaches today’s LIVE budget row and no other day', async () => {
+    const admin = new Client({ connectionString: dsn('CORTEX_DSN'), connectionTimeoutMillis: 10_000 });
+    await admin.connect();
+    try {
+      await admin.query(
+        `INSERT INTO live_run_budget (day, runs_used) VALUES (current_date - INTERVAL '1 day', 7)
+         ON CONFLICT (day) DO UPDATE SET runs_used = 7`,
+      );
+
+      await asSession(scopes.sessionA, async (client) => {
+        const { rows } = await client.query<{ day: string }>('SELECT day FROM live_run_budget');
+        expect(rows.length, 'the demo principal can read a day that is not today').toBeLessThan(2);
+
+        const past = await tryStatement(
+          client,
+          `INSERT INTO live_run_budget (day, runs_used) VALUES (current_date - INTERVAL '2 days', 99)`,
+        );
+        expect(past.allowed, 'the demo principal wrote a budget row for another day').toBe(false);
+        expect(past.code, `refused for the wrong reason: ${past.message}`).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+
+        const rewritten = await tryStatement(
+          client,
+          'UPDATE live_run_budget SET runs_used = 0 WHERE day < current_date',
+        );
+        expect(rewritten.rowCount, 'the demo principal rewrote an earlier day’s spend').toBe(0);
+
+        // No DELETE grant at all: a principal that can drop today's row can reset the
+        // brake that governs it, which would make the cap advisory rather than a cap.
+        const wiped = await tryStatement(client, 'DELETE FROM live_run_budget');
+        expect(wiped.allowed, 'the demo principal can delete the budget that governs it').toBe(
+          false,
+        );
+        expect(wiped.code, `refused for the wrong reason: ${wiped.message}`).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+      });
+    } finally {
+      await admin.query(`DELETE FROM live_run_budget WHERE day < current_date`);
+      await admin.end();
+    }
   }, 60_000);
 });

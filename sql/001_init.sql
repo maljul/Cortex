@@ -141,6 +141,34 @@ CREATE TABLE IF NOT EXISTS action_ledger (
 );
 
 -- ---------------------------------------------------------------------
+-- COST CONTROL — spec/04-ARCHITECTURE.md section 5, brake 2.
+--
+-- NOT a memory tier, and the only table in this file that is not. section 2 defines six
+-- tables and they are the memory model; this is a seventh, added deliberately in U17 with
+-- Julian's decision on 2026-08-12 rather than assumed, because section 5 requires "a run
+-- counter in CockroachDB, default 40 LIVE runs per day globally" and there is nowhere in
+-- the memory model for a global counter to live.
+--
+-- Global is the operative word, and it is why this table has no repo_id. Invariant 5 —
+-- every read carries WHERE repo_id — exists to stop one tenant's memory reaching another
+-- through a forgotten filter. There is no tenant here to leak: the table holds a date and
+-- a count and nothing else, which test/live-budget.test.ts asserts against
+-- information_schema so that the exemption cannot quietly widen when someone adds a
+-- column. A per-tenant counter would also not be the brake section 5 specifies — every
+-- anonymous visitor mints a fresh scope, so a per-scope cap would cap nothing.
+--
+-- No TTL. One row per day is the record of what was spent, 365 rows a year is nothing,
+-- and section 5's brake is worth more with its history intact than reclaimed.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS live_run_budget (
+  day        DATE PRIMARY KEY DEFAULT current_date,
+  runs_used  INT8 NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (runs_used >= 0)
+);
+
+-- ---------------------------------------------------------------------
 -- Privilege planes. Create the service accounts in the Cloud Console first,
 -- then run these grants. The reader must never gain a write verb.
 -- ---------------------------------------------------------------------
@@ -151,6 +179,17 @@ GRANT SELECT ON TABLE repos, agents, claims, intents, findings, action_ledger
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON TABLE repos, agents, claims, intents, findings, action_ledger
   TO cortex_writer;
+
+-- live_run_budget is deliberately absent from the reader grant above. The read plane is
+-- the agents' recall path and the budget is not memory; nothing on that plane reads it,
+-- so it is not granted. test/privilege-planes.test.ts asserts the refusal, because "we
+-- did not grant it" and "it is refused" are different claims and only one is checkable.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE live_run_budget TO cortex_writer;
+
+-- The demo plane may spend the budget and may not erase it. No DELETE, on purpose: a
+-- principal that can delete today's row can reset the brake that governs it, which makes
+-- the cap advisory. UPDATE is confined to today by the policy further down.
+GRANT SELECT, INSERT, UPDATE ON TABLE live_run_budget TO cortex_demo;
 
 -- ---------------------------------------------------------------------
 -- The demo plane: table grants, then row-level security to take most of them back.
@@ -193,6 +232,8 @@ ALTER TABLE findings      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE findings      FORCE  ROW LEVEL SECURITY;
 ALTER TABLE action_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_ledger FORCE  ROW LEVEL SECURITY;
+ALTER TABLE live_run_budget ENABLE ROW LEVEL SECURITY;
+ALTER TABLE live_run_budget FORCE  ROW LEVEL SECURITY;
 
 -- DROP-then-CREATE on every policy below, not CREATE ... IF NOT EXISTS. IF NOT EXISTS
 -- silently skips when a policy of that name already exists, so editing a predicate here
@@ -321,6 +362,28 @@ DROP POLICY IF EXISTS demo_scope ON action_ledger;
 CREATE POLICY demo_scope ON action_ledger FOR ALL TO cortex_demo
   USING      (is_current_demo_scope(repo_id))
   WITH CHECK (is_current_demo_scope(repo_id));
+
+-- The cost-control table. Its policy is the one narrow exception to everything above:
+-- cortex_demo reaches a row that is not in a demo session scope, because section 5's
+-- counter is global and a per-session counter would cap nothing.
+--
+-- The exception is bounded to one row — today's. The principal cannot read what earlier
+-- days spent, cannot rewrite them, and (having no DELETE grant) cannot remove any of it.
+-- So the widest thing a compromised demo path can do here is spend today's budget, which
+-- is the budget it was already authorised to spend, and the failure resolves to REPLAY
+-- rather than to an error page or to a bill.
+--
+-- Bare `current_date` rather than a function call: verified against this cluster before
+-- being written here. Policy expressions on this cluster cannot contain a subquery (see
+-- is_current_demo_scope above), but a built-in like this one parses and evaluates fine.
+DROP POLICY IF EXISTS writer_all ON live_run_budget;
+CREATE POLICY writer_all ON live_run_budget FOR ALL TO cortex_writer
+  USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS demo_today ON live_run_budget;
+CREATE POLICY demo_today ON live_run_budget FOR ALL TO cortex_demo
+  USING      (day = current_date)
+  WITH CHECK (day = current_date);
 
 -- Do NOT verify any of the above with SHOW GRANTS or SHOW POLICIES. The guard is
 -- test/privilege-planes.test.ts, which attempts every statement and requires the

@@ -268,6 +268,51 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
+### `04` §5's default of 40 LIVE runs a day breaks `04` §5's own budget *(2026-08-12, U17)*
+
+§5 sets the target — "single-digit dollars for the whole hackathon and judging period" — and
+then names brake 2's default in the same section: "a run counter in CockroachDB, default 40
+LIVE runs per day globally". Those two numbers had never been held against each other, because
+the per-token rate they depend on was TBD until this unit.
+
+At the rate measured from this account's own billing (V36) — **$3.30 per 1M input tokens,
+$16.50 per 1M output**, the `Claude Sonnet 4.5 (Amazon Bedrock Edition)` service — and the token
+volumes in the committed cassettes, a five-agent run costs $0.0142 typically and $0.0268 at the
+observed maximum:
+
+```
+        per run   40/day     to 2026-09-15 (34 days)
+mean    $0.0142   $0.5684    $19.33
+max     $0.0268   $1.0705    $36.40
+```
+
+Neither column is single-digit dollars. **`LIVE_RUNS_PER_DAY` ships at 10**, which is
+$4.83–9.10 over the same window and the largest round cap that fits. Julian's call on
+2026-08-12; reasoning in `docs/DECISIONS.md`.
+
+**This is a deviation from a published number, not a discovered error in reasoning** — §5 is
+internally inconsistent rather than wrong about anything external, and it could not have been
+caught before the rate existed. It closes when §5's default is corrected to a figure its own
+budget affords, or when its budget is restated.
+
+**One thing §5 gets right that is easy to lose:** the cap is not a floor. Reaching it degrades
+to REPLAY, which is fully live database behaviour, so the demo stays a working project under
+rule B4 at any level of exhaustion.
+
+### `04` §5 brake 3's Budget alarm cannot filter on the service §5 implies *(2026-08-12, U17)*
+
+§5 requires "an AWS Budget alarm with an action that disables the LIVE function above a low
+double-digit threshold". The obvious construction filters the budget on the `Amazon Bedrock`
+service — and it would never fire, however much the demo reasons.
+
+Cost Explorer bills Anthropic models on this account under **`Claude Sonnet 4.5 (Amazon Bedrock
+Edition)`, a top-level SERVICE distinct from `Amazon Bedrock`**, with `USE1-MP:` Marketplace
+usage types. `Amazon Bedrock` on the same days carries only the Titan embedding line. A budget
+scoped the natural way would watch the wrong meter and report zero while the metered spend ran.
+
+Recorded here rather than fixed silently because §5's wording is what invites the mistake.
+Whatever brake 3 ends up as, its filter is named by this entry.
+
 ## Corrected in the spec already — do not re-open
 
 ### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*

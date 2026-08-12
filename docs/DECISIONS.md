@@ -642,3 +642,81 @@ down. That is stated in the published sweep, not only here.
    changefeed — so recall returns 0 rows at any distance. The published limitation used to say
    the cause was that consolidation is "not built"; V27 built it. The cause is a harness
    boundary, and it was never the threshold. Results were republished with the corrected text.
+
+---
+
+## U17 — `04` §5 brake 2 gets a seventh table, and the LIVE cap ships at 10 rather than 40
+
+**2026-08-12. Julian's calls, both taken with the measurement in front of him.**
+
+`04` §5 requires "a run counter in CockroachDB, default 40 LIVE runs per day globally". Two
+things had to be decided before a line of it could be written, and both were flagged as
+stop-and-ask by U16b and by `CLAUDE.md` rather than taken inside a unit.
+
+### Where the counter lives: a new table, `live_run_budget`
+
+`03` §2's six tables are the memory model, so a seventh is a schema decision and not a
+detail. Three options were put up.
+
+**Chosen: a new table with its own narrow policy.** It is the only one of the three that can
+hold a *global* counter — and global is the operative word, because every anonymous visitor
+mints a fresh session scope, so a per-scope counter would cap nothing at all. A scripted
+visitor would simply ask for another session.
+
+**Rejected: a singleton row on `repos`.** No new table, but `repos`' policy is the one every
+other table's `is_current_demo_scope()` depends on, and exposing a non-demo row through it
+widens the blast radius of U15's entire confinement to save one `CREATE TABLE`.
+
+**Rejected: DynamoDB**, where the connection registry already lives. It needs no schema
+change at all, and it is wrong on three counts: `04` §5 says "in CockroachDB"; it cannot be
+read in the same transaction as anything else, so the cap becomes advisory; and it moves a
+load-bearing mechanism out of the database this submission's whole argument is about.
+
+**The exception this creates, stated plainly.** `cortex_demo` now reaches one row that is not
+in a demo session scope. It is bounded to *today's* row by the policy `day = current_date`,
+and there is no DELETE grant — a principal that can drop today's row can reset the brake that
+governs it. Earlier days are invisible, unwritable and unremovable, and
+`test/privilege-planes.test.ts` attempts all three rather than trusting the grant list.
+
+Invariant 5 is the other thing this table sits outside, and it is the reason the table holds a
+date and a count and nothing else. The invariant protects tenant memory from a forgotten
+filter; there is no tenant here to leak. That is a claim about the schema, so
+`test/live-budget.test.ts` asks `information_schema` — if a later unit adds a per-session
+column, the exemption fails loudly instead of quietly widening.
+
+### The cap: 10 a day, not §5's 40
+
+§5's own budget for the project is "single-digit dollars for the whole hackathon and judging
+period", and until this unit nobody could hold the two numbers against each other, because the
+Bedrock rate for Sonnet 4.5 was TBD. It is no longer. **See V36 for how it was obtained** —
+briefly: AWS's pricing page failed twice (V30), the machine-readable Price List API does not
+carry the model at all, and the number came from this account's own billing records, where
+`Claude Sonnet 4.5 (Amazon Bedrock Edition)` is a **service of its own**, separate from
+`Amazon Bedrock`, at **$3.30 per 1M input tokens and $16.50 per 1M output**.
+
+Against the committed cassettes (30 calls; input 320/500/1067, output 59/72/111), a five-agent
+run costs $0.0142 typically and $0.0268 at the observed maximum. So §5's 40 runs a day is
+$0.57–1.07 a day and **$19–36 through 2026-09-15** — §5's stated default breaks §5's stated
+budget. Ten a day is $4.83–9.10 over the same window: the largest round cap whose worst case
+stays single digit.
+
+**What was rejected:** shipping 40 and recording the tension. Credits currently absorb the
+whole bill — the usage line and an offsetting credit line are equal and opposite today — so
+the real exposure is $0 and 40 would cost nothing *this week*. It was rejected because the
+demo has to stay up until 2026-09-15 and "the credits will hold" is not something this
+repository can assert. The deviation from §5's published 40 is in `docs/SPEC-DELTA.md`.
+
+There is deliberately **no environment variable** for the cap, for the reason `05` §6 removed
+`CORTEX_DEDUPE_THRESHOLD`: a deployment running a number the published evidence does not
+describe has un-closed the decision without a commit.
+
+### A slot is spent when it is granted, not when the run succeeds
+
+`docs/UNITS.md` asked for the counter to be checked and incremented "in the same transaction
+as the run it authorises". There is no such transaction: a demo run is deliberately many
+transactions and several of them are concurrent with each other (`07` §3 beat 3 is a real race
+between two). What that clause protects is the race between two visitors, and that is closed.
+
+The consequence is that a run which dies after taking its slot has still spent it. That is the
+safe direction and it is chosen: the other ordering lets a failing run spend Bedrock tokens and
+then hand the slot back, which is the shape of a cap that can be exceeded by failing.

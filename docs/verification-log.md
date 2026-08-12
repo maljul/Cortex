@@ -3325,3 +3325,153 @@ scenario immediately, with `window.onerror` and `unhandledrejection` both silent
 **What is still open.** This was a *driven* read by someone who had already read the code. `08`
 §5's done-when is "the four beats read clearly to someone who has not seen it", and that reader
 is still Julian. U16 stays open on it.
+
+---
+
+## V36 — The Bedrock rate for Sonnet 4.5, and `04` §5 brake 2 built on a seventh table
+
+**2026-08-12, U17.** Two blockers stood in front of this unit. One is closed by measurement
+below; the other was Julian's decision and is in `docs/DECISIONS.md`.
+
+### The rate was TBD through three sources and is now measured from the fourth
+
+V30 recorded two failed fetches of AWS's pricing page. Two further sources were tried here.
+
+**AWS's machine-readable Price List API does not carry the model.** Anthropic is a listed
+provider for `AmazonBedrock` in `us-east-1`, but its Claude catalogue stops at Claude 3:
+
+```
+$ aws pricing get-attribute-values --region us-east-1 \
+    --service-code AmazonBedrock --attribute-name model | grep -i claude
+ATTRIBUTEVALUES	Claude 2.0
+ATTRIBUTEVALUES	Claude 2.1
+ATTRIBUTEVALUES	Claude 3 Haiku
+ATTRIBUTEVALUES	Claude 3 Sonnet
+ATTRIBUTEVALUES	Claude Instant
+```
+
+The full us-east-1 price list (1,157,579 bytes, 77 distinct models including GLM 5, Nova 2.0
+Pro and Qwen3 Coder Next) contains no Sonnet 4.5 entry of any kind. It is not a staleness
+problem — recent models are there. Anthropic's newer models are simply not in this catalogue.
+
+**They are in the account's own billing, under a service name that is the finding.** Cost
+Explorer carries `Claude Sonnet 4.5 (Amazon Bedrock Edition)` as a **top-level SERVICE**,
+separate from `Amazon Bedrock`:
+
+```
+$ aws ce get-cost-and-usage --time-period Start=2026-08-09,End=2026-08-13 \
+    --granularity DAILY --metrics UsageQuantity --group-by Type=DIMENSION,Key=SERVICE
+2026-08-09 ['AWS Glue', 'Amazon Bedrock', 'Claude Haiku 4.5 (Amazon Bedrock Edition)', 'Claude Sonnet 4.5 (Amazon Bedrock Edition)', 'Tax']
+2026-08-10 ['AWS CloudFormation', 'AWS Glue', 'AWS Key Management Service', 'AWS Lambda', 'AWS Secrets Manager', 'Amazon API Gateway', 'Amazon Bedrock', 'Amazon CloudFront', 'Amazon Simple Storage Service', 'AmazonCloudWatch', 'Claude Sonnet 4.5 (Amazon Bedrock Edition)']
+2026-08-11 ['AWS CloudFormation', 'AWS Glue', 'AWS Key Management Service', 'AWS Lambda', 'AWS Secrets Manager', 'Amazon API Gateway', 'Amazon Bedrock', 'Amazon CloudFront', 'Amazon DynamoDB', 'Amazon Simple Storage Service', 'AmazonCloudWatch']
+2026-08-12 ['AWS Secrets Manager', 'Amazon Simple Storage Service', 'AmazonCloudWatch']
+```
+
+The first read showed `UnblendedCost` of exactly `0` against real usage, which is a credit and
+not a free tier — grouping by `RECORD_TYPE` shows the two lines equal and opposite:
+
+```
+Credit {'AmortizedCost': '-0.0922119 USD', 'BlendedCost': '-0.0922119 USD', 'NetUnblendedCost': '-0.0922119 USD', 'UnblendedCost': '-0.0922119 USD'}
+Usage  {'AmortizedCost': '0.0922119 USD',  'BlendedCost': '0.0922119 USD',  'NetUnblendedCost': '0.0922119 USD',  'UnblendedCost': '0.0922119 USD'}
+```
+
+Filtering to `RECORD_TYPE = Usage` and grouping by usage type gives the rate this account is
+charged, divided out of its own invoice data — the usage is V18's `npm run probe:reason` calls:
+
+```
+USE1-MP:USE1_InputTokenCount-Units  qty=0.015993 1M tokens cost=0.0527769 USD rate=3.3000 USD per 1M tokens
+USE1-MP:USE1_OutputTokenCount-Units qty=0.002390 1M tokens cost=0.0394350 USD rate=16.5000 USD per 1M tokens
+```
+
+**$3.30 per 1M input, $16.50 per 1M output.** The `USE1-MP:` prefix is a Marketplace usage
+type and the figure is 1.10x the familiar $3.00/$15.00, which is consistent with the
+"(Amazon Bedrock Edition)" listing. **The TBD is closed.**
+
+Two consequences, both recorded in `docs/SPEC-DELTA.md`:
+
+1. `04` §5's default of 40 LIVE runs a day costs $19–36 through 2026-09-15 against §5's own
+   "single-digit dollars" target. The cap ships at **10**.
+2. **Brake 3 must not filter on the `Amazon Bedrock` service.** A budget scoped the natural
+   way would watch a meter that carries only the Titan embedding line and would never fire.
+
+The token volumes are the committed cassettes', not an estimate:
+
+```
+$ python3 -c "... bench/cassettes/reason/*.json ..."
+n=30  input min/mean/max 320/500/1067  output min/mean/max 59/72/111
+mean per call $0.002842 | 5 agents/run $0.01421 | 40 runs/day $0.5684 | 34 days $19.33
+max  per call $0.005353 | 5 agents/run $0.02676 | 40 runs/day $1.0705 | 34 days $36.40
+```
+
+### The table and its policy were attempted against the cluster before being written
+
+Per the rule that a catalogue listing is not an entitlement. A scratch table was created,
+FORCEd, policied and driven as `cortex_demo`:
+
+```
+create scratch -> "ok"
+current_date bare -> {"d":"2026-08-11T22:00:00.000Z"}
+enable + force rls -> "ok"
+policy with bare current_date -> "ok"
+grants -> "ok"
+demo whoami -> {"who":"cortex_demo"}
+demo upsert cap=3 attempt 1 -> {"rowCount":1,"rows":[{"runs_used":"1"}]}
+demo upsert cap=3 attempt 2 -> {"rowCount":1,"rows":[{"runs_used":"2"}]}
+demo upsert cap=3 attempt 3 -> {"rowCount":1,"rows":[{"runs_used":"3"}]}
+demo upsert cap=3 attempt 4 -> {"rowCount":0,"rows":[]}
+demo select today -> [{"day":"2026-08-11T22:00:00.000Z","runs_used":"3"}]
+demo insert yesterday (must refuse) -> ERROR 42501 new row violates row-level security policy for table "probe_budget"
+admin insert yesterday -> 1
+demo select all (must show only today) -> [{"day":"2026-08-11T22:00:00.000Z","runs_used":"3"}]
+demo update yesterday (must be 0 rows) -> 0
+demo delete (no grant, must refuse) -> ERROR 42501 user cortex_demo does not have DELETE privilege on relation probe_budget
+```
+
+Bare `current_date` parses in a policy expression on this cluster — unlike a subquery, which
+U15 found refused with 42P01/42703. `ON CONFLICT DO UPDATE ... WHERE ... RETURNING` returning
+**zero rows** is the exhaustion signal, with no second statement to race against.
+
+`sql/001_init.sql` then applied **71/71 twice in a row**, so U1's idempotence survives the
+seventh table, the four new grants, the two new policies and the RLS enable/force pair.
+
+### The mutation was run and it refuted this unit's own explanation
+
+`04` §5's counter was written as one statement on the theory that read-then-write in two
+statements lets two visitors both read 9 and both write 10. **That theory is wrong in this
+codebase, and the mutation is what showed it.** Replacing the single statement with a separate
+read, a branch on the cap, and an unguarded increment left all ten tests passing, including the
+one where ten callers race for three slots:
+
+```
+      Tests  10 passed (10)
+```
+
+`withRetry` runs every caller at SERIALIZABLE, so a concurrent increment invalidates the losing
+transaction's read and the retry loop re-runs it. **The isolation level is the brake**; the
+single statement is one round trip saved, not a race closed. Both the module and the test file
+had their headers corrected — a comment asserting what no test checks is the rule this repo
+already has, and this one was asserting something actively false.
+
+The mutation that *is* load-bearing is deleting `WHERE b.runs_used < $1` from the claim SQL.
+Six of the ten fail:
+
+```
+     × binds the cap and never the day — invariant 7
+     × grants while under the cap and counts each grant
+     × degrades to replay at the cap, and says so plainly rather than failing
+     × states what is still true, per `04` §5 invariant 2
+     × does not spend the counter past its cap however many times it is asked
+     × gives exactly three of ten simultaneous callers a live slot
+```
+
+### Suite
+
+```
+ Test Files  23 passed (23)
+      Tests  278 passed (278)
+   Duration  559.83s
+```
+
+266 → 278 against the real cluster: 10 in `test/live-budget.test.ts` and 2 added to
+`test/privilege-planes.test.ts` — the read plane's refusal on the new table, and the demo
+principal's confinement to today's row. `npx tsc --noEmit` clean.
