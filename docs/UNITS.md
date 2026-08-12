@@ -511,9 +511,15 @@ SQL role per anonymous visitor to be had. What it buys is failing **closed** —
 `cortex.demo_session` set, nothing visible — which is V5's failure mode inverted. Said
 plainly in `04` §3 rather than left for a reader to infer.
 
-### U16 — Demo SPA: three panels, naive toggle, show-SQL 🔶 **built and deployed; reads cold, unconfirmed**
+### U16 — Demo SPA: three panels, naive toggle, show-SQL ✅ 2026-08-12
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(08 §5, 38–44h, verbatim)*
+
+**Closed 2026-08-12 by the only act that could close it: Julian opened the deployed page
+and confirmed the four beats land.** No test and no driven read could substitute — V32 was
+a *driven* read, taken with `docs/UNITS.md` already in hand, so it could confirm the
+mechanics and not the done-when. The done-when says "someone who has not seen it", and that
+sentence is answered by a person or not at all.
 **Specs:** `07` §2, `07` §3, `05` §5
 
 **Done (2026-08-11, V27 + V28) — everything the SPA renders:**
@@ -547,11 +553,9 @@ insert inside one visible `BEGIN` so invariant 1 is legible off the screen; both
 the meter; and invariant 8 holds against the **rendered DOM** — three buttons, zero inputs —
 which is stronger than `test/site.test.ts`'s source scan. No console errors.
 
-**What is left is still the one thing no script can do: read it cold.** V32 was a *driven*
-read — `docs/UNITS.md` had been read first, so the beats were known before the page was
-opened. The done-when is "someone who has not seen it", so it needs a reader who has not.
-**Julian opens it, and says whether the beats land.** Until then this unit is not done, and
-the honest failure mode is a page that is correct and unreadable.
+**The cold read happened and the beats land.** That was the whole of the remainder. The
+honest failure mode this unit carried — a page that is correct and unreadable — did not
+occur, and it could only ever have been ruled out this way.
 
 **Four defects found by looking, none of which a test would have caught — all four now fixed
 and deployed.** (1) Beat 1's `NOTHING KNOWN` carried no explanation in the cortex arm while the

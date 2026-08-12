@@ -71,9 +71,10 @@ What does not belong in a unit list, and so lives here:
   only by having gone to the driver. Since U16b the log is **grouped by transaction**
   (`RecordedStatement.txn`, one per `withRetry` attempt) because concurrent agents interleave
   two `BEGIN`s and a flat list stops showing invariant 1 at all; grouped, each block holds
-  its own dedupe search and its own claim insert. **The SPA is built and deployed**
-  (`infra/site/index.html`, V29); what is unconfirmed is whether it *reads* — see
-  `docs/UNITS.md` U16.
+  its own dedupe search and its own claim insert. **The SPA is built, deployed, and U16 is
+  closed** (`infra/site/index.html`, V29) — Julian read the deployed page cold on
+  2026-08-12 and the four beats land. That was the unit's whole remainder; no test could
+  have answered it.
 - **The demo's agents are genuinely concurrent and every meter figure is measured (U16b, V30).**
   Two things were fabricated before this and both are gone: `meter.duplicateWorkDone += 1`
   and `meter.lostWrites += 1` were unconditional, and the NAIVE arm executed **zero
