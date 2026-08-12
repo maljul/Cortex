@@ -481,7 +481,7 @@ embeds and arbitrates, it does not reason — so there is no token figure this s
 honestly display, and `07` §1 requires every number on screen to be real.
 
 Three options were live: omit the row, show TBD, or quote the benchmark. The row is quoted
-from `bench/results/2026-08-10T22-38-54-176Z` — `wasted_tokens` 4000 naive against 867
+from `bench/results/2026-08-12T18-35-38-014Z` — `wasted_tokens` 4000 naive against 867
 CORTEX — under an explicit "measured in the benchmark over 30 tasks, not in this session"
 label. That number is real, published, and reproducible from a clean clone; what would have
 been dishonest is letting it read as this run's, which the label prevents.
@@ -582,3 +582,63 @@ each is stated relative to the constant, so `test/retry.test.ts` needed no edit 
 is the argument for that test having been written against `BASE_DELAY_MS` rather than against
 literals in the first place. `replanOnce` stays regardless: it is `03` §5's own instruction,
 and it is what keeps an exhausted agent an outcome rather than an exception.
+
+## 2026-08-12 — `03` §4.1's recall threshold closes at `0.60`, chosen from a sweep
+
+`03` §4.1 publishes `WHERE n.dist < 0.35` and `src/memory/recall.ts` shipped it. V28 measured
+that under real Titan embeddings every honest wording of a finding sits 0.38–0.47 from the task
+it describes, so the filter excluded exactly the case recall exists to serve, and the demo's
+beat 1 reported "nothing known" truthfully for two days. `docs/SPEC-DELTA.md` recorded it and
+**declined to patch it**, because moving a mechanism constant so the demo showcasing the
+mechanism looks better is the circularity `06` §3 exists to prevent.
+
+The precedent for closing it was `03` §4.2's dedupe threshold: sweep first, publish the table,
+and let Julian choose with the measurement in front of him. That is what happened here.
+`npm run sweep:recall` and
+`bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md`, V33.
+
+**Why 0.60 and not the smaller number that would also have worked.** Beat 1 fires at anything
+from 0.39 up, because its seeded finding sits 0.3801 from its query. Choosing 0.39 would have
+been choosing the *minimum value that rescues the demo* — the circularity arriving in a
+different coat, and it is also the dedupe constant, which CLAUDE.md already forbids sharing.
+0.60 was chosen by a criterion that is a property of the corpus and would select the same value
+with no demo in existence: **the largest tested threshold that returns nothing irrelevant.**
+Precision 1.000, 6 of 8 queries served where 0.35 served 1. The first false positive is at 0.63.
+
+**The argument that makes this not circular at all** was written down on 2026-08-11, before
+anyone knew beat 1 depended on it. Recall at 0.35 was *tighter* than dedupe at 0.39, and that
+ordering is backwards on the meaning of the two tests: answering yes to dedupe **cancels an
+agent's task**, so a false positive destroys work that needed doing; answering yes to recall
+**adds a line to a context window**, so a false positive costs attention. The test with the
+expensive error must be the strict one. Dedupe tighter, recall looser.
+
+**What was rejected.** Leaving 0.35 and writing disclosure copy on the SPA so the empty recall
+read as a stated limitation rather than a bug. That would have been honest, and it was on the
+table as an explicit option. It was rejected because the ordering above says 0.35 is wrong on
+its own terms — disclosure would have documented a defect instead of fixing one.
+
+**What this decision does not claim.** The sweep's hard negatives did not land close under
+Titan — FI4a, written as the vocabulary trap for "add a retry to the orders client", sits at
+0.6825, further out than a finding that was not designed as a trap at all. So the precision
+column is optimistic and the sweep bounds this constant **from below** rather than proving a
+ceiling. A harder corpus would break precision earlier than 0.63 and this number would come
+down. That is stated in the published sweep, not only here.
+
+**Three consequences worth recording, because two were nearly missed.**
+
+1. **The constant had a second literal.** `bench/arms/shared.ts` defined its own
+   `RECALL_MAX_DISTANCE = 0.35` for the NAIVE arm's local store, while the CORTEX arm inherited
+   `DEFAULT_MAX_DISTANCE` by calling `recall()` with no override. Moving one and not the other
+   would have given one arm a wider memory than the other and called the difference a
+   coordination result — `06` §3's circularity arriving by accident. It is now a re-export, so
+   the two cannot diverge.
+2. **The skill publishes the number and the byte-for-byte pin could not see it.** `$4` is a
+   parameter, so `RECALL_SQL` is identical at every threshold and `test/skill.test.ts`'s
+   equality assertion passes regardless. A stale `0.35` in `skills/cortex-memory/SKILL.md` would
+   have shipped a narrower memory to the one audience that cannot check it against the source.
+   There is now an assertion holding the published value equal to the constant.
+3. **The benchmark did not move, and the reason corrects an older claim.** Every `06` §3 metric
+   is identical at 0.60 and 0.35. Nothing populates `findings` in that harness — it runs no
+   changefeed — so recall returns 0 rows at any distance. The published limitation used to say
+   the cause was that consolidation is "not built"; V27 built it. The cause is a harness
+   boundary, and it was never the threshold. Results were republished with the corrected text.

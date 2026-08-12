@@ -15,11 +15,11 @@
         "wastedTokens": 867,
         "totalTokens": 14046,
         "goodputPerMinute": 200.72992700729927,
-        "claimP50Ms": 752.165,
-        "claimP95Ms": 1035.36,
+        "claimP50Ms": 732.013,
+        "claimP95Ms": 806.779,
         "serializationRetries": 0
       },
-      "wallClockMs": 48033,
+      "wallClockMs": 45530,
       "totalVirtualMs": 6576,
       "serializationRetries": 0
     },
@@ -34,11 +34,11 @@
         "wastedTokens": 867,
         "totalTokens": 14046,
         "goodputPerMinute": 200.72992700729927,
-        "claimP50Ms": 738.039,
-        "claimP95Ms": 874.66,
+        "claimP50Ms": 731.807,
+        "claimP95Ms": 818.424,
         "serializationRetries": 0
       },
-      "wallClockMs": 44054,
+      "wallClockMs": 43591,
       "totalVirtualMs": 6576,
       "serializationRetries": 0
     },
@@ -53,11 +53,11 @@
         "wastedTokens": 867,
         "totalTokens": 14046,
         "goodputPerMinute": 200.72992700729927,
-        "claimP50Ms": 739.113,
-        "claimP95Ms": 913.896,
+        "claimP50Ms": 731.908,
+        "claimP95Ms": 874.805,
         "serializationRetries": 0
       },
-      "wallClockMs": 44381,
+      "wallClockMs": 43205,
       "totalVirtualMs": 6576,
       "serializationRetries": 0
     }
@@ -71,12 +71,12 @@
     "wastedTokens": 867,
     "totalTokens": 14046,
     "goodputPerMinute": 200.72992700729927,
-    "claimP50Ms": 739.113,
-    "claimP95Ms": 913.896,
+    "claimP50Ms": 731.908,
+    "claimP95Ms": 818.424,
     "serializationRetries": 0
   },
   "notes": [
-    "CORTEX recall reads `findings`, which nothing populates yet: consolidation (03 §4.4) is changefeed-driven and not built. Every recall in this arm therefore returns 0, while the NAIVE arm reads its own local note store and returns real hits. The comparison understates CORTEX on the three recall-dependent tasks; it is not corrected here, because inventing a findings writer would mean benchmarking a mechanism that does not exist."
+    "CORTEX recall reads `findings`, which nothing populates in this harness: consolidation (03 §4.4) is changefeed-driven, and no changefeed runs here. Every recall in this arm therefore returns 0, while the NAIVE arm reads its own local note store and returns real hits. The comparison understates CORTEX on the three recall-dependent tasks; it is not corrected here, because wiring a findings writer into the harness would mean benchmarking a path the changefeed does not take."
   ],
   "record": {
     "arm": "cortex",
@@ -2105,7 +2105,7 @@
       "R3"
     ],
     "notes": [
-      "CORTEX recall reads `findings`, which nothing populates yet: consolidation (03 §4.4) is changefeed-driven and not built. Every recall in this arm therefore returns 0, while the NAIVE arm reads its own local note store and returns real hits. The comparison understates CORTEX on the three recall-dependent tasks; it is not corrected here, because inventing a findings writer would mean benchmarking a mechanism that does not exist."
+      "CORTEX recall reads `findings`, which nothing populates in this harness: consolidation (03 §4.4) is changefeed-driven, and no changefeed runs here. Every recall in this arm therefore returns 0, while the NAIVE arm reads its own local note store and returns real hits. The comparison understates CORTEX on the three recall-dependent tasks; it is not corrected here, because wiring a findings writer into the harness would mean benchmarking a path the changefeed does not take."
     ],
     "timings": {
       "steps": [
@@ -2114,773 +2114,773 @@
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "recall",
-          "realMs": 1366.145
+          "realMs": 1948.139
         },
         {
           "seq": 2,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "propose",
-          "realMs": 752.165
+          "realMs": 750.041
         },
         {
           "seq": 3,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "recall",
-          "realMs": 157.962
+          "realMs": 150.805
         },
         {
           "seq": 4,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "work",
-          "realMs": 0.404
+          "realMs": 0.225
         },
         {
           "seq": 5,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "propose",
-          "realMs": 747.453
+          "realMs": 727.729
         },
         {
           "seq": 6,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "recall",
-          "realMs": 151.538
+          "realMs": 147.939
         },
         {
           "seq": 7,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "work",
-          "realMs": 0.143
+          "realMs": 0.276
         },
         {
           "seq": 8,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "propose",
-          "realMs": 784.604
+          "realMs": 726.066
         },
         {
           "seq": 9,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "work",
-          "realMs": 0.334
+          "realMs": 0.57
         },
         {
           "seq": 10,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "recall",
-          "realMs": 159.317
+          "realMs": 153.964
         },
         {
           "seq": 11,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "propose",
-          "realMs": 742.551
+          "realMs": 725.704
         },
         {
           "seq": 12,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "work",
-          "realMs": 0.209
+          "realMs": 0.232
         },
         {
           "seq": 13,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "recall",
-          "realMs": 152.731
+          "realMs": 150.702
         },
         {
           "seq": 14,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "propose",
-          "realMs": 735.892
+          "realMs": 738.844
         },
         {
           "seq": 15,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "work",
-          "realMs": 0.241
+          "realMs": 0.665
         },
         {
           "seq": 16,
           "agent": "agent-1",
           "taskId": "I1",
           "kind": "close",
-          "realMs": 742.457
+          "realMs": 745.288
         },
         {
           "seq": 17,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "recall",
-          "realMs": 162.334
+          "realMs": 155.916
         },
         {
           "seq": 18,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "propose",
-          "realMs": 764.445
+          "realMs": 737.944
         },
         {
           "seq": 19,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "work",
-          "realMs": 0.215
+          "realMs": 0.208
         },
         {
           "seq": 20,
           "agent": "agent-3",
           "taskId": "P6b",
           "kind": "close",
-          "realMs": 895.485
+          "realMs": 708.095
         },
         {
           "seq": 21,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "recall",
-          "realMs": 153.219
+          "realMs": 150.307
         },
         {
           "seq": 22,
           "agent": "agent-4",
           "taskId": "C3",
           "kind": "close",
-          "realMs": 718.821
+          "realMs": 712.321
         },
         {
           "seq": 23,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "propose",
-          "realMs": 743.533
+          "realMs": 764.566
         },
         {
           "seq": 24,
           "agent": "agent-4",
           "taskId": "P3b",
           "kind": "recall",
-          "realMs": 151.458
+          "realMs": 148.412
         },
         {
           "seq": 25,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "work",
-          "realMs": 0.878
+          "realMs": 2.439
         },
         {
           "seq": 26,
           "agent": "agent-4",
           "taskId": "P3b",
           "kind": "propose",
-          "realMs": 443.807
+          "realMs": 436.889
         },
         {
           "seq": 27,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "recall",
-          "realMs": 165.808
+          "realMs": 156.132
         },
         {
           "seq": 28,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "propose",
-          "realMs": 827.566
+          "realMs": 733.646
         },
         {
           "seq": 29,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "work",
-          "realMs": 0.508
+          "realMs": 3.012
         },
         {
           "seq": 30,
           "agent": "agent-2",
           "taskId": "I4",
           "kind": "close",
-          "realMs": 930.222
+          "realMs": 725.272
         },
         {
           "seq": 31,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "recall",
-          "realMs": 155.477
+          "realMs": 150.579
         },
         {
           "seq": 32,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "propose",
-          "realMs": 739.301
+          "realMs": 737.504
         },
         {
           "seq": 33,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "work",
-          "realMs": 0.421
+          "realMs": 4.341
         },
         {
           "seq": 34,
           "agent": "agent-5",
           "taskId": "R3",
           "kind": "close",
-          "realMs": 915.236
+          "realMs": 848.706
         },
         {
           "seq": 35,
           "agent": "agent-1",
           "taskId": "P3a",
           "kind": "close",
-          "realMs": 724.641
+          "realMs": 718.723
         },
         {
           "seq": 36,
           "agent": "agent-3",
           "taskId": "C5",
           "kind": "close",
-          "realMs": 722.99
+          "realMs": 721.085
         },
         {
           "seq": 37,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "recall",
-          "realMs": 151.754
+          "realMs": 149.548
         },
         {
           "seq": 38,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "propose",
-          "realMs": 870.809
+          "realMs": 731.288
         },
         {
           "seq": 39,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "recall",
-          "realMs": 156.976
+          "realMs": 151.033
         },
         {
           "seq": 40,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "recall",
-          "realMs": 156.396
+          "realMs": 149.581
         },
         {
           "seq": 41,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "work",
-          "realMs": 0.484
+          "realMs": 0.93
         },
         {
           "seq": 42,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "propose",
-          "realMs": 888.916
+          "realMs": 728.42
         },
         {
           "seq": 43,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "propose",
-          "realMs": 771.074
+          "realMs": 736.096
         },
         {
           "seq": 44,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "work",
-          "realMs": 0.612
+          "realMs": 4.715
         },
         {
           "seq": 45,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "work",
-          "realMs": 0.601
+          "realMs": 0.708
         },
         {
           "seq": 46,
           "agent": "agent-2",
           "taskId": "I7",
           "kind": "close",
-          "realMs": 721.469
+          "realMs": 727.671
         },
         {
           "seq": 47,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "recall",
-          "realMs": 150.373
+          "realMs": 156.603
         },
         {
           "seq": 48,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "propose",
-          "realMs": 737.35
+          "realMs": 733.939
         },
         {
           "seq": 49,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "work",
-          "realMs": 0.597
+          "realMs": 4.433
         },
         {
           "seq": 50,
           "agent": "agent-5",
           "taskId": "I6",
           "kind": "close",
-          "realMs": 713.465
+          "realMs": 715.844
         },
         {
           "seq": 51,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "recall",
-          "realMs": 152.062
+          "realMs": 147.789
         },
         {
           "seq": 52,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "propose",
-          "realMs": 880.949
+          "realMs": 868.385
         },
         {
           "seq": 53,
           "agent": "agent-1",
           "taskId": "C4",
           "kind": "close",
-          "realMs": 859.427
+          "realMs": 717.223
         },
         {
           "seq": 54,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "recall",
-          "realMs": 150.243
+          "realMs": 150.044
         },
         {
           "seq": 55,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "recall",
-          "realMs": 170.584
+          "realMs": 149.29
         },
         {
           "seq": 56,
           "agent": "agent-3",
           "taskId": "A2",
           "kind": "close",
-          "realMs": 747.513
+          "realMs": 709.449
         },
         {
           "seq": 57,
           "agent": "agent-3",
           "taskId": "P2b",
           "kind": "recall",
-          "realMs": 151.778
+          "realMs": 151.73
         },
         {
           "seq": 58,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "propose",
-          "realMs": 741.323
+          "realMs": 736.383
         },
         {
           "seq": 59,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "propose",
-          "realMs": 761.469
+          "realMs": 740.439
         },
         {
           "seq": 60,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "work",
-          "realMs": 0.473
+          "realMs": 0.541
         },
         {
           "seq": 61,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "work",
-          "realMs": 0.325
+          "realMs": 0.324
         },
         {
           "seq": 62,
           "agent": "agent-3",
           "taskId": "P2b",
           "kind": "propose",
-          "realMs": 445.036
+          "realMs": 508.103
         },
         {
           "seq": 63,
           "agent": "agent-4",
           "taskId": "A1",
           "kind": "close",
-          "realMs": 720.362
+          "realMs": 709.261
         },
         {
           "seq": 64,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "recall",
-          "realMs": 152.891
+          "realMs": 149.197
         },
         {
           "seq": 65,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "recall",
-          "realMs": 154.077
+          "realMs": 150.856
         },
         {
           "seq": 66,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "propose",
-          "realMs": 745.186
+          "realMs": 730.06
         },
         {
           "seq": 67,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "propose",
-          "realMs": 744.021
+          "realMs": 806.779
         },
         {
           "seq": 68,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "work",
-          "realMs": 0.59
+          "realMs": 2.668
         },
         {
           "seq": 69,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "work",
-          "realMs": 0.451
+          "realMs": 0.377
         },
         {
           "seq": 70,
           "agent": "agent-2",
           "taskId": "R1",
           "kind": "close",
-          "realMs": 717.162
+          "realMs": 709.489
         },
         {
           "seq": 71,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "recall",
-          "realMs": 154.962
+          "realMs": 151.505
         },
         {
           "seq": 72,
           "agent": "agent-3",
           "taskId": "P1b",
           "kind": "close",
-          "realMs": 712.583
+          "realMs": 746.624
         },
         {
           "seq": 73,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "recall",
-          "realMs": 149.828
+          "realMs": 148.813
         },
         {
           "seq": 74,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "propose",
-          "realMs": 1035.36
+          "realMs": 731.557
         },
         {
           "seq": 75,
           "agent": "agent-1",
           "taskId": "P2a",
           "kind": "close",
-          "realMs": 842.746
+          "realMs": 712.788
         },
         {
           "seq": 76,
           "agent": "agent-1",
           "taskId": "P1a",
           "kind": "recall",
-          "realMs": 152.644
+          "realMs": 156.833
         },
         {
           "seq": 77,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "propose",
-          "realMs": 950.203
+          "realMs": 736.904
         },
         {
           "seq": 78,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "work",
-          "realMs": 0.462
+          "realMs": 4.19
         },
         {
           "seq": 79,
           "agent": "agent-1",
           "taskId": "P1a",
           "kind": "propose",
-          "realMs": 567.437
+          "realMs": 433.465
         },
         {
           "seq": 80,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "work",
-          "realMs": 1.322
+          "realMs": 2.467
         },
         {
           "seq": 81,
           "agent": "agent-5",
           "taskId": "I8",
           "kind": "close",
-          "realMs": 716.531
+          "realMs": 1063.477
         },
         {
           "seq": 82,
           "agent": "agent-1",
           "taskId": "C1",
           "kind": "recall",
-          "realMs": 151.123
+          "realMs": 149.964
         },
         {
           "seq": 83,
           "agent": "agent-5",
           "taskId": "P6a",
           "kind": "recall",
-          "realMs": 151.622
+          "realMs": 150.783
         },
         {
           "seq": 84,
           "agent": "agent-1",
           "taskId": "C1",
           "kind": "propose",
-          "realMs": 1016.662
+          "realMs": 726.085
         },
         {
           "seq": 85,
           "agent": "agent-5",
           "taskId": "P6a",
           "kind": "propose",
-          "realMs": 611.695
+          "realMs": 435.205
         },
         {
           "seq": 86,
           "agent": "agent-1",
           "taskId": "C1",
           "kind": "work",
-          "realMs": 0.979
+          "realMs": 1.125
         },
         {
           "seq": 87,
           "agent": "agent-5",
           "taskId": "I3",
           "kind": "recall",
-          "realMs": 150.983
+          "realMs": 148.548
         },
         {
           "seq": 88,
           "agent": "agent-4",
           "taskId": "P5b",
           "kind": "close",
-          "realMs": 716.89
+          "realMs": 714.809
         },
         {
           "seq": 89,
           "agent": "agent-5",
           "taskId": "I3",
           "kind": "propose",
-          "realMs": 1064.034
+          "realMs": 731.319
         },
         {
           "seq": 90,
           "agent": "agent-4",
           "taskId": "P4a",
           "kind": "recall",
-          "realMs": 157.192
+          "realMs": 150.104
         },
         {
           "seq": 91,
           "agent": "agent-5",
           "taskId": "I3",
           "kind": "work",
-          "realMs": 0.643
+          "realMs": 0.687
         },
         {
           "seq": 92,
           "agent": "agent-4",
           "taskId": "P4a",
           "kind": "propose",
-          "realMs": 571.143
+          "realMs": 433.717
         },
         {
           "seq": 93,
           "agent": "agent-4",
           "taskId": "I2",
           "kind": "recall",
-          "realMs": 151.494
+          "realMs": 150.742
         },
         {
           "seq": 94,
           "agent": "agent-4",
           "taskId": "I2",
           "kind": "propose",
-          "realMs": 879.421
+          "realMs": 732.013
         },
         {
           "seq": 95,
           "agent": "agent-4",
           "taskId": "I2",
           "kind": "work",
-          "realMs": 0.689
+          "realMs": 0.532
         },
         {
           "seq": 96,
           "agent": "agent-3",
           "taskId": "P4b",
           "kind": "close",
-          "realMs": 721.094
+          "realMs": 716.158
         },
         {
           "seq": 97,
           "agent": "agent-2",
           "taskId": "I5",
           "kind": "close",
-          "realMs": 709.348
+          "realMs": 722.583
         },
         {
           "seq": 98,
           "agent": "agent-5",
           "taskId": "I3",
           "kind": "close",
-          "realMs": 717.538
+          "realMs": 721.031
         },
         {
           "seq": 99,
           "agent": "agent-2",
           "taskId": "P5a",
           "kind": "recall",
-          "realMs": 151.57
+          "realMs": 152.98
         },
         {
           "seq": 100,
           "agent": "agent-1",
           "taskId": "C1",
           "kind": "close",
-          "realMs": 712.529
+          "realMs": 723.247
         },
         {
           "seq": 101,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "recall",
-          "realMs": 150.652
+          "realMs": 154.895
         },
         {
           "seq": 102,
           "agent": "agent-2",
           "taskId": "P5a",
           "kind": "propose",
-          "realMs": 569.894
+          "realMs": 433.961
         },
         {
           "seq": 103,
           "agent": "agent-2",
           "taskId": "R2",
           "kind": "recall",
-          "realMs": 160.955
+          "realMs": 154.772
         },
         {
           "seq": 104,
           "agent": "agent-2",
           "taskId": "R2",
           "kind": "propose",
-          "realMs": 866.256
+          "realMs": 737.413
         },
         {
           "seq": 105,
           "agent": "agent-2",
           "taskId": "R2",
           "kind": "work",
-          "realMs": 0.494
+          "realMs": 4.132
         },
         {
           "seq": 106,
           "agent": "agent-4",
           "taskId": "I2",
           "kind": "close",
-          "realMs": 721.345
+          "realMs": 715.903
         },
         {
           "seq": 107,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "propose",
-          "realMs": 870.264
+          "realMs": 735.324
         },
         {
           "seq": 108,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "work",
-          "realMs": 0.874
+          "realMs": 4.15
         },
         {
           "seq": 109,
           "agent": "agent-2",
           "taskId": "R2",
           "kind": "close",
-          "realMs": 715.346
+          "realMs": 713.114
         },
         {
           "seq": 110,
           "agent": "agent-5",
           "taskId": "C2",
           "kind": "close",
-          "realMs": 726.666
+          "realMs": 710.808
         }
       ],
-      "wallClockMs": 48033,
+      "wallClockMs": 45530,
       "totalVirtualMs": 6576,
       "serializationRetries": 0
     }

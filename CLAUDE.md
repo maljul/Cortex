@@ -39,22 +39,33 @@ What does not belong in a unit list, and so lives here:
   all seven tests in the file — without it a fresh consolidation reinforces one of the
   cluster's existing findings instead of inserting. `04` §2 routes this through
   EventBridge and the deployment does not; reasoning in `docs/SPEC-DELTA.md`.
-- **`03` §4.1's `dist < 0.35` is too tight for real embeddings, and recall returns nothing
-  because of it (V28). The sweep that closes it has been run (V33); the number has not been
-  picked.** `npm run sweep:recall` publishes
-  `bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md` against ground truth in
+- **`03` §4.1's recall threshold is CLOSED at `0.60` — Julian's call on 2026-08-12 from the
+  sweep (V33/V34). It was 0.35, and §4.1 still publishes 0.35, so `docs/SPEC-DELTA.md` carries
+  the deviation.** `npm run sweep:recall` publishes
+  `bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md` against ground truth in
   `bench/recall-truth.json`, authored before anything was measured, distances from the
-  cluster's own `<=>` on live Titan vectors. **At 0.35 one query in eight is served; 0.60 is
-  the largest tested threshold with zero false positives; the first false positive is at
-  0.63.** Ranking separates perfectly (8/8) but the nearest relevant finding sits anywhere
-  from 0.2981 to 0.7364, so there is no perfect band and no single constant serves everything.
-  The ordering argument is the non-circular one and it predates the demo's need for it: recall
-  at 0.35 is *tighter* than dedupe at 0.39, which is backwards, because a dedupe false positive
-  cancels work that needed doing while a recall false positive only costs attention.
-  **Picking the value is Julian's separate act**, as `03` §4.2's was; the sweep states that its
-  own hard negatives did not land close under Titan, so its precision column is optimistic and
-  it bounds the constant from below rather than proving a ceiling. It also revises U12:
-  consolidation being unbuilt was never the only reason CORTEX recall returned 0.
+  cluster's own `<=>` on live Titan vectors. **At 0.35 one query in eight was served; 0.60 is
+  the largest tested threshold with zero false positives; the first false positive is at 0.63.**
+  Ranking separates perfectly (8/8) but the nearest relevant finding sits anywhere from 0.2981
+  to 0.7364, so there is no perfect band and no single constant serves everything.
+  The non-circular justification, and it predates the demo's need for it: recall at 0.35 was
+  *tighter* than dedupe at 0.39, which is backwards, because a dedupe false positive cancels
+  work that needed doing while a recall false positive only costs attention. **0.60 is the top
+  of the free range, not the smallest value that rescues beat 1** — that would have been 0.39,
+  which is also the dedupe constant. The sweep's own hard negatives did not land close under
+  Titan, so its precision column is optimistic and it bounds the constant **from below**; if a
+  harder corpus breaks precision earlier, this number comes down.
+  **Three places carry this number and none may be a second literal:** `DEFAULT_MAX_DISTANCE`
+  in `src/memory/recall.ts` is the source; `bench/arms/shared.ts` re-exports it (the CORTEX arm
+  inherits it and the NAIVE arm filters its own store with it — two literals would have given
+  one arm a wider memory and called the difference a coordination result); and
+  `skills/cortex-memory/SKILL.md`'s `$4` row is asserted equal to it by `test/skill.test.ts`,
+  because the SQL is parameterised so the byte-for-byte pin cannot see that drift.
+  **The benchmark did not move.** Every `06` §3 metric is identical at 0.60 and 0.35, because
+  nothing populates `findings` in that harness — it runs no changefeed — so recall returns 0
+  rows at any distance. This also corrects U12 and the old summary limitation: the benchmark's
+  zero recall is a harness boundary, not unbuilt consolidation (V27 built it) and not the
+  threshold.
 - **All five of `05` §5's demo routes exist, and the show-SQL panel is a transcript**
   (U16, V28). `src/db/recorder.ts` wraps the live client, so a statement reaches the panel
   only by having gone to the driver. Since U16b the log is **grouped by transaction**
@@ -140,10 +151,11 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 265/265 across 22 files, 497s against the real
-  cluster (2026-08-12, V33)** — 170 after U15 (down from 174 because 13 blanket demo
+  the weaker "no privilege at all". **Suite 266/266 across 22 files, 482s against the real
+  cluster (2026-08-12, V34)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
-  took it to 249, U16b to 256, and V33's `test/recall-truth.test.ts` to 265.
+  took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, and V34's skill
+  threshold assertion to 266.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the

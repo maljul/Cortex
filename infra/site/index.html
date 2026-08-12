@@ -216,7 +216,7 @@
    * and reproducible from a clean clone — they are simply measured somewhere else, and the
    * label says so rather than letting them read as this run's.
    */
-  const BENCH = { source: 'bench/results/2026-08-10T22-38-54-176Z', naive: 4000, cortex: 867 };
+  const BENCH = { source: 'bench/results/2026-08-12T18-35-38-014Z', naive: 4000, cortex: 867 };
 
   /** One sandbox scope per arm: re-running CORTEX in one scope dedupes against itself. */
   const runs = { cortex: null, naive: null };
@@ -437,7 +437,10 @@
       'was measured during the run you just triggered. The agents run concurrently, so ' +
       'these are the outcome of a real race — run it twice and the winner and the number ' +
       'of lost writes will change. The benchmark is the reproducible artifact; this is the ' +
-      'live one.</div>';
+      'live one. <strong>&mdash;</strong> means that arm has no such thing to measure, not ' +
+      'that it went unmeasured: the naive arm takes no claims, so it has no claim latency ' +
+      'and no serialization retries. That is the same convention the published benchmark ' +
+      'table uses.</div>';
 
     $('meter').innerHTML = html;
   }
@@ -591,7 +594,15 @@
   $('run-naive').addEventListener('click', () => run('naive'));
   $('toggle-sql').addEventListener('click', () => {
     showingSql = !showingSql;
+    // Both halves of the button, not just the label. The sub-label used to stay on "the
+    // statements this run executed" in either state, so with the SQL panel already open the
+    // button offered "Show memory" while describing the panel you were looking at. Found by
+    // reading the deployed page rather than the source (V32); no test would have caught it,
+    // because both strings are correct in isolation.
     $('toggle-sql').firstChild.textContent = showingSql ? 'Show memory' : 'Show SQL';
+    $('toggle-sql').querySelector('small').textContent = showingSql
+      ? 'the four tiers, live from the changefeed'
+      : 'the statements this run executed';
     if (showingSql) renderSql();
     else { text($('memory-source'), 'live from the changefeed'); renderMemory(); }
   });

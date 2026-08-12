@@ -73,7 +73,7 @@ measurement in front of him. The demo reports "nothing known" when nothing is kn
 is `07` §4's honesty rule working as intended.
 
 **The sweep this needed has been run (2026-08-12, V33).** `npm run sweep:recall`, published at
-`bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`, over findings and queries
+`bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md`, over findings and queries
 rather than intent pairs, against ground truth authored before anything was measured. It
 sharpens the problem considerably: at 0.35 **one query in eight** gets any relevant finding
 back, and 0.60 is the largest tested threshold that still returns nothing irrelevant. FOC1
@@ -86,12 +86,27 @@ line to a context window. The test with the expensive error must be the strict o
 tighter, recall looser. That holds independently of the demo, which is what keeps the change
 out of `06` §3's circularity.
 
-**Still open, and deliberately so: the constant is not picked.** The sweep found no band where
-precision and recall are both perfect, because ranking separates cleanly (8/8) while the
-distance at which the right finding sits spans 0.2981–0.7364. Choosing a value is Julian's
-separate act with the measurement in front of him, as `03` §4.2's was. The sweep's own stated
-limitation is that its hard negatives did not land close under Titan, so its precision column
-is optimistic and bounds the constant from below rather than proving a ceiling.
+**CLOSED at `0.60` — Julian's call on 2026-08-12 (V34), and this is now a live deviation from
+§4.1 rather than an open question.** §4.1 still publishes `WHERE n.dist < 0.35`;
+`src/memory/recall.ts` ships `DEFAULT_MAX_DISTANCE = 0.60`. The spec text is deliberately not
+edited — that is what this file is for — but anyone reading §4.1's SQL should know the constant
+in it is superseded. Reasoning in `docs/DECISIONS.md`.
+
+0.60 was chosen as the largest tested threshold returning nothing irrelevant (precision 1.000,
+6 of 8 queries served against 0.35's 1). It is deliberately **not** 0.39, which is both the
+smallest value that makes the demo's beat 1 fire and the dedupe constant; picking the minimum
+that rescues the demo would have been the circularity this entry was written to avoid. The
+sweep found no band where precision and recall are both perfect, because ranking separates
+cleanly (8/8) while the distance at which the right finding sits spans 0.2981–0.7364 — so no
+single constant serves everything, and this one is a backstop rather than a precise cut.
+
+**What the change did not affect.** Every `06` §3 benchmark metric is identical at 0.60 and
+0.35, because nothing populates `findings` in that harness. The threshold was the binding
+constraint on the demo, never on the benchmark.
+
+**What is still not proven.** The sweep's hard negatives did not land close under Titan, so its
+precision column is optimistic and it bounds the constant **from below** rather than proving a
+ceiling. If a harder corpus breaks precision earlier than 0.63, 0.60 comes down.
 
 ### `04` §5 brake 1 — reserved concurrency cannot be set on this account at all *(2026-08-11, V26)*
 

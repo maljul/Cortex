@@ -3134,7 +3134,7 @@ someone who has not seen it, and defect 1 is the thing to watch them hit.
 the case recall exists to serve, declined to move it, and said what closing it would need: "a
 sweep like `bench/results/*/threshold-sweep.md`, over findings and queries rather than over
 intent pairs". This is that sweep. `npm run sweep:recall` ·
-`bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`.
+`bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md`.
 
 **Method, and the two properties that make it evidence.** Ground truth is
 `bench/recall-truth.json`, authored by hand **before anything was embedded** — the same
@@ -3193,3 +3193,80 @@ Julian as a separate act with the measurement in front of him, and `03` §4.1's 
 same terms. Whatever it becomes it is a third independent constant — `JUDGE_THRESHOLD` and the
 dedupe value are untouched, because three numbers drawn from one band would read as one number
 with three names.
+
+---
+
+## V34 — `03` §4.1's threshold closes at `0.60`, and two second copies of it turned up
+
+**2026-08-12.** V33 published the sweep; this is the change made from it, Julian's call.
+`DEFAULT_MAX_DISTANCE` 0.35 → **0.60** in `src/memory/recall.ts`. Reasoning in
+`docs/DECISIONS.md`, deviation from §4.1's published SQL in `docs/SPEC-DELTA.md`.
+
+**The number was chosen by a criterion, not by what the demo needed.** Beat 1 fires at anything
+≥ 0.39, because its seeded finding sits 0.3801 from the statement it embeds. 0.39 was rejected:
+it is the minimum that rescues the demo, and it is also the dedupe constant. 0.60 is the largest
+tested threshold that returns nothing irrelevant — precision 1.000, 6 of 8 queries served
+against 0.35's 1 — which is a property of the sweep's corpus and selects the same value with no
+demo in existence.
+
+**Two second copies of the constant, both found before shipping and both closed.**
+
+1. **`bench/arms/shared.ts` held its own `RECALL_MAX_DISTANCE = 0.35`.** The CORTEX arm calls
+   `recall()` with no `maxDistance` and so inherits `DEFAULT_MAX_DISTANCE`; the NAIVE arm
+   filters its local store with the bench literal. Moving one without the other would have given
+   one arm a wider memory than the other and reported the difference as a coordination result —
+   `06` §3's circularity arriving by accident rather than intent. It is now a re-export of the
+   mechanism's constant, so the two cannot diverge.
+2. **`skills/cortex-memory/SKILL.md` published `0.35` as `$4`, and the byte-for-byte pin could
+   not see it.** `$4` is a bind parameter, so `RECALL_SQL` is character-identical at every
+   threshold and `test/skill.test.ts`'s equality assertion passes either way. A stale value there
+   ships a narrower memory to the one audience that cannot check it against the source. There is
+   now an assertion holding the published number equal to the constant; mutating the doc back to
+   `0.35` fails it (`expected 0.35 to be 0.6`).
+
+**`test/recall.test.ts` failed loudly, which is the outcome to want.** Its "drops findings past
+the distance cutoff" case built a vector at ~0.45 to clear the old 0.35; at 0.60 that vector is
+*inside* the cutoff and the test failed rather than passing on a premise that had quietly become
+false. Both assertions now read against `DEFAULT_MAX_DISTANCE` instead of literals — the same
+property that let `test/retry.test.ts` survive V31 untouched — and the far vector was rebuilt at
+~0.75.
+
+**The benchmark did not move, and that corrects an older claim rather than confirming one.**
+Re-running `npm run bench:results` at 0.60 reproduces every `06` §3 metric exactly:
+
+```
+| metric                | naive | cortex |    (identical at 0.35 and 0.60)
+| duplicate_work_rate   |  0.21 |   0.00 |
+| lost_writes           |    21 |      0 |
+| conflicting_edits     |     3 |      0 |
+| wasted_tokens         |  4000 |    867 |
+| goodput (tasks/min)   | 38.16 | 200.73 |
+```
+
+Only `claim_p50`/`p95` differ (739/914 → 732/818 ms), which is cloud round-trip variance on an
+uncontended latency, not a mechanism change. The reason nothing moved: **nothing populates
+`findings` in that harness**, because it runs no changefeed, so recall returns 0 rows at any
+distance. The published limitation said the cause was consolidation being "not built" — V27
+built it and `npm run gate:consolidate` proves it end to end. The cause is a harness boundary,
+and it was never the threshold. Results were republished with the corrected text at
+`bench/results/2026-08-12T18-35-38-014Z/`; the old directory was deleted rather than kept
+alongside, per CLAUDE.md's one-directory rule, with Julian's approval.
+
+**A mistake of mine, recorded because it was published.** The correction I first wrote into
+`summary.md` claimed the threshold was a second cause of the benchmark's zero recall. It is not.
+Worse, `summary.md` is *generated* by `scripts/bench-results.mts`, so hand-editing it would have
+been silently reverted by the next run. The corrected text now lives in the generator, and
+`scripts/sweep-recall.mts` and `test/recall-truth.test.ts` both discover the single results
+directory at run time instead of hardcoding its name — which also makes "one results directory
+only" a test rather than a note.
+
+**Two SPA defects from V32 fixed in the same pass.** The show-SQL button's sub-label now toggles
+with its label. The meter now says what `—` means: the arm has no such thing to measure, not
+that it went unmeasured — the same convention the published benchmark table uses.
+
+**Not confirmed, and stated rather than implied.** The hosted demo has **not** been redeployed:
+`node infra/bundle.mjs` and `npm run deploy:site` ran, but `npx cdk deploy` was refused by this
+environment's permission gate, so the Lambda still runs 0.35 and
+https://d11xbslgdgomdp.cloudfront.net still shows beat 1 empty. The mechanism change is verified
+against the real cluster by the suite and by the sweep's own 0.3801 measurement; the end-to-end
+beat on the hosted stack is not, and U16 stays open on it.

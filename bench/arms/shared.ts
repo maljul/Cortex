@@ -128,8 +128,18 @@ export class BenchContext {
   }
 }
 
-/** `03` §4.1's noise floor, reused by the NAIVE arm's local vector store. */
-export const RECALL_MAX_DISTANCE = 0.35;
+/**
+ * `03` §4.1's noise floor, reused by the NAIVE arm's local vector store.
+ *
+ * **Re-exported from the mechanism rather than written as a second literal, and that is
+ * load-bearing.** The CORTEX arm calls `recall()` without a `maxDistance`, so it uses
+ * `DEFAULT_MAX_DISTANCE`; the NAIVE arm filters its own store with this. While these were two
+ * independent literals, moving one and forgetting the other would have given one arm a wider
+ * memory than the other and called the difference a coordination result — `06` §3's
+ * circularity arriving by accident instead of by intent. Found on 2026-08-12 while changing
+ * §4.1's constant, before the change shipped. Do not restore a literal here.
+ */
+export { DEFAULT_MAX_DISTANCE as RECALL_MAX_DISTANCE } from '../../src/memory/recall.js';
 
 /** Cosine distance, matching the `<=>` operator the CORTEX arm's index is built for. */
 export function cosineDistance(a: readonly number[], b: readonly number[]): number {

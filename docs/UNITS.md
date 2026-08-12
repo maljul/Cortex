@@ -623,17 +623,23 @@ known", truthfully. **Do not move the constant to make the beat work** — that 
 circularity, and the precedent is `03` §4.2's threshold, which Julian closed separately
 with a sweep in front of him.
 
-**That sweep now exists for recall too (2026-08-12, V33).** `npm run sweep:recall`, published
-beside the dedupe one at `bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`,
-against ground truth in `bench/recall-truth.json` written before anything was measured. At
-0.35, **one query in eight** gets any relevant finding back; 0.60 is the largest tested value
-that still returns nothing irrelevant; the first false positive is at 0.63. It also answers the
-ordering question — recall at 0.35 being *tighter* than dedupe at 0.39 is backwards, because a
-dedupe false positive cancels real work while a recall false positive costs attention.
-**The constant is still not picked, on purpose.** That is Julian's separate act with the
-measurement in front of him, and the sweep says plainly that its own hard negatives did not
-land close under Titan, so it bounds the value from below rather than proving a ceiling. Until
-it is closed, beat 1 shows a seeded past and an honest empty recall.
+**That sweep now exists for recall too, and the constant is CLOSED at 0.60 (2026-08-12,
+V33/V34).** `npm run sweep:recall`, published beside the dedupe one at
+`bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md`, against ground truth in
+`bench/recall-truth.json` written before anything was measured. At 0.35, **one query in eight**
+got any relevant finding back; 0.60 is the largest tested value that still returns nothing
+irrelevant; the first false positive is at 0.63. The ordering argument is what makes the change
+non-circular and it predates the demo's need for it — recall at 0.35 being *tighter* than dedupe
+at 0.39 is backwards, because a dedupe false positive cancels real work while a recall false
+positive costs attention. **0.60 is the top of the free range, not the 0.39 that would merely
+have rescued beat 1.** Reasoning in `docs/DECISIONS.md`; the deviation from §4.1's published SQL
+in `docs/SPEC-DELTA.md`.
+
+**Beat 1 therefore fires as of 2026-08-12** — its seeded finding sits 0.3801 from the query it
+embeds, which is now inside the cutoff. Nothing in `src/demo/scenario.ts` was changed to achieve
+that. **Not yet confirmed on the hosted demo:** the new constant is in the Lambda bundle but the
+CDK deploy has not run, so https://d11xbslgdgomdp.cloudfront.net still serves beat 1 at 0.35
+until `npx cdk deploy` does.
 
 **The lesson from this unit, for whoever writes SPA copy:** the demo deduped against its own
 seed on the first hosted run, because the seed statement sat 0.2969 from agent-2's — inside

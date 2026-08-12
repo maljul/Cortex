@@ -16,8 +16,28 @@ import { getPool, type Plane } from '../db/pool.js';
 import type { StatementRecorder } from '../db/recorder.js';
 import { withRetry } from '../db/retry.js';
 
-/** §4.1: findings past this cosine distance are noise, not memory. */
-export const DEFAULT_MAX_DISTANCE = 0.35;
+/**
+ * §4.1: findings past this cosine distance are noise, not memory.
+ *
+ * **0.60, chosen by Julian on 2026-08-12 from the sweep in
+ * `bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md` (V33/V34).** §4.1
+ * publishes 0.35 and this shipped at 0.35 until that date; `docs/SPEC-DELTA.md` carries the
+ * deviation and `docs/DECISIONS.md` the reasoning.
+ *
+ * Two things a reader should be able to check rather than take on trust. The sweep measured
+ * 0.60 as the largest threshold on its corpus that returns nothing irrelevant — precision
+ * 1.000, serving 6 of 8 queries where 0.35 served 1 — so the value is the top of the free
+ * range rather than the smallest one that makes the demo work. And it is deliberately not
+ * near 0.39: recall must be *looser* than dedupe, because a dedupe false positive cancels
+ * work that needed doing while a recall false positive only spends attention. That ordering
+ * argument was written down before the demo was known to depend on it, which is what keeps
+ * this out of `06` §3's circularity.
+ *
+ * The sweep's own stated weakness is that its hard negatives did not land close under Titan,
+ * so its precision column is optimistic and it bounds this constant from below rather than
+ * proving a ceiling. If a larger corpus breaks precision earlier, this number moves down.
+ */
+export const DEFAULT_MAX_DISTANCE: number = 0.6;
 
 /** §4.1: how many neighbours the vector index returns before the join. */
 export const DEFAULT_CANDIDATES = 40;

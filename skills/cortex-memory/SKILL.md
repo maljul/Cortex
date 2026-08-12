@@ -63,7 +63,7 @@ LIMIT $5
 | `$1` | your query, embedded — a 1024-dimension vector as `[a,b,c,…]` | see below |
 | `$2` | `repo_id`, the tenant boundary | the UUID for this repository |
 | `$3` | how many neighbours the vector index returns before the join | `40` |
-| `$4` | maximum cosine distance; past this it is noise, not memory | `0.35` |
+| `$4` | maximum cosine distance; past this it is noise, not memory | `0.60` |
 | `$5` | how many rows reach your context | `8` |
 
 **Both `repo_id` predicates are load-bearing and neither is optional.** One scopes the

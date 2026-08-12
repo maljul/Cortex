@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 import { describe, expect, it } from 'vitest';
 
-import { RECALL_SQL } from '../src/memory/recall.js';
+import { DEFAULT_MAX_DISTANCE, RECALL_SQL } from '../src/memory/recall.js';
 import { vector } from './helpers/vectors.js';
 
 const SKILL = readFileSync(new URL('../skills/cortex-memory/SKILL.md', import.meta.url), 'utf8');
@@ -47,6 +47,17 @@ describe('the recall SQL is pinned, not retyped (§4.2)', () => {
     // fails — the invariant is "both predicates exist", not "the two files agree".
     expect(sql).toContain('WHERE repo_id = $2');
     expect(sql).toContain('AND i.repo_id = $2');
+  });
+
+  // The SQL is pinned but `$4` is a *parameter*, so the query text is identical at any
+  // threshold and the byte-for-byte test above cannot see this drift at all. The skill is
+  // what an agent in another repository actually copies, so a stale number here ships a
+  // narrower memory than the mechanism has — silently, and to the one audience that cannot
+  // check it against the source. Added 2026-08-12 when the constant moved 0.35 → 0.60 (V34).
+  it('publishes the threshold the mechanism actually ships', () => {
+    const row = SKILL.match(/\|\s*`\$4`\s*\|[^|]*\|\s*`([\d.]+)`\s*\|/);
+    expect(row, 'no $4 row in the parameter table').not.toBeNull();
+    expect(Number(row![1])).toBe(DEFAULT_MAX_DISTANCE);
   });
 });
 
@@ -94,7 +105,7 @@ describe('the shipped query runs as cortex_reader, with no CORTEX code in the pa
         `[${vector(4242).join(',')}]`,
         '00000000-0000-0000-0000-000000000000',
         40,
-        0.35,
+        DEFAULT_MAX_DISTANCE,
         8,
       ]);
 

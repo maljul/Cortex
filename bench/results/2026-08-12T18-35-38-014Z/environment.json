@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-08-10T22:38:54.176Z",
+  "recordedAt": "2026-08-12T18:35:38.014Z",
   "cortexVersion": "1.0.0",
   "runtime": {
     "node": "v24.14.1",
@@ -9,7 +9,10 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1107.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
+    "@aws-sdk/client-dynamodb": "^3.1107.0",
+    "@aws-sdk/lib-dynamodb": "^3.1107.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.22.0",
     "@types/node": "^26.1.2",

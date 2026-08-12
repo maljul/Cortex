@@ -14,7 +14,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { closePool, getPool } from '../src/db/pool.js';
 import { close } from '../src/memory/close.js';
 import { propose } from '../src/memory/propose.js';
-import { recall } from '../src/memory/recall.js';
+import { DEFAULT_MAX_DISTANCE, recall } from '../src/memory/recall.js';
 import { cosineDistance, paraphraseOf, vector } from './helpers/vectors.js';
 
 function freshRepo(): string {
@@ -82,9 +82,12 @@ describe('recall — semantic read with outcome history (§4.1)', () => {
     const query = vector(50);
     const near = paraphraseOf(query, 3, 0.018);
     const mid = paraphraseOf(query, 4, 0.055);
-    // Guard the guard: both must sit inside the 0.35 cutoff, near ahead of mid.
+    // Guard the guard: both must sit inside the cutoff, near ahead of mid. Asserted against
+    // DEFAULT_MAX_DISTANCE rather than a literal, so moving the constant cannot silently turn
+    // this into a test of nothing — which is what happened when it read `< 0.35` and the
+    // constant went to 0.60 (V34).
     expect(cosineDistance(query, near)).toBeLessThan(cosineDistance(query, mid));
-    expect(cosineDistance(query, mid)).toBeLessThan(0.35);
+    expect(cosineDistance(query, mid)).toBeLessThan(DEFAULT_MAX_DISTANCE);
 
     await insertFinding(repo, 'the limiter is keyed by account, not by IP', near);
     await insertFinding(repo, 'session expiry is enforced server side', mid);
@@ -105,8 +108,12 @@ describe('recall — semantic read with outcome history (§4.1)', () => {
   it('drops findings past the distance cutoff rather than padding the answer', async () => {
     const repo = freshRepo();
     const query = vector(51);
-    const far = paraphraseOf(query, 5, 0.08);
-    expect(cosineDistance(query, far)).toBeGreaterThan(0.35);
+    // 0.2 of noise puts this at ~0.75, clear of the 0.60 cutoff with margin. It was 0.08
+    // (~0.45) while the constant was 0.35; that value sits *inside* 0.60, so this test failed
+    // loudly when the constant moved rather than passing on a vacuous premise. Keeping the
+    // assertion relative to the constant is what made the failure informative.
+    const far = paraphraseOf(query, 5, 0.2);
+    expect(cosineDistance(query, far)).toBeGreaterThan(DEFAULT_MAX_DISTANCE);
 
     await insertFinding(repo, 'a fact about something else entirely', far);
     await insertFinding(repo, 'an orthogonal fact', vector(52));

@@ -13,7 +13,8 @@
  * hand and the suite is run by CI. Nothing in this file touches the cluster or Bedrock; the
  * measured half lives in the published sweep.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -21,9 +22,21 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_MAX_DISTANCE } from '../src/memory/recall.js';
 
 const TRUTH_PATH = fileURLToPath(new URL('../bench/recall-truth.json', import.meta.url));
-const SWEEP_PATH = fileURLToPath(
-  new URL('../bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md', import.meta.url),
-);
+const RESULTS_ROOT = fileURLToPath(new URL('../bench/results/', import.meta.url));
+
+/**
+ * The one published results directory, discovered rather than hardcoded — `bench:results`
+ * names its output by timestamp, so a literal path here would break on every republish.
+ * Requiring exactly one also makes CLAUDE.md's "one results directory only" a test rather
+ * than a note: two published tables is a reader guessing which one is quoted.
+ */
+function resultsDir(): string {
+  const dirs = readdirSync(RESULTS_ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
+  expect(dirs, 'exactly one results directory may be published').toHaveLength(1);
+  return join(RESULTS_ROOT, dirs[0]!);
+}
 
 interface Finding {
   id: string;
@@ -110,7 +123,7 @@ describe('the published sweep covers the constant that ships', () => {
     // whatever value ships, the published table has a line for it. Moving the constant
     // without re-running `npm run sweep:recall` leaves a document that no longer describes
     // what the code does, and that is the failure worth catching.
-    const sweep = readFileSync(SWEEP_PATH, 'utf8');
+    const sweep = readFileSync(join(resultsDir(), 'recall-threshold-sweep.md'), 'utf8');
     const row = new RegExp(`^\\|\\s*${DEFAULT_MAX_DISTANCE.toFixed(2)}\\s*\\|`, 'm');
     expect(
       sweep,

@@ -1,6 +1,6 @@
 # Recall threshold sweep
 
-Recorded 2026-08-12T13:57:14.055Z. Distance is cosine computed by **CockroachDB's own `<=>`**
+Recorded 2026-08-12T18:38:04.282Z. Distance is cosine computed by **CockroachDB's own `<=>`**
 on live Titan Text Embeddings V2 vectors, 1024 dimensions — the operator and the model the
 mechanism actually uses, not a reimplementation. Ground truth is `bench/recall-truth.json`,
 written by hand before anything here was measured.
@@ -69,7 +69,7 @@ keeping noise out of an agent's context — the `LIMIT k` and the ordering are.
 at least one genuinely relevant finding back. A threshold can hold precision at 1.000 and still
 answer "nothing known" to every question the fleet can actually help with.
 
-**At the shipped 0.35, 1 of 8 queries is served** and recall is 0.059.
+**At 0.35, 1 of 8 queries is served** and recall is 0.059.
 That is a sharper statement of the problem than V28 had: V28 showed one query returning nothing,
 and the reading available at the time was that its wordings were unlucky. Across eight queries the
 filter excludes almost everything that bears on the work.
@@ -77,7 +77,19 @@ filter excludes almost everything that bears on the work.
 **0.60 is the largest threshold on this corpus with zero false positives**, and it serves 6 of 8. The
 first false positive appears at 0.63, and precision then falls away quickly rather than gently.
 So the choice is not "tight and safe versus loose and noisy" — everything from 0.35 up to
-0.60 is free, and the shipped value sits at the very bottom of that range.
+0.60 is free.
+
+### What was chosen
+
+**`src/memory/recall.ts` ships 0.60, changed from 0.35 on 2026-08-12, and that is disclosed here
+rather than left for a reader to notice.** Julian chose it from this table, as `03` §4.2's dedupe
+threshold was chosen from its own.
+
+It is the top of the free range, not the bottom: 6/8 served at precision 1.000. Choosing the
+*smallest* value that made the demo's beat 1 fire would have been 0.39 — which is also the dedupe
+constant, and picking the minimum that rescues the demo is the shape of the thing `06` §3 forbids.
+The criterion used instead — largest threshold returning nothing irrelevant — is a property of the
+corpus and would have selected the same number with no demo in existence.
 
 **Precision is still the expensive column**, for the reason the dedupe sweep gives: a false
 positive here puts a finding in an agent's context that does not bear on its work, and the
@@ -138,7 +150,7 @@ Still no perfect band under the flipped calls.
 ## The ordering question
 
 SPEC-DELTA asked whoever ran this to say why recall and dedupe sit where they do relative to
-each other. `src/memory/propose.ts` dedupes at **0.39**. §4.1 recalls at **0.35** — *tighter*.
+each other. `src/memory/propose.ts` dedupes at **0.39**. §4.1 publishes **0.35** — *tighter*.
 
 That ordering is wrong on the meaning of the two tests, independently of anything in this table.
 Dedupe asks "is this the same work", and answering yes **cancels an agent's task** — a false

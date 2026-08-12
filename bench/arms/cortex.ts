@@ -198,12 +198,21 @@ export function createCortexArm(ctx: BenchContext, repoId: string): CortexArm {
 
     notes() {
       return [
-        'CORTEX recall reads `findings`, which nothing populates yet: consolidation ' +
-          '(03 §4.4) is changefeed-driven and not built. Every recall in this arm ' +
-          'therefore returns 0, while the NAIVE arm reads its own local note store and ' +
-          'returns real hits. The comparison understates CORTEX on the three ' +
-          'recall-dependent tasks; it is not corrected here, because inventing a ' +
-          'findings writer would mean benchmarking a mechanism that does not exist.',
+        'CORTEX recall reads `findings`, which nothing populates in this harness: ' +
+          'consolidation (03 §4.4) is changefeed-driven, and no changefeed runs here. ' +
+          'Every recall in this arm therefore returns 0, while the NAIVE arm reads its ' +
+          'own local note store and returns real hits. The comparison understates CORTEX ' +
+          'on the three recall-dependent tasks; it is not corrected here, because wiring ' +
+          'a findings writer into the harness would mean benchmarking a path the ' +
+          'changefeed does not take.',
+        // Corrected 2026-08-12: this note used to say consolidation was "not built".
+        // V27 built it and `npm run gate:consolidate` proves it end to end — what is
+        // absent is the changefeed inside this offline harness, not the mechanism. The
+        // distinction matters because the old wording made the zero look like missing
+        // functionality rather than a harness boundary, and it also implied 03 §4.1's
+        // distance threshold might be involved. It is not: that constant moved
+        // 0.35 -> 0.60 on 2026-08-12 and no metric in the published table moved with it,
+        // because an empty table returns nothing at any distance.
       ];
     },
   };

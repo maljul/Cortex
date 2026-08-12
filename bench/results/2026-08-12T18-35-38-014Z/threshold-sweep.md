@@ -1,6 +1,6 @@
 # Dedupe threshold sweep
 
-Recorded 2026-08-10T22:38:54.176Z. Distance is cosine over the committed embedding
+Recorded 2026-08-12T18:35:38.014Z. Distance is cosine over the committed embedding
 cassettes, computed in `bench/judge.ts` — not by the operator the mechanism
 uses. Ground truth is the `pair` label in `bench/tasks.json`, written by hand
 before anything was measured.

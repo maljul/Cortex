@@ -26,20 +26,51 @@
  * that fall out of it; choosing the constant is a separate act with the measurement in
  * front of a human, which is how `03` §4.2's dedupe threshold was closed.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 import { closePool, getPool } from '../src/db/pool.js';
 import { Embedder } from '../src/embed/titan.js';
+import { DEFAULT_MAX_DISTANCE } from '../src/memory/recall.js';
+
+/**
+ * What `03` §4.1 publishes and what this shipped at until 2026-08-12. Kept so the table can
+ * disclose the change rather than quietly describe the new value as if it had always been
+ * there — the same disclosure `summary.md` makes about the dedupe threshold going 0.28 → 0.39.
+ */
+const PREVIOUS_MAX_DISTANCE: number = 0.35;
 
 const ENV_PATH = resolve(process.cwd(), '.env');
 if (existsSync(ENV_PATH)) process.loadEnvFile(ENV_PATH);
 
 const TRUTH_PATH = resolve(process.cwd(), 'bench/recall-truth.json');
-const OUT_PATH = resolve(
-  process.cwd(),
-  'bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md',
-);
+
+/**
+ * The one published results directory, discovered rather than hardcoded.
+ *
+ * `npm run bench:results` names its output by timestamp, so a hardcoded path here would be
+ * stranded the first time the benchmark is republished — the sweep would keep rewriting a
+ * directory nobody quotes. Discovery also *enforces* CLAUDE.md's "one results directory
+ * only": two directories is a reader guessing which table is the published one, so it is an
+ * error here rather than a silent pick of the newest.
+ */
+function resultsDir(): string {
+  const root = resolve(process.cwd(), 'bench/results');
+  const dirs = readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  if (dirs.length !== 1) {
+    throw new Error(
+      `bench/results holds ${dirs.length} directories (${dirs.join(', ') || 'none'}); ` +
+        'exactly one may be published. Delete the ones that are not being quoted.',
+    );
+  }
+  return join(root, dirs[0]!);
+}
+
+const OUT_PATH = join(resultsDir(), 'recall-threshold-sweep.md');
 
 /**
  * The constants a reader will look for, plus enough resolution around them to see where
@@ -297,8 +328,8 @@ async function main(): Promise<void> {
   lines.push('answer "nothing known" to every question the fleet can actually help with.');
   lines.push('');
   lines.push(
-    `**At the shipped 0.35, ${servedAt(0.35)} of ${queryCount} ${servedAt(0.35) === 1 ? 'queries is' : 'queries are'} served** and recall is ` +
-      `${rowAt(0.35).recall.toFixed(3)}.`,
+    `**At ${PREVIOUS_MAX_DISTANCE.toFixed(2)}, ${servedAt(PREVIOUS_MAX_DISTANCE)} of ${queryCount} ${servedAt(PREVIOUS_MAX_DISTANCE) === 1 ? 'queries is' : 'queries are'} served** and recall is ` +
+      `${rowAt(PREVIOUS_MAX_DISTANCE).recall.toFixed(3)}.`,
   );
   lines.push(
     'That is a sharper statement of the problem than V28 had: V28 showed one query returning nothing,',
@@ -316,9 +347,40 @@ async function main(): Promise<void> {
     `first false positive appears at ${firstImperfect === null ? 'no tested threshold' : firstImperfect.toFixed(2)}, and precision then falls away quickly rather than gently.`,
   );
   lines.push(
-    'So the choice is not "tight and safe versus loose and noisy" — everything from 0.35 up to',
+    `So the choice is not "tight and safe versus loose and noisy" — everything from ${PREVIOUS_MAX_DISTANCE.toFixed(2)} up to`,
   );
-  lines.push(`${lastPerfect.toFixed(2)} is free, and the shipped value sits at the very bottom of that range.`);
+  lines.push(`${lastPerfect.toFixed(2)} is free.`);
+  lines.push('');
+  lines.push('### What was chosen');
+  lines.push('');
+  if (DEFAULT_MAX_DISTANCE === PREVIOUS_MAX_DISTANCE) {
+    lines.push(
+      `\`src/memory/recall.ts\` still ships **${DEFAULT_MAX_DISTANCE.toFixed(2)}**. This table informs that; it does not compel it.`,
+    );
+  } else {
+    lines.push(
+      `**\`src/memory/recall.ts\` ships ${DEFAULT_MAX_DISTANCE.toFixed(2)}, changed from ${PREVIOUS_MAX_DISTANCE.toFixed(2)} on 2026-08-12, and that is disclosed here`,
+    );
+    lines.push(
+      'rather than left for a reader to notice.** Julian chose it from this table, as `03` §4.2\'s dedupe',
+    );
+    lines.push('threshold was chosen from its own.');
+    lines.push('');
+    lines.push(
+      `It is the top of the free range, not the bottom: ${servedAt(DEFAULT_MAX_DISTANCE)}/${queryCount} served at precision ` +
+        `${rowAt(DEFAULT_MAX_DISTANCE).precision.toFixed(3)}. Choosing the`,
+    );
+    lines.push(
+      "*smallest* value that made the demo's beat 1 fire would have been 0.39 — which is also the dedupe",
+    );
+    lines.push(
+      'constant, and picking the minimum that rescues the demo is the shape of the thing `06` §3 forbids.',
+    );
+    lines.push(
+      'The criterion used instead — largest threshold returning nothing irrelevant — is a property of the',
+    );
+    lines.push('corpus and would have selected the same number with no demo in existence.');
+  }
   lines.push('');
   lines.push(
     '**Precision is still the expensive column**, for the reason the dedupe sweep gives: a false',
@@ -404,7 +466,7 @@ async function main(): Promise<void> {
     'SPEC-DELTA asked whoever ran this to say why recall and dedupe sit where they do relative to',
   );
   lines.push(
-    'each other. `src/memory/propose.ts` dedupes at **0.39**. §4.1 recalls at **0.35** — *tighter*.',
+    `each other. \`src/memory/propose.ts\` dedupes at **0.39**. §4.1 publishes **${PREVIOUS_MAX_DISTANCE.toFixed(2)}** — *tighter*.`,
   );
   lines.push('');
   lines.push(

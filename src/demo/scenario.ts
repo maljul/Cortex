@@ -88,11 +88,20 @@ export const SCRIPT = {
    * **Any statement added or reworded here must be measured against the others under
    * Titan before it ships, and the measured distance belongs in this comment.**
    *
-   * **Beat 1 does not fire at the shipped threshold.** `recall` filters at `dist < 0.35`
-   * (`03` §4.1's published SQL) and the closest honest wording of this finding is 0.3801.
-   * Recorded in `docs/SPEC-DELTA.md`; not fixed here, because moving a mechanism constant
-   * to make the demo that showcases it look better is precisely the circularity `06` §3
-   * exists to prevent. The run reports "nothing known" when nothing is known.
+   * **Beat 1 fires as of 2026-08-12, and nothing in this file was changed to make it.**
+   * `recall` filtered at `dist < 0.35` (`03` §4.1's published SQL) while the closest honest
+   * wording of this finding is 0.3801, so the beat reported "nothing known" truthfully for
+   * two days. What changed is the mechanism constant: `DEFAULT_MAX_DISTANCE` is now 0.60,
+   * chosen by Julian from `bench/results/2026-08-12T18-35-38-014Z/recall-threshold-sweep.md`
+   * as the largest value on that corpus returning nothing irrelevant (V33/V34).
+   *
+   * The distinction worth preserving: the constant was **not** moved to the smallest value
+   * that rescues this beat. That would have been 0.39, and choosing it would have been `06`
+   * §3's circularity — the demo tuning the mechanism it exists to showcase. The criterion
+   * used is a property of the sweep's corpus and selects 0.60 with no demo in existence.
+   * If the sweep is ever re-run against harder negatives and the constant comes back down
+   * below 0.3801, this beat goes quiet again, and that is the correct outcome rather than a
+   * regression to paper over.
    */
   seedFact: 'adding a retry to the orders client broke 429 handling and was reverted',
   seedStatement: 'switch the orders queue driver to SQS',
