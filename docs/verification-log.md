@@ -3270,3 +3270,58 @@ environment's permission gate, so the Lambda still runs 0.35 and
 https://d11xbslgdgomdp.cloudfront.net still shows beat 1 empty. The mechanism change is verified
 against the real cluster by the suite and by the sweep's own 0.3801 measurement; the end-to-end
 beat on the hosted stack is not, and U16 stays open on it.
+
+---
+
+## V35 — Beat 1 fires on the hosted demo, and rendering it exposed a gap the empty case had hidden
+
+**2026-08-12, after `npx cdk deploy` updated `DemoFn`.** V34 changed the constant and said
+plainly that the hosted beat was unconfirmed. This confirms it, and found one more defect on
+the way — which is the argument for confirming rather than inferring.
+
+**Beat 1 fires.** agent-1's badge is `recalled` rather than `nothing known`, against
+https://d11xbslgdgomdp.cloudfront.net, driven in a browser. The recall query is
+`SCRIPT.dedupeHolder.statement` — "add a retry to the orders client" — which is the sweep's Q4,
+and its seeded finding measured 0.3801 there. Inside 0.60, so it returns.
+
+**The defect: `RECALLED` was a badge with no payload.** `renderFleet` in `infra/site/index.html`
+built its note from `detail.contested` (blocked → names the holder) and `detail.of` (deduped →
+names the inherited outcome), and had **no branch for `detail.findings` at all**. So beat 1
+rendered a bare badge while every other card carried its story. `07` §3 beat 1 is "a finding
+from a session 14 days ago, **with a prior revert**" — the badge is the headline with the
+evidence removed.
+
+**Why nothing caught it, and why nothing could have.** The branch was unreachable for as long as
+it existed: at `03` §4.1's old 0.35 `recall()` returned zero rows, so `detail.findings` was
+always `[]` and the missing case never rendered. `test/site.test.ts` guards invariant 8 against
+the source text and has no opinion on which detail keys are handled. The threshold change made
+the path reachable for the first time, and a browser found it in the first run. This is U16's own
+lesson repeating: **a panel can be correct in every request it makes and still say nothing.**
+
+Fixed. The card now reads:
+
+```
+agent-1                                    RECALLED
+what does this fleet already know about the orders client?
+"adding a retry to the orders client broke 429 handling and was reverted"
+— a prior attempt was reverted
+```
+
+`timesReverted` is rendered rather than dropped because it is the load-bearing half:
+`RECALL_SQL` orders by `times_reverted DESC` *ahead of* distance, so the reverted finding is what
+the fleet is handed first. A card showing the fact without the revert would drop the reason this
+beat is evidence for the ordering claim rather than for similarity search.
+
+**Also confirmed live in the same pass:** the two V32 defects are fixed on the deployed page —
+the show-SQL button's sub-label now toggles with its label, and the meter states that `—` means
+the arm has nothing of that kind to measure.
+
+**One thing that was not a defect, recorded so it is not re-investigated.** Several synthetic
+clicks appeared to do nothing — no network request, no state change. That was the automation
+failing to deliver the event, not the page: dispatching `.click()` in page context ran the
+scenario immediately, with `window.onerror` and `unhandledrejection` both silent and
+`POST /demo/session` answering 200 from the shell throughout. The page was never broken.
+
+**What is still open.** This was a *driven* read by someone who had already read the code. `08`
+§5's done-when is "the four beats read clearly to someone who has not seen it", and that reader
+is still Julian. U16 stays open on it.

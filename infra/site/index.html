@@ -254,6 +254,32 @@
           note = `<div class="note">blocked by <b>${contested[0].holder}</b> — re-plans instead of polling</div>`;
         } else if (step.detail.of) {
           note = `<div class="note">adopted the outcome of an intent already in flight</div>`;
+        } else if (Array.isArray(step.detail.findings) && step.detail.findings.length) {
+          // `07` §3 beat 1 is "a finding from a session 14 days ago, **with a prior revert**",
+          // so a bare `RECALLED` badge is not the beat — it is the beat's headline with the
+          // story removed. Every other card carries its payload: blocked names the holder,
+          // deduped names the outcome it inherited.
+          //
+          // This branch did not exist until 2026-08-12 and could not have been missed by
+          // looking: recall returned nothing at `03` §4.1's old 0.35, so the card never had a
+          // finding to render and the gap was invisible. Changing the constant (V34) exposed
+          // it, and a browser found it rather than a test (V35) — the same lesson U16 already
+          // learned once, that a panel can be correct in every request it makes and still not
+          // say anything.
+          //
+          // `timesReverted` is the load-bearing half rather than decoration: `recall()` orders
+          // by it *ahead of* distance, so a previously-reverted finding is what the fleet is
+          // handed first. Rendering the fact without it would drop the reason this beat is
+          // evidence for the ordering claim.
+          note = step.detail.findings
+            .map((f) => {
+              const reverted =
+                f.timesReverted > 0
+                  ? ` <b>— a prior attempt was reverted</b>`
+                  : '';
+              return `<div class="note">“${f.fact}”${reverted}</div>`;
+            })
+            .join('');
         } else if (step.detail.note) {
           note = `<div class="note">${step.detail.note}</div>`;
         }

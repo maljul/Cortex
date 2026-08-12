@@ -553,12 +553,13 @@ opened. The done-when is "someone who has not seen it", so it needs a reader who
 **Julian opens it, and says whether the beats land.** Until then this unit is not done, and
 the honest failure mode is a page that is correct and unreadable.
 
-**Three defects V32 found, none of which a test would have caught.** (1) Beat 1's
-`NOTHING KNOWN` carries no explanation in the cortex arm while the *naive* arm's identical
-badge carries one — so the winning arm is the one with the unexplained blank, two columns from
-a semantic tier displaying findings about the very subject agent-1 asked about. That is the
-one to watch a cold reader hit. (2) The show-SQL button's sub-label does not toggle with its
-label. (3) `CLAIM P50` naive stays `—` where every other row has both sides.
+**Four defects found by looking, none of which a test would have caught — all four now fixed
+and deployed.** (1) Beat 1's `NOTHING KNOWN` carried no explanation in the cortex arm while the
+*naive* arm's identical badge carried one; closed by the threshold decision rather than by copy,
+since the beat now fires. (2) The show-SQL button's sub-label did not toggle with its label.
+(3) `CLAIM P50` naive stays `—` where every other row has both sides — kept, because `—` is the
+published benchmark's own convention for "this arm has no such thing to measure", but the meter
+now says so. (4) V35: `RECALLED` rendered as a badge with no finding and no revert.
 
 **U16b (2026-08-12, V30) — the agents are real and the NAIVE column is measured.** Two things
 were wrong and both were found by reading the code rather than the screen. They are fixed.
@@ -635,11 +636,18 @@ positive costs attention. **0.60 is the top of the free range, not the 0.39 that
 have rescued beat 1.** Reasoning in `docs/DECISIONS.md`; the deviation from §4.1's published SQL
 in `docs/SPEC-DELTA.md`.
 
-**Beat 1 therefore fires as of 2026-08-12** — its seeded finding sits 0.3801 from the query it
-embeds, which is now inside the cutoff. Nothing in `src/demo/scenario.ts` was changed to achieve
-that. **Not yet confirmed on the hosted demo:** the new constant is in the Lambda bundle but the
-CDK deploy has not run, so https://d11xbslgdgomdp.cloudfront.net still serves beat 1 at 0.35
-until `npx cdk deploy` does.
+**Beat 1 fires, confirmed on the hosted demo in a browser (V35).** Its seeded finding sits
+0.3801 from the query it embeds, which is now inside the cutoff. Nothing in
+`src/demo/scenario.ts` was changed to achieve it — `npx cdk deploy` updated `DemoFn` and the
+beat came alive.
+
+**Rendering it exposed a fourth defect, and it is fixed.** `RECALLED` was a badge with **no
+payload**: `renderFleet` handled `detail.contested` and `detail.of` but had no branch for
+`detail.findings`, so beat 1 showed a verdict while every other card showed its story. The
+branch had been unreachable for as long as it existed — at 0.35 recall returned zero rows, so
+the case never rendered — which is why no test caught it and a browser did. The card now carries
+the finding and, crucially, `— a prior attempt was reverted`, because `RECALL_SQL` orders by
+`times_reverted DESC` ahead of distance and that ordering is the whole claim.
 
 **The lesson from this unit, for whoever writes SPA copy:** the demo deduped against its own
 seed on the first hosted run, because the seed statement sat 0.2969 from agent-2's — inside
