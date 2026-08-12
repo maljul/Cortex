@@ -824,6 +824,22 @@ the statements when they are written into code:
   as a task pair.
 - The seed statement is **0.7372** from its nearest cut member and carries forward unchanged.
 - 6/6 declared pairs fire; **0 undeclared collisions** across all 253 measured pairs.
+**The agents produce real code, and the code is committed (Julian, 2026-08-13).** This is the
+unit's biggest change since it was written, and it came from the right question — the deployed
+page could only show verdicts and counters, because `bench/types.ts` defines an agent's output
+as `Effect { file, startLine, endLine }`, **line numbers with no code**, and nothing anywhere
+writes a file. So each demo task now carries a **small checked-in patch**. Agents read the real
+fixture file, decide, claim through the one arbitration transaction, apply, and close — the
+coordination is entirely live; only the code content is fixed. Reasoning in `docs/DECISIONS.md`.
+
+What this buys, concretely: the naive lane's final `orders/repository.ts` is **missing two of
+three changes that agents reported as done**, and the page can name exactly which hunks, because
+the patches are known. The dedupe pair implements order-confirmation email **twice, in two
+files**, while the CORTEX lane's second agent stands down for **0 tokens**.
+
+**Honesty requirement:** the mode line must state the patches are authored, alongside its
+existing statement about cached reasoning. `07` §4 forbids implying a model wrote committed code.
+
 **Silent break:** **the fair naive lane's two transactions collapsing into one.** Design §4.2
 makes the naive lane run the same dedupe search and the same claim in *separate* transactions
 — that split is the entire thing being demonstrated, it is `01` §3's falsification test made
@@ -862,6 +878,12 @@ over the socket." *(design §11, verbatim)*
 shape depends on it"), and the pool's max connections plus whether Basic tier tolerates ten
 concurrent sessions from one runner (§12 item 2). If it does not, the fleet runs in two waves
 of five **and the page says so**; it does not silently serialise.
+**Every agent step streams as it happens (Julian, 2026-08-13):** `started → reading → decided
+→ claiming → patched | blocked | deduped`, per agent, over the existing socket. A judge watches
+the collision happen rather than reading that it happened. Design §5.3's requirement stands —
+changefeed rows and fleet events are **labelled differently**, because a fleet event carries no
+primary key and nothing may imply it does.
+
 **Silent break:** a run that dies after `POST /demo/run` has already returned 200. The visitor
 gets a page that never finishes and never errors — invariant 1 satisfied to the letter and
 broken in spirit. Every path through the runner must emit a terminal event, including the

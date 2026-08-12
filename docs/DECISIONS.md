@@ -786,3 +786,60 @@ make recall behave consistently — but V28 measured the demo's seeded finding a
 its task precisely because the *note* is embedded, and beat 1 fires on that number. Widening
 this needs the recall corpus re-measured first, which is not a thing to do four days before
 ship.
+
+---
+
+## U21 — the agents produce real code, and the code is committed rather than generated
+
+**2026-08-13. Julian's calls, prompted by the right question: "is this shown correctly? It can
+be better by showing agents work live instead of blank presentation."**
+
+He was right, and the gap was structural rather than cosmetic. `bench/types.ts` defines an
+agent's output as `Effect { file, startLine, endLine }` — **line numbers, no code** — and
+nothing in `bench/` or `src/` writes a file. So the deployed page could only ever render
+verdicts (`granted` / `blocked` / `deduped`) and counters. There was no result to show because
+no result was produced.
+
+### The patches are committed with the tasks, not authored by the model
+
+Each demo task carries a small checked-in patch. Agents still read the real fixture file,
+decide, claim through CORTEX's one arbitration transaction, apply, and close — **the
+coordination is entirely live against the real cluster.** Only the code content is fixed.
+
+**Rejected: the model authors the patches**, which is what the fleet-demo design §8 implies
+most literally and is the more impressive claim. Refused on four days' runway: it needs a new
+prompt, a **re-record of all 30 cassettes** (the cache key is a hash of the prompt, so every
+one misses), validation that generated code applies and parses, and a per-session file tree to
+apply it to. It also raises the token cost materially — code output is far more than the 72
+tokens per call the committed cassettes measure — which moves U24's cap arithmetic again. The
+failure mode is a demo showing code that does not compile, in front of a judge.
+
+**Rejected: committed on the page, model-authored for the video.** Both artefacts, and the
+page and the video would then show different things — narratable, but rule A7 makes it a risk
+for no gain the committed patches do not already deliver.
+
+**The trade is smaller than it looks, and in one respect it is an improvement.** `06` §5's
+methodological point is that both arms consume the same reasoning so any difference is
+attributable to the coordination layer. Identical committed patches make that airtight: the
+naive lane loses a **known** hunk, and the page can name exactly which one. What is given up
+is the claim "the AI wrote this code", which this project never needed — the argument is about
+coordination, not code quality.
+
+**Honesty requirement, and it is not optional.** The mode line must say the patches are
+authored, in the same sentence it already says reasoning is cached. `07` §4 forbids narrating
+one thing as another, and a page implying a model wrote committed code is exactly that.
+
+### Every agent step streams as it happens
+
+The run emits `started → reading → decided → claiming → patched | blocked | deduped` per
+agent, over the existing WebSocket, as it occurs. A judge watches five agents move in two
+lanes and sees the collision happen rather than reading that it happened.
+
+**Rejected: streaming only the changefeed's row events.** Every one is authoritative and
+carries a primary key, which is the stronger evidential standard — but there are long quiet
+gaps while an agent works, and a page that looks stalled is not the demo. Both sources ship;
+design §5.3's requirement that they be **labelled differently** stands, because a fleet event
+has no primary key and nothing may imply it does.
+
+This needs U22's async run: a ten-task two-arm run will not fit inside API Gateway's
+integration ceiling, so `POST /demo/run` returns a run id and the work streams.
