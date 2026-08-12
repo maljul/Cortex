@@ -25,7 +25,7 @@ What does not belong in a unit list, and so lives here:
 
 - Verification gate: **5/5**, resolved 2026-08-09. Embeddings PASS at 1024 dims;
   v5 reasoning models are **not entitled** on this account, so the reason model is
-  `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
+  `us.anthropic.Codex-sonnet-4-5-20250929-v1:0`.
 - Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
 - **The hosted demo is deployed and anonymous, U14, V26, 2026-08-11.** `infra/cdk/` (was
   `cdk-spike/`) deploys stack `CortexStack`: four Lambdas behind API Gateway HTTP, a
@@ -124,28 +124,9 @@ What does not belong in a unit list, and so lives here:
   billing after AWS's pricing page failed twice (V30) and its **Price List API turned out
   not to carry Sonnet 4.5 at all**. At that rate §5's own default costs $19–36 through
   2026-09-15 against §5's own "single-digit dollars" — the deviation is in
-  `docs/SPEC-DELTA.md`. **Cost Explorer bills it under `Claude Sonnet 4.5 (Amazon Bedrock
+  `docs/SPEC-DELTA.md`. **Cost Explorer bills it under `Codex Sonnet 4.5 (Amazon Bedrock
   Edition)`, a service distinct from `Amazon Bedrock`** — so brake 3's Budget must filter on
   that name or it will watch a meter carrying only the Titan line and never fire.
-- **Abandonment is memory now, and a finding is embedded on the work rather than the obstacle
-  (U21, V39, 2026-08-13).** `03` §4.4 said consolidation fires on rows transitioning to `done`,
-  and three places implemented it — so an abandoned intent's `abandonReason` was written down
-  and **reachable by nobody**: not by `recall()` (no finding), not by dedupe (`03` §4.2's SQL
-  excludes `abandoned`). The fleet paid for its most expensive knowledge and discarded it.
-  `CONSOLIDATES` is now `done` **and** `abandoned` — Julian's call; `proposed`/`in_flight` are
-  unfinished and `deduped` never happened, but an abandoned intent is a concluded outcome.
-  **Dedupe is deliberately unchanged**: a later agent is informed, never stopped, because
-  "someone gave up" is not evidence work is impossible.
-  **And what is embedded is not what is stored, for abandonment only.** Measured: the
-  abandonReason sits **0.6725–0.7246** from the task it exists to warn — outside recall's 0.60 —
-  while the bare `"<statement> — abandoned"` sits **0.4698–0.4899** and is retrieved by all of
-  them; both in one sentence misses by two hundredths. The note names the obstacle, the task
-  names the work. Left alone that ships "the agent that explains itself produces memory nobody
-  can find". `retrievalKeyFromClosedIntent` is the seam. **Scoped to abandonment** — V28's 0.3801
-  for the seed exists *because* the note is embedded, and beat 1 fires on it.
-  **The changefeed sink's second copy of the status rule was deleted, not updated** — it would
-  have vetoed this silently while the unit test passed. **Not deployed:** `ChangefeedFn` still
-  carries the old filter until `node infra/bundle.mjs && npx cdk deploy`.
 - **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
   Bedrock yields a deterministic local vector, the intent is marked
   (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is
@@ -198,12 +179,12 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 300/300 across 24 files, 586s against the real
-  cluster (2026-08-13, V39)** — 170 after U15 (down from 174 because 13 blanket demo
+  the weaker "no privilege at all". **Suite 297/297 across 24 files, 582s against the real
+  cluster (2026-08-12, V37)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
-  refusals to 278, `test/degraded-embedding.test.ts` to 297, and U21's abandonment tests to 300.
+  refusals to 278, and `test/degraded-embedding.test.ts` to 297.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the
@@ -214,7 +195,7 @@ What does not belong in a unit list, and so lives here:
   directory only.** The 0.28 run was deleted rather than kept alongside; two published
   tables is a reader guessing which one is quoted.
 - Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
-  `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
+  `BEDROCK_REASON_MODEL=us.anthropic.Codex-sonnet-4-5-20250929-v1:0`; `npm run
   probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer
   an untested path. Re-run the probe before the recording session — entitlement is an
   account fact and can change without this repository knowing.

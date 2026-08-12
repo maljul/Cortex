@@ -3645,3 +3645,121 @@ also what design §3 asks for.
 **Not yet decided:** which of S1/S3 becomes the seed fact. All three are usable; S3 has the
 widest rank margin. That is U21's to settle when the seed is written, against the measured
 distance to R3's *own* consolidated outcome, which does not exist until the runner does.
+
+---
+
+## V39 — Abandonment becomes memory, and the finding is embedded on the work rather than the obstacle
+
+**2026-08-12/13, U21.** This began as a demo question — what do the agents actually do? — and
+found two real gaps in the memory model. A workflow was launched to investigate and returned
+nothing (all five agents died on a session limit), so everything below was read and measured by
+hand.
+
+### An abandoned intent's knowledge was reachable by nobody
+
+Three doors, all shut, and all three deliberate:
+
+```
+consolidation → findings   if (row.status !== 'done') return null      src/memory/consolidate.ts:158
+changefeed sink            event_.after['status'] === 'done'           infra/lambda/changefeed.ts:159
+dedupe → intents           AND status IN ('in_flight', 'done')         src/memory/propose.ts:146
+```
+
+`close()` maps `abandoned` to status `abandoned` (`close.ts:75`) and `recall()` reads
+`findings`. The third line is `03` §4.2's own published SQL, and `03` §4.4 says consolidation
+is "filtered to rows transitioning to `done`". `test/consolidate.test.ts` asserted the
+exclusion on purpose:
+
+```
+{ status: 'proposed',  why: 'not started' },
+{ status: 'in_flight', why: 'still running' },
+{ status: 'deduped',   why: 'work that deliberately did not happen' },
+{ status: 'abandoned', why: 'given up' },
+])('ignores a row arriving as $status ($why)'
+```
+
+So an agent could spend tokens establishing "the provider's v3 API is not available on this
+account", write it to `intents.outcome`, and no later agent could ever see it.
+
+**Changed to `done` and `abandoned`** — three of those four statuses are not concluded, and
+`abandoned` is. The test was split rather than deleted. Mutating `CONSOLIDATES` back to
+`['done']` fails exactly the two new tests:
+
+```
+     × consolidates an abandoned intent — the most expensive thing the fleet learns
+     × falls back to statement and result when an abandoning agent left no notes
+      Tests  2 failed | 14 passed (16)
+```
+
+**The sink's copy of the rule was deleted rather than updated.** It applied
+`status === 'done'` while `consolidateClosedIntent` applied the same rule again — one
+memory-model decision in two files, one of them deployed separately. The sink's copy would have
+silently vetoed abandonment while the unit test passed, because the test calls the function the
+sink was shadowing. The sink now asks rather than guessing. (Its implicit null-narrowing on
+`after` had to become explicit; a delete carries no row.)
+
+### The finding was still unretrievable, and the fix was the opposite of the obvious one
+
+With abandonment consolidating, the eleventh task still did not work. Measured against live
+Titan, with distances from the cluster's `<=>`:
+
+```
+THE ELEVENTH TASK — the agent A1 spares
+  a task recalls a fact if they sit < 0.6 apart
+
+  how A1 writes its finding vs. which tasks can then find it:
+  F-reason    T1 0.6725    T2 0.7246    T3 0.7222
+  F-fallback  T1 0.4698*   T2 0.4768*   T3 0.4899*
+  F-both      T1 0.6090    T2 0.6053    T3 0.6022
+  (* = recalled)
+
+  SAFE  T1  nearest live task C2 0.8422   (A1's own statement 0.3686 — excluded from dedupe as abandoned)
+  SAFE  T2  nearest live task C1 0.8351   (A1's own statement 0.3649 — excluded from dedupe as abandoned)
+  SAFE  T3  nearest live task C2 0.8342   (A1's own statement 0.3778 — excluded from dedupe as abandoned)
+```
+
+`F-reason` is the abandonReason as written — it names the **obstacle**. `F-fallback` is
+`factFromClosedIntent`'s no-notes path, `"<statement> — abandoned"` — it names the **work**.
+Only the fallback is ever retrieved, and it is retrieved by all three wordings with margin.
+Naming both in one sentence misses by two hundredths.
+
+**So the system had the property that an agent which explains itself carefully produces memory
+nobody can retrieve, while one that says nothing produces memory that works.** That is the
+finding, and it would not have surfaced from reading the code.
+
+`consolidate()` already took `fact` and `embedding` as separate arguments, so the fix is a seam
+that already existed: an abandoned intent is embedded on its restatement and stores its reason.
+`retrievalKeyFromClosedIntent` is the function. Mutating it back to return the fact fails
+exactly one test:
+
+```
+     × embeds the work, not the obstacle, when an intent is abandoned
+      Tests  1 failed | 17 passed (18)
+```
+
+**Scoped to abandonment.** V28 measured the demo's seeded finding at 0.3801 from the task that
+recalls it, and that number exists *because* the note is what gets embedded. Beat 1 fires on
+it. Widening this to every closed intent needs the recall corpus re-measured first.
+
+**Also confirmed:** the eleventh task is safe from accidental dedupe — all three wordings sit
+≥ 0.8342 from every live task in the cut. They sit 0.3649–0.3778 from A1's *own* statement,
+inside 0.39, which is harmless only because `findDuplicate` excludes `abandoned`. That is a
+concrete reason not to add abandoned intents to the dedupe candidate set later.
+
+### Not yet deployed
+
+`infra/lambda/changefeed.ts` changed, and the deployed `ChangefeedFn` still carries the old
+`status === 'done'` filter. **The new behaviour is proven at the function level and is not live
+on the hosted stack** until `node infra/bundle.mjs && npx cdk deploy`. `npm run gate:consolidate`
+would still pass today because it exercises a `done` intent, so it is not evidence either way.
+
+### Suite
+
+```
+ Test Files  24 passed (24)
+      Tests  300 passed (300)
+   Duration  586.00s
+```
+
+297 → 300: three added to `test/consolidate.test.ts`, one moved out of the ignore list.
+`npx tsc --noEmit` clean.

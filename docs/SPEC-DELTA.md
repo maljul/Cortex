@@ -334,6 +334,74 @@ else. A flag that lived in a response body could not have done this job.
 This closes when `03` §2 gains the column, or when §5's rung 2 is restated in terms the memory
 model already has.
 
+### `03` §4.4 consolidates only `done`, so a fleet discards the knowledge that cost it most *(2026-08-13, U21)*
+
+§4.4: "Triggered by a CockroachDB changefeed on `intents` filtered to rows transitioning to
+`done`." Taken literally — and it was, in three places — an **abandoned** intent's outcome
+reaches nobody. Verified by reading, not inferred:
+
+| Path | Guard | Where |
+| --- | --- | --- |
+| consolidation → `findings` | `if (row.status !== 'done') return null` | `src/memory/consolidate.ts` |
+| changefeed sink | `event_.after['status'] === 'done'` | `infra/lambda/changefeed.ts` |
+| dedupe → `intents` | `AND status IN ('in_flight', 'done')` | `src/memory/propose.ts`, and it is `03` §4.2's own published SQL |
+
+`close()` maps `abandoned` to status `abandoned`, and `recall()` reads `findings`. So an agent
+that spends tokens discovering "the provider's v3 API is not available on this account" writes
+that sentence into `intents.outcome` and **no later agent can ever see it**. The fleet pays for
+the most expensive knowledge it produces and throws it away, keeping the cheap successes.
+
+**Changed: `done` *and* `abandoned` consolidate.** Julian's call on 2026-08-12. §4.4's line
+groups four statuses that do not belong together — `proposed` and `in_flight` are unfinished
+and have no outcome; `deduped` is work that deliberately never happened; an **abandoned**
+intent is a finished investigation whose result is a fact. `test/consolidate.test.ts` asserted
+the old grouping deliberately, so that test was split rather than deleted.
+
+**Dedupe is deliberately NOT changed.** `findDuplicate` still excludes `abandoned`, so a later
+agent is *informed* that something was given up and is never *stopped* from trying. "Someone
+gave up" is not evidence that work is impossible. (It matters: the three candidate wordings of
+the task this exists to save measured 0.3649–0.3778 from A1's own statement — inside 0.39. If
+`abandoned` were ever added to the candidate set, they would be silently deduped.)
+
+**The risk taken on:** an agent may abandon transiently — out of time, wrong branch — and that
+becomes a durable finding. Bounded by the fact being the agent's own notes rather than an
+inference, by confidence entering at 0.5 and being corroborated or contradicted afterwards, and
+by `recall()` returning it as context rather than as an instruction.
+
+Closes when §4.4 names the set rather than the single status.
+
+### `03` §4.4's fact derivation embeds the obstacle, which is not what anyone searches for *(2026-08-13, U21)*
+
+§4.4 says the consumer "embeds the outcome", and `consolidateClosedIntent` did exactly that —
+one string, used both as the stored fact and as the vector. **Measured against live Titan, that
+makes an abandonment finding unretrievable by the agent it exists to save:**
+
+```
+                                             T1        T2        T3
+  the abandonReason alone   (the obstacle)   0.6725    0.7246    0.7222
+  "<statement> — abandoned" (the work)       0.4698    0.4768    0.4899
+  both in one sentence                       0.6090    0.6053    0.6022
+```
+
+T1–T3 are three wordings of the task that needs the warning; recall's cutoff is 0.60. **Only
+the middle row is ever returned.** An abandonment note describes the obstacle while the agent
+who needs it describes the work, and Titan has no reason to place those near each other.
+Combining both into one sentence misses by two hundredths — the obstacle clause pulls the
+vector away faster than naming the work pulls it back.
+
+Left alone this ships a bad property: **the agent that explains itself carefully produces a
+finding nobody can retrieve; the agent that says nothing produces one that works.**
+
+**Changed:** `consolidate()` already took `fact` and `embedding` as separate arguments, so an
+abandoned intent is now embedded on its restatement (`<statement> — <result>`) and stores its
+reason as the fact — found by the work it concerns, read as the reason it failed.
+`retrievalKeyFromClosedIntent` is the seam.
+
+**Scoped to abandonment.** A `done` intent's notes share vocabulary with their own work, and
+V28 measured the demo's seeded finding at 0.3801 from the task that recalls it on that basis.
+Widening this would move a number beat 1 depends on and needs the recall corpus re-measured
+first. Closes when §4.4 distinguishes the retrieval key from the stored fact.
+
 ## Corrected in the spec already — do not re-open
 
 ### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*

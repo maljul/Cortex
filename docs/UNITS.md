@@ -844,6 +844,16 @@ candidates.
 **Note:** re-recording cassettes is required — "produce a patch" is a different prompt shape
 and the cassette key is a hash of the prompt, so the committed library will miss by design.
 
+**An eleventh task is approved and must NOT go in `bench/tasks.json`** (Julian, 2026-08-12).
+Design §1 and `08` §4's passed gate freeze that file at 30 tasks with committed results, so the
+demo's curated cut becomes **its own file** referencing benchmark ids and adding this one.
+Its purpose: A1 is abandoned as impossible, and this is the agent that gets spared — the moment
+that shows what memory buys and a lock service cannot. Two mechanism changes were needed to make
+it honest and both are built (V39): abandonment now consolidates, and an abandoned finding is
+embedded on the work rather than the obstacle. Candidate wordings measured at **0.4698–0.4899**
+from A1's finding (recalled) and **≥ 0.8342** from every live task in the cut (no accidental
+dedupe). Pick one, re-measure it in place, and put the number in the comment.
+
 ### U22 — Async run and streamed events ⬜
 **Done when:** "`POST /demo/run` returns inside the gateway ceiling and the whole run arrives
 over the socket." *(design §11, verbatim)*

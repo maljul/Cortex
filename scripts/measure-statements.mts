@@ -111,6 +111,58 @@ const SEED_CANDIDATES: Record<string, string> = {
     'money stored as integer minor units broke shipping quotes, which were already minor units — reverted',
 };
 
+/**
+ * The eleventh task — demo-owned, and it cannot live in `bench/tasks.json`.
+ *
+ * That file is the *benchmark's* corpus. `08` §4's end-of-day-two gate is passed against
+ * exactly 30 tasks with the results committed under `bench/results/`, and the fleet-demo
+ * design §1 freezes "the published benchmark and its committed results". An eleventh task
+ * added there would change the published workload and invalidate the table. So the demo's
+ * curated cut becomes its own file that *references* benchmark task ids and adds this one.
+ *
+ * **What it is for.** A1 is abandoned as impossible — the payment provider's v3 API is not
+ * available on this account. Until 2026-08-12 that knowledge reached nobody: consolidation
+ * ignored abandoned rows, the changefeed sink ignored them, and `findDuplicate` excludes
+ * them. Now abandonment consolidates, so this task is the agent that gets spared.
+ *
+ * **Its two constraints, and note that they are not the seed's two.**
+ *   - **under 0.60 from A1's FINDING** — the abandonReason text, which is what
+ *     `factFromClosedIntent` writes into `findings` — or recall never returns it.
+ *   - **over 0.39 from every other task in the cut.** Not from A1 itself: A1 is
+ *     `abandoned`, and `findDuplicate`'s candidate set is `status IN ('in_flight','done')`,
+ *     so A1 can never dedupe anything. That exclusion is deliberate and stays — a later
+ *     agent is *informed* that something was given up, never *stopped* from trying.
+ */
+/**
+ * Three ways A1's abandonment could be written into `findings`, because the first attempt
+ * measured at 0.67–0.72 from every candidate task and would have been recalled by nobody.
+ *
+ * `factFromClosedIntent` prefers `outcome.notes` and falls back to `"<statement> — <result>"`.
+ * So which of these ships is a **demo authoring choice** — what the abandoning agent writes —
+ * not a mechanism change.
+ *
+ * The hypothesis being tested: a terse abandonReason names only the *obstacle*, while the
+ * task that needs it names the *work*. Titan has no reason to put those near each other. A
+ * finding that names both should sit much closer to the task it is meant to warn.
+ */
+const FACT_CANDIDATES: Record<string, string> = {
+  // What A1's abandonReason says today. Names the obstacle only.
+  'F-reason':
+    "The provider's v3 API is not available on this account, so the work cannot be completed.",
+  // What `factFromClosedIntent` produces with no notes at all. Names the work only.
+  'F-fallback':
+    'Migrate the payment provider integration to their version three API — abandoned',
+  // Names both.
+  'F-both':
+    "Migrating the payment provider integration to their version three API was abandoned: the provider's v3 API is not available on this account.",
+};
+
+const NEW_TASK_CANDIDATES: Record<string, string> = {
+  'T1': "Move the refund flow onto the payment provider's v3 API",
+  'T2': 'Port the refund path to version three of the payment provider API',
+  'T3': "Switch refunds over to the payment provider's v3 endpoints",
+};
+
 function tasks(): Map<string, Task> {
   const file = JSON.parse(readFileSync(resolve('bench/tasks.json'), 'utf8')) as { tasks: Task[] };
   return new Map(file.tasks.map((t) => [t.id, t]));
@@ -248,6 +300,46 @@ async function main(): Promise<void> {
       `nearest task in the cut: ${worstId} at ${worst.toFixed(4)}` +
       `  margin ${(worst - DEFAULT_DEDUPE_THRESHOLD).toFixed(4)}`,
   );
+
+  console.log('\n\nTHE ELEVENTH TASK — the agent A1 spares');
+  console.log(`  a task recalls a fact if they sit < ${RECALL_MAX} apart\n`);
+
+  for (const [factId, factText] of Object.entries(FACT_CANDIDATES)) {
+    vectors.set(factId, toVector(await embedder.embed(factText)));
+  }
+  for (const [id, text] of Object.entries(NEW_TASK_CANDIDATES)) {
+    vectors.set(id, toVector(await embedder.embed(text)));
+  }
+
+  console.log('  how A1 writes its finding vs. which tasks can then find it:');
+  for (const factId of Object.keys(FACT_CANDIDATES)) {
+    const row: string[] = [];
+    for (const taskId of Object.keys(NEW_TASK_CANDIDATES)) {
+      const d = await distance(factId, taskId);
+      row.push(`${taskId} ${d.toFixed(4)}${d < RECALL_MAX ? '*' : ' '}`);
+    }
+    console.log(`  ${factId.padEnd(11)} ${row.join('   ')}`);
+  }
+  console.log('  (* = recalled)\n');
+
+  for (const id of Object.keys(NEW_TASK_CANDIDATES)) {
+    const toA1 = await distance(id, 'A1');
+    let nearestId = '';
+    let nearest = Infinity;
+    // A1 is excluded: it is `abandoned`, so findDuplicate can never match it.
+    for (const other of CUT.filter((c) => c !== 'A1')) {
+      const d = await distance(id, other);
+      if (d < nearest) {
+        nearest = d;
+        nearestId = other;
+      }
+    }
+    const safe = nearest > DEFAULT_DEDUPE_THRESHOLD;
+    console.log(
+      `  ${safe ? 'SAFE' : 'DEDUPES'}  ${id}  nearest live task ${nearestId} ${nearest.toFixed(4)}` +
+        `   (A1's own statement ${toA1.toFixed(4)} — excluded from dedupe as abandoned)`,
+    );
+  }
 
   await closePool();
 }

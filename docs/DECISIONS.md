@@ -720,3 +720,69 @@ between two). What that clause protects is the race between two visitors, and th
 The consequence is that a run which dies after taking its slot has still spent it. That is the
 safe direction and it is chosen: the other ordering lets a failing run spend Bedrock tokens and
 then hand the slot back, which is the shape of a cap that can be exceeded by failing.
+
+---
+
+## U21 — abandonment becomes memory, and a finding is embedded on the work rather than the obstacle
+
+**2026-08-12/13. Julian's calls, both taken from measurements that contradicted the obvious
+answer.** These came out of a demo question — "what do the agents actually do?" — and turned
+into two mechanism findings.
+
+### An abandoned intent's knowledge reached nobody
+
+The fleet demo wanted a moment where one agent burns tokens discovering a task is impossible
+and a **second agent is spared**. It could not be built: an abandoned intent is excluded from
+consolidation (`03` §4.4), from the changefeed sink, and from `findDuplicate`'s candidate set
+(`03` §4.2's own SQL). Its `abandonReason` was written down and reachable by no one.
+
+**Decided: `done` and `abandoned` both consolidate.** The argument is that §4.4's grouping is
+wrong rather than that the demo is inconvenient — `proposed` and `in_flight` are unfinished,
+`deduped` is work that deliberately never happened, and an abandoned intent is the only one of
+the four that is a **concluded outcome**. It is also the most expensive knowledge a fleet
+produces, because an agent spent tokens getting it, and the system was keeping the cheap
+successes and discarding it.
+
+**Rejected: adding `abandoned` to the dedupe candidate set.** It would have delivered the
+prior outcome directly through invariant 4, with no embedding round trip and no recall
+threshold to clear. It is refused because "someone gave up" is not evidence that work is
+impossible, and deduping on it turns a hint into a veto. The measurement sharpens the point:
+the three candidate wordings of the task this exists to save sit **0.3649–0.3778** from A1's
+own statement, inside the 0.39 threshold, so they would be silently cancelled.
+
+**Rejected: building the moment from a `reverted` task instead.** It needs no mechanism change
+at all — `reverted` maps to `done`, consolidates, and is recallable, which is exactly how the
+fourteen-day-old seed already works. Refused because it says the same thing the seed already
+says, and because it would have left a real gap in the memory model unexamined.
+
+**The changefeed sink's copy of the rule was deleted rather than updated.** It tested
+`status === 'done'` while `consolidateClosedIntent` applied the same rule again — the same
+decision in two files, one deployed separately from the other. The sink's copy would have
+silently vetoed abandonment while the unit test passed, because the test calls the function the
+sink was shadowing.
+
+### The careful agent produced a finding nobody could find
+
+With abandonment consolidating, the eleventh task still did not work. Three wordings of it
+measured **0.6725–0.7246** from A1's abandonReason, outside recall's 0.60. The bare fallback
+`"<statement> — abandoned"` measured **0.4698–0.4899** and was retrieved by all three. Both in
+one sentence: 0.6022–0.6090, missing by two hundredths.
+
+An abandonment note names the **obstacle**; the agent who needs it names the **work**. So the
+system as built had the property that **an agent which explains itself carefully produces
+memory nobody can retrieve, while one that says nothing produces memory that works.**
+
+**Decided: separate the retrieval key from the stored fact, for abandonment only.**
+`consolidate()` already took `fact` and `embedding` as separate arguments, so this is a seam
+that already existed — `retrievalKeyFromClosedIntent`. The finding now reads as the reason it
+failed and is found by the work it concerns.
+
+**Rejected: authoring the demo's agent to leave no notes.** It ships today, needs no change,
+and lands at 0.4698. Refused because it optimises the demo around a defect instead of fixing
+it, and bakes in the property above.
+
+**Rejected: applying the change to every closed intent.** Arguably more correct, and it would
+make recall behave consistently — but V28 measured the demo's seeded finding at 0.3801 from
+its task precisely because the *note* is embedded, and beat 1 fires on that number. Widening
+this needs the recall corpus re-measured first, which is not a thing to do four days before
+ship.

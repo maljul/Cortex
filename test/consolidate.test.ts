@@ -219,16 +219,163 @@ describe('flow D — a closed intent arriving from the changefeed', () => {
   });
 
   /**
-   * Everything a changefeed on `intents` emits that is *not* a completion. Each of these
-   * would otherwise become a finding asserting something that has not happened yet —
+   * An abandoned intent is a concluded investigation, and what it concluded is worth more
+   * than most successes.
+   *
+   * The case this exists for: an agent is asked to migrate to a payment provider's v3 API,
+   * spends real tokens finding out the API is not available on this account, and gives up.
+   * Before 2026-08-12 that sentence was written into `intents.outcome` and was then
+   * reachable by **nobody** — `consolidateClosedIntent` ignored it, the changefeed sink
+   * ignored it, and `findDuplicate`'s candidate set excludes `abandoned`. So the fleet paid
+   * for the knowledge and threw it away, and the next agent paid for it again.
+   */
+  it('consolidates an abandoned intent — the most expensive thing the fleet learns', async () => {
+    const repo = await freshRepo();
+
+    const result = await consolidateClosedIntent(
+      {
+        id: randomUUID(),
+        repo_id: repo,
+        statement: 'Migrate the payment provider integration to their version three API',
+        status: 'abandoned',
+        outcome: {
+          result: 'abandoned',
+          notes: "The provider's v3 API is not available on this account, so the work cannot be completed.",
+        },
+      },
+      { embed },
+    );
+
+    expect(result?.action).toBe('inserted');
+    expect((await findingsIn(repo))[0]?.fact).toBe(
+      "The provider's v3 API is not available on this account, so the work cannot be completed.",
+    );
+  });
+
+  /**
+   * **What is embedded is not what is stored, and only for abandonment.**
+   *
+   * Measured on 2026-08-12 against live Titan, and it inverted the obvious answer. A1's
+   * abandonReason — "The provider's v3 API is not available on this account" — sits
+   * **0.6725–0.7246** from every wording of the task that needs the warning, which is
+   * outside recall's 0.60. The bare fallback `"<statement> — abandoned"` sits at
+   * **0.4698–0.4899** and is retrieved by all of them. Writing both into one sentence lands
+   * at 0.6022–0.6090 and still misses.
+   *
+   * The cause is not subtle once seen: an abandonment note describes the **obstacle**, and
+   * the task that needs it describes the **work**. Titan has no reason to place those near
+   * each other. So the agent that explains itself carefully produced a finding nobody could
+   * retrieve, and the agent that said nothing produced one that worked — which is a terrible
+   * property to ship.
+   *
+   * `consolidate()` already takes `fact` and `embedding` as separate arguments, so the fix
+   * is to embed the statement-shaped key while storing the reason as the fact. The finding
+   * then reads as *why it failed* and is found by *the work it concerns*.
+   *
+   * Scoped to abandonment deliberately: a `done` intent's notes share vocabulary with its
+   * work, and V28 measured the seed's finding at 0.3801 from its task on exactly that basis.
+   * Changing it for `done` would move a number beat 1 depends on.
+   */
+  it('embeds the work, not the obstacle, when an intent is abandoned', async () => {
+    const repo = await freshRepo();
+    const embedded: string[] = [];
+
+    await consolidateClosedIntent(
+      {
+        id: randomUUID(),
+        repo_id: repo,
+        statement: 'Migrate the payment provider integration to their version three API',
+        status: 'abandoned',
+        outcome: {
+          result: 'abandoned',
+          notes: "The provider's v3 API is not available on this account, so the work cannot be completed.",
+        },
+      },
+      {
+        embed: async (text: string) => {
+          embedded.push(text);
+          return vector(text.length + 300);
+        },
+      },
+    );
+
+    // The retrieval key names the work, so a later agent reaching for the same thing finds it.
+    expect(embedded).toEqual([
+      'Migrate the payment provider integration to their version three API — abandoned',
+    ]);
+
+    // The stored fact is still the reason, because that is what the agent needs to read.
+    expect((await findingsIn(repo))[0]?.fact).toBe(
+      "The provider's v3 API is not available on this account, so the work cannot be completed.",
+    );
+  });
+
+  it('still embeds the fact itself for a completed intent', async () => {
+    const repo = await freshRepo();
+    const embedded: string[] = [];
+
+    await consolidateClosedIntent(
+      {
+        id: randomUUID(),
+        repo_id: repo,
+        statement: 'add a retry to the orders client',
+        status: 'done',
+        outcome: { result: 'ok', notes: 'the 409 retry belongs in the client, not the server' },
+      },
+      {
+        embed: async (text: string) => {
+          embedded.push(text);
+          return vector(text.length + 300);
+        },
+      },
+    );
+
+    // Unchanged, and the reason it must stay unchanged is measurable: V28 put the demo's
+    // seeded finding at 0.3801 from the task that recalls it, on the strength of embedding
+    // the note. Beat 1 fires because of that number.
+    expect(embedded).toEqual(['the 409 retry belongs in the client, not the server']);
+  });
+
+  it('falls back to statement and result when an abandoning agent left no notes', async () => {
+    const repo = await freshRepo();
+
+    await consolidateClosedIntent(
+      {
+        id: randomUUID(),
+        repo_id: repo,
+        statement: 'Migrate the payment provider integration to their version three API',
+        status: 'abandoned',
+        outcome: { result: 'abandoned' },
+      },
+      { embed },
+    );
+
+    // Honest rather than silent: the finding says the work was abandoned even when the
+    // agent could not say why, which is still more than the next agent knew before.
+    expect((await findingsIn(repo))[0]?.fact).toBe(
+      'Migrate the payment provider integration to their version three API — abandoned',
+    );
+  });
+
+  /**
+   * Everything a changefeed on `intents` emits that is *not* a concluded outcome. Each of
+   * these would otherwise become a finding asserting something that has not happened yet —
    * `proposed` in particular is an intention, and semantic memory that records intentions
    * as facts is worse than no semantic memory.
+   *
+   * **`abandoned` used to be in this list and was moved out on 2026-08-12 (U21).** It does
+   * not belong with the other three and the grouping was the mistake: `proposed` and
+   * `in_flight` are unfinished, and `deduped` is work that deliberately never happened —
+   * none of them has an outcome. An abandoned intent is a **finished investigation with a
+   * real result**, and it is the most expensive knowledge the fleet produces, because an
+   * agent spent tokens discovering it. Keeping it out meant the memory model discarded
+   * exactly what cost the most to learn and kept the cheap successes. See the tests below,
+   * `docs/DECISIONS.md`, and the `03` §4.4 deviation in `docs/SPEC-DELTA.md`.
    */
   it.each([
     { status: 'proposed', why: 'not started' },
     { status: 'in_flight', why: 'still running' },
     { status: 'deduped', why: 'work that deliberately did not happen' },
-    { status: 'abandoned', why: 'given up' },
   ])('ignores a row arriving as $status ($why)', async ({ status }) => {
     const repo = await freshRepo();
 

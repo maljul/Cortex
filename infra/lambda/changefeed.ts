@@ -156,7 +156,17 @@ export async function handler(event: HttpEvent): Promise<{ statusCode: number; b
     // critical path by design, and a Bedrock hiccup must not stop the rows this batch is
     // already carrying from reaching the panel. The sink still answers 200 — see the
     // header — so a failure here costs one finding, not the feed.
-    if (event_.topic === 'intents' && event_.after?.['status'] === 'done') {
+    //
+    // **The status test used to live here as well, and it is gone on purpose (U21).** This
+    // handler read `status === 'done'` while `consolidateClosedIntent` applied the same rule
+    // again — two copies of a memory-model decision, in two files, one of them deployed
+    // separately from the other. When `abandoned` became consolidatable the copy here would
+    // have silently vetoed it, and the unit test would still have passed, because the test
+    // calls the function this handler was shadowing. `consolidate.ts` owns which transitions
+    // deserve a finding and says so in its own header; this sink asks it rather than guessing.
+    // `after` is null on a delete, which has no row to consolidate. That null check was
+    // previously implicit in the status test this replaced.
+    if (event_.topic === 'intents' && event_.after) {
       try {
         const result = await consolidateClosedIntent(event_.after, {
           embed: (text) => embedder().embed(text),
