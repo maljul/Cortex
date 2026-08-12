@@ -2702,3 +2702,121 @@ been created yet. It is the reason the page pre-warms on load rather than on fir
 and it is a candidate for U17's rung work if it recurs.
 
 Suite 249/249, `tsc` clean.
+
+---
+
+## V30 — The SPA driven in a real browser, and three defects only looking could find
+**2026-08-12 · U16 · PASS, and the done-when is still Julian's to call**
+
+V29 verified every request the page makes and said plainly that nothing had rendered it.
+Chrome was connected afterwards and the page was driven end to end. **Everything works**,
+and three defects surfaced that no test in this repository would have caught, because each
+one is about what a person sees rather than what a function returns.
+
+### Defect 1 — the run button was below the fold
+
+On a 1558×784 viewport the meter pushed the controls off screen, so a judge had to scroll
+to find "Run with CORTEX". `07` §1 gives the whole page ninety seconds and says "one click
+to a running scenario"; a click you have to hunt for is not that. The controls now come
+first in the right panel and the meter follows them.
+
+### Defect 2 — the seeded finding claimed two corroborations for one event
+
+The first browser run rendered:
+
+```
+adding a retry to the orders client broke 429 handling and was reverted   conf 0.60 · ×2
+```
+
+`×2` and confidence 0.60 from a single seeded fact. The cause was the demo's own doing:
+`seedPast()` consolidated the fact explicitly *and* passed the same sentence as the seed
+close's `notes`, so the changefeed consolidated it a second time and correctly reinforced
+what it found. The mechanism was right; the scenario told it the same thing twice.
+
+This is worth more than a cosmetic fix. Confidence is what a later agent acts on, so
+semantic memory overstating corroboration is the mechanism quietly lying about how well
+established a fact is. The seed close now carries no notes, the changefeed derives its own
+distinct sentence from the statement and outcome, and the panel reads:
+
+```
+the 409 retry belongs in the orders client, not the server              conf 0.50 · ×1
+switch the orders queue driver to SQS — reverted                        conf 0.50 · ×1
+adding a retry to the orders client broke 429 handling and was reverted conf 0.50 · ×1
+```
+
+Three findings, three separate things that happened, each corroborated once.
+
+### Defect 3 — the naive arm's empty panel read as a failure
+
+After a NAIVE run the memory panel still said "Run a scenario and rows will arrive here",
+to a judge who had just run one. The emptiness **is** the result, so it now says so:
+
+> Nothing. That is the result: these agents share no memory, so there is nothing for them
+> to write to and nothing for the next one to find. Run it with CORTEX to see the same
+> script fill this panel.
+
+That turns the weakest-looking moment in the demo into the argument. Same for the panel
+header, which no longer says "waiting for a run" under a finished one.
+
+### What the page shows when it works
+
+CORTEX run, all five cards populated from real decisions:
+
+```
+agent-1  NOTHING KNOWN  what does this fleet already know about the orders client?
+agent-2  DONE           add a retry to the orders client
+agent-3  GRANTED        add an index to the orders table
+agent-4  DEDUPED        make the orders client retry failed requests
+                        "adopted the outcome of an intent already in flight"
+agent-5  BLOCKED        rename the orders status column
+                        "blocked by agent-3 — re-plans instead of polling"
+```
+
+Those last two lines are invariants 4 and 3 rendered as English. All four tiers carry real
+primary keys, and the meter reads `claim p50 42 ms` — measured, not estimated.
+
+Then the toggle, both arms side by side:
+
+```
+                          cortex   naive
+duplicate work avoided       1       0
+duplicate work done          0       1
+writes lost                  0       1
+blocked, then re-planned     1       0
+claim p50                  42 ms     —
+serialization retries        0       0
+wasted tokens              867    4000    (benchmark, labelled, not this session)
+```
+
+### The show-SQL panel, which is the whole argument in one screen
+
+```
+45 statements, cortex arm. Note the dedupe search and the claim insert inside a single
+BEGIN — that co-location is the whole thesis.
+
+ 2ms · $0 · 0r   BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE
+ 2ms · $2 · 1r   SELECT set_config($1, $2, true)
+12ms · $2 · 0r   SELECT id, agent_id, status, outcome, embedding <=> $2 AS dist FROM intents
+                 WHERE repo_id = $1 AND status IN ('in_flight', 'done') ORDER BY embedding <=> $2 LIMIT 5
+27ms · $5 · 1r   INSERT INTO intents (repo_id, agent_id, statement, resource_keys, embedding, status) …
+40ms · $5 · 1r   INSERT INTO claims (repo_id, resource_key, intent_id, holder, expires_at) SELECT … 
+ 6ms · $0 · 0r   COMMIT
+```
+
+One `BEGIN`, the dedupe search and the claim insert inside it, one `COMMIT`. `03` §8
+invariant 1 is readable off the screen by a sceptic who trusts nothing in this repository.
+The `$2` on `set_config` is V26's bind parameter, visible in the same place.
+
+### Still true, and still open
+
+Beat 1 reports `NOTHING KNOWN`. That is `03` §4.1's `dist < 0.35` (V28), an open decision,
+and the page states it honestly rather than working around it.
+
+### What this still does not settle
+
+The done-when is "the four beats read clearly to **someone who has not seen it**". I have
+now seen it a great many times, which disqualifies me from answering that. What is settled
+is that the page functions as depicted, which is rule A7, and that every number on it came
+from the database. **Whether it reads is Julian's call.**
+
+Suite 249/249, `tsc` clean.

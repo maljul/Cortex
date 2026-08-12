@@ -150,9 +150,13 @@
   </section>
 
   <section>
-    <h2>The meter</h2>
-    <dl class="meter" id="meter"></dl>
-    <h2 style="margin-top:1.2rem">Run it</h2>
+    <!--
+      The controls come first, above the meter. They were below it in the first deployed
+      version and a judge had to **scroll to find the run button** — which fails `07` §1's
+      "one click to a running scenario" on a page whose whole budget is ninety seconds.
+      Found by looking at it in a browser; no test would have caught it.
+    -->
+    <h2>Run it</h2>
     <button id="run-cortex" disabled>
       Run with CORTEX
       <small>five agents, one arbitrated memory</small>
@@ -165,6 +169,9 @@
       Show SQL
       <small>the statements this run executed</small>
     </button>
+
+    <h2 style="margin-top:1.4rem">The meter</h2>
+    <dl class="meter" id="meter"></dl>
   </section>
 </main>
 
@@ -195,6 +202,8 @@
   /** One sandbox scope per arm: re-running CORTEX in one scope dedupes against itself. */
   const runs = { cortex: null, naive: null };
   let showingSql = false;
+  let ranSomething = false;
+  let lastArm = 'cortex';
   let liveSession = null;
 
   // ---------------------------------------------------------------- fleet
@@ -294,7 +303,15 @@
     }
 
     if (total === 0) {
-      host.innerHTML = '<div class="empty">Run a scenario and rows will arrive here from the database’s own changefeed.</div>';
+      // After a naive run this panel is legitimately empty, and saying "run a scenario"
+      // would read as a failure to a judge who just ran one. The emptiness *is* the
+      // result: a fleet with no shared memory has no shared memory to write to, which is
+      // the same fact the show-SQL panel states as "0 statements".
+      host.innerHTML = ranSomething
+        ? '<div class="empty">Nothing. That is the result: these agents share no memory, ' +
+          'so there is nothing for them to write to and nothing for the next one to find. ' +
+          'Run it with CORTEX to see the same script fill this panel.</div>'
+        : '<div class="empty">Run a scenario and rows will arrive here from the database’s own changefeed.</div>';
     }
   }
 
@@ -363,7 +380,10 @@
   // ---------------------------------------------------------------- sql
 
   async function renderSql() {
-    const session = runs.cortex || runs.naive;
+    // The arm the visitor last ran, not whichever exists: after a naive run, showing
+    // CORTEX's transcript would answer a question nobody asked and hide the more
+    // interesting answer, which is that the naive arm executed nothing at all.
+    const session = runs[lastArm] || runs.cortex || runs.naive;
     const host = $('memory');
 
     if (!session) {
@@ -433,9 +453,19 @@
       if (!response.ok) throw new Error(result.error || 'run failed');
 
       runs[arm] = { sessionId: session.sessionId, meter: result.meter, steps: result.steps };
+      ranSomething = true;
+      lastArm = arm;
       renderFleet(result);
       renderMeter();
       text($('fleet-arm'), arm);
+
+      // The panel header stops saying "waiting for a run" once one has happened. For NAIVE
+      // that matters: no rows arrive over the changefeed, so nothing else would ever
+      // update it, and a judge would be reading a stale label under a finished run.
+      text(
+        $('memory-source'),
+        arm === 'naive' ? 'nothing was written to shared memory' : 'live from the changefeed',
+      );
 
       const state = await fetch(`${API}/demo/state?session=${session.sessionId}`);
       if (state.ok) applyState(await state.json());

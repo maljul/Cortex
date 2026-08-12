@@ -160,12 +160,21 @@ async function seedPast(options: RunOptions): Promise<BeatStep[]> {
   }).then((decision) => (decision.decision === 'granted' ? decision.intentId : null));
 
   if (intentId) {
+    // **No `notes`, deliberately.** Closing this intent as `reverted` puts it through the
+    // changefeed, which consolidates it — so passing `seedFact` here would consolidate the
+    // same sentence twice, once explicitly below and once by that route. The demo showed
+    // the result plainly: the seeded finding rendered `conf 0.60 · ×2`, semantic memory
+    // claiming two independent corroborations for one event. Confidence is what a later
+    // agent acts on, so overstating it is not cosmetic.
+    //
+    // Without notes the changefeed derives its own fact from the statement and outcome, a
+    // different sentence, and inserts it as a finding of its own — which is honest: a
+    // reverted intent really did close, and really should leave semantic memory behind.
     await close({
       repoId: options.sessionId,
       intentId,
       result: 'reverted',
       idempotencyKey: `seed-${intentId}`,
-      notes: SCRIPT.seedFact,
       ...scope,
     });
   }
