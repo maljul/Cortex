@@ -851,6 +851,20 @@ done, its intent id, its patch, and the file where the change is not. Without th
 naive lane is an assertion rather than evidence, and A7 is not satisfied by a page that is
 merely correct.
 
+**Half of that is now built and enforced, ahead of the runner (V41, 2026-08-13).** It was prose
+here and nowhere else, which is the thing CLAUDE.md forbids — a doc asserting an invariant no
+test checks. `src/demo/attribution.ts` produces one record per feature
+(`{ feature, agent, intentId, patch, file, inCortex, inNaive }`) and `unattributableLosses`
+refuses any feature present under arbitration and absent without it whose attribution is
+incomplete: no agent, no intent id, or an intent id the run's own steps do not contain.
+`test/attribution.test.ts` asserts it against the real C1/C2/C3 trees, 7 tests.
+**What the runner owes it is fixed and small:** a `WorkStep` per task per arm —
+`{ taskId, agent, intentId, reported }` — where `reported` distinguishes `done` from
+`deduped`/`blocked`/`abandoned`/`contended`, because attributing a loss to an agent that never
+claimed it is a false accusation that passes every null check.
+**Still to build: the panel that renders these rows** (U21/U25). The guard exists and is waiting
+for it; the requirement can no longer be lost by nobody implementing it.
+
 **Fallback if the corpus is not ready:** the existing TypeScript fixtures still work and the
 demo shows diffs instead of running apps. Nothing built is lost.
 
@@ -921,6 +935,18 @@ paths that throw.
 **Carry in:** this account's Lambda concurrency is 10, unraisable and indivisible (V22, V26).
 Design §5.2 fixes one visitor's run at **2** invocations with the agents as async tasks inside
 the runner; ten agents as ten Lambdas would consume the whole account for one visitor.
+**Carry in, found by `/check` on 2026-08-13 (V40) and deliberately not fixed then — Julian's
+call, because it was a third job that session was not given.** The demo API's credential
+refusal scans the request **body only**: `src/demo/api.ts:127` passes `request.body` to
+`findCredentialField` and never `request.query`, while `infra/lambda/demo.ts:104-110` parses
+every query parameter and hands it in. So `GET /demo/state?session=<valid>&dsn=…` returns
+**200** on the deployed API — the field is ignored and the request honoured. `05` §5 says "on
+any path", and `api.ts:40-44`'s own docstring states the rule this misses: *"ignoring it is not
+enough, because the rule exists so that the field never appears to work."* To be exact: **no
+credential field is declared on any surface**, so invariant 8 as CLAUDE.md words it survives —
+what fails is "rejected rather than honoured" on the query string. The fix is two lines plus a
+query case in `test/demo-plane.test.ts:323`, which today tests four body cases and no query
+case. This unit is where `POST /demo/run` and the query surface get touched, so it belongs here.
 
 ### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ⬜
 **Done when:** "every rendered number has a test that fails if it is set from a literal."

@@ -3763,3 +3763,361 @@ would still pass today because it exercises a `done` intent, so it is not eviden
 
 297 → 300: three added to `test/consolidate.test.ts`, one moved out of the ignore list.
 `npx tsc --noEmit` clean.
+
+---
+
+## V40 — `/check` run blind: three rows failed, and the credentials row could not be fixed in the working tree
+
+**2026-08-13.** Run by a session that had written no code this cycle, which is what
+`.claude/commands/check.md` opens by demanding. The two defects fixed afterwards were
+authorised separately by Julian and are recorded further down; **the gate itself fixed
+nothing**, per his instruction for this session.
+
+### The table
+
+| # | Check | Verdict |
+|---|---|---|
+| 1 | Transaction integrity | PASS |
+| 2 | Retry coverage (inv. 6) | PASS |
+| 3 | Tenant isolation (inv. 5) | PASS |
+| 4 | Mechanical rows | **FAIL** |
+| 5 | Privilege plane | **FAIL** |
+| 6 | Invariant suite | **FAIL** |
+
+Connection target, confirmed rather than assumed:
+
+```
+host     agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud:26257
+database defaultdb
+version  CockroachDB CCL v26.2.5 (x86_64-pc-linux-gnu, built 2026/07/28 18:56:00)
+```
+
+### Row 6 — the suite is 315/316, and the failure is not a flake
+
+```
+ Test Files  1 failed | 25 passed (26)
+      Tests  1 failed | 315 passed (316)
+   Duration  590.92s
+
+ FAIL  test/scenario.test.ts > the NAIVE arm runs the same script and loses
+       > runs the same statements as CORTEX, so the contrast is the coordination layer
+ Error: Test timed out in 30000ms.
+```
+
+It re-ran green on its own — 14/14 in 121s — which is the answer that would have closed this
+as a flake. It is not one. Measured per test on an idle machine:
+
+```
+✓ ... covers every field the meter actually reports                    10553ms
+✓ ... recalls, dedupes, blocks and closes — each as a real decision     9812ms
+✓ ... runs the same statements as CORTEX ...                          22466ms   <-- of a 30000ms budget
+✓ ... loses a write when two agents write back a stale snapshot         3948ms
+```
+
+**22.5s of 30s, 2.1x the next slowest test in the file**, because it is the only one that runs
+two full scenarios. Under `npm test` it shares one Basic-tier cluster with 25 other files. The
+margin was 7.5s and it will shrink every time the suite grows.
+
+Fixed with Julian's approval by giving that one `it` a 90s budget. `vitest.config.mts` stays at
+30s — that global is what stops a genuinely hung test from hanging the suite, and every other
+test in the file fits it comfortably. No assertion changed.
+
+**Note for anyone re-running this:** `npm test 2>&1 | tail` reports **exit 0** on a failing
+suite, because the exit status is `tail`'s. The output has to be read, not the status checked.
+
+### Row 6, second half — all nine of `03` §8's items have a test
+
+Item 7 has no `§8 test 7` comment anywhere, which is what made it look uncovered;
+`test/retry.test.ts:2` quotes it verbatim in the file header instead and `:117` asserts it
+against a genuine SQLSTATE 40001 produced by two real clients. So the coverage is complete:
+
+| §8 item | Test |
+|---|---|
+| 1 concurrent claims | `propose.test.ts:99` |
+| 2 no partial set | `propose.test.ts:130` |
+| 3 glob/file overlap | `propose.test.ts` |
+| 4 idempotent close | `close.test.ts` ×2 |
+| 5 expired claim reclaimed | `propose.test.ts` |
+| 6 paraphrase dedupe + holder | `propose.test.ts:193` |
+| 7 forced 40001 commits | `retry.test.ts:2,117` |
+| 8 recall repo isolation | `recall.test.ts` ×2 + `propose.test.ts` |
+| 9 `cortex_demo` confinement | `privilege-planes.test.ts:200` |
+
+### Row 5 — two findings, neither fixed in this session
+
+**(a) The credential refusal scans the request body only.** `src/demo/api.ts:127` passes
+`request.body` to `findCredentialField` and never `request.query`.
+`infra/lambda/demo.ts:104-110` parses every query parameter and hands it in, so on the deployed
+API `GET /demo/state?session=<valid>&dsn=postgresql://…` returns **200**: the field is ignored
+and the request honoured. The module's own docstring at `api.ts:40-44` states the rule its
+implementation does not enforce — *"rejected rather than honoured — ignoring it is not enough,
+because the rule exists so that the field never appears to work."* `05` §5 says "on any path".
+
+Precisely what is and is not true: **no credential field is declared on any surface**, so
+invariant 8 as CLAUDE.md words it survives. What fails is `05` §5's "rejected rather than
+honoured", on the query string. `test/demo-plane.test.ts:323-332` tests four body cases and no
+query case. **Julian's call, 2026-08-13: record only, fix in a unit.** It is a two-line change
+plus a test case and it is a third job this session was not given.
+
+**(b) The write plane's principal is unasserted, and the comment naming it is false.**
+`src/db/pool.ts:7` says *"`write` — `cortex_writer`, via `CORTEX_DSN`"*. `npm run db:check`
+reports `CORTEX_DSN` connecting as **`julian`**, and there is no `CORTEX_WRITER_DSN` in `.env`
+at all:
+
+```
+DSN shape
+  host     agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud:26257
+  user     julian
+```
+
+`test/privilege-planes.test.ts` asserts the principal for the reader (`:124`,
+`toBe('cortex_reader')`) and for the demo plane (`:284`, `toBe('cortex_demo')`). For
+`CORTEX_DSN` it opens a client it calls **`admin`** (`:238`, `:270`, `:395`, `:485`) and asserts
+nothing about who it is. So CLAUDE.md's *"writer writes and cannot `DROP`… this file is the
+guard rather than the log"* holds for two planes of three — the writer half is still log-only
+(V9), which is the failure mode that file's own docstring says it exists to end.
+
+Not settled by attempting a `DROP` as `CORTEX_DSN`. Attempting it on the live cluster four days
+before ship is not a risk a report-only gate should take; V9 did it against `cortex_writer`,
+and the open question is whether `CORTEX_DSN` still names that principal, which the evidence
+above says it does not.
+
+### Rows 1–3 — clean, and stated plainly rather than hurried past
+
+**Row 1.** One arbitration implementation. `src/memory/propose.ts:224` is the only `withRetry`
+in the file; the dedupe SELECT (`:136`), the intents INSERT (`:233`), the claims INSERT (`:251`)
+and the blocked-path holder read (`:274`) are all on the client that callback binds, and
+`retry.ts:177` releases it in `finally` — after COMMIT or ROLLBACK, never between statements.
+All five candidate splits negative: no `pool.query` in the propose path; `findDuplicate` and
+`contestedHolders` are module-private and referenced nowhere else; one `withRetry` per propose;
+`src/mcp/server.ts:169` calls `propose()` rather than opening a client; and `bench/arms/` has
+no second arbitration — `bench/demo-workload.ts`'s `pool.query` strings are patch fixture text,
+not executed SQL.
+
+**Row 2.** All eleven write statements in `src/` execute inside a `withRetry` callback. Seven
+uncovered writes exist and all seven are in `scripts/` — gate cleanup DELETEs, the migration
+runner, the cluster setting in `check-db`, changefeed job control, and the deliberate refusal
+probes in `probe-read-plane`. None is an application write path; each needs `CORTEX_DSN` and a
+shell.
+
+**Row 3.** Every read of a tenant-bearing table carries the filter, including the two that
+matter most: `close.ts:222`, which exists only to build an error message, carries
+`WHERE id = $1 AND repo_id = $2` **and** collapses "wrong repo" into "no such intent" at `:227`
+— tested behaviourally at `test/close.test.ts:268-297`, which masks the ids and asserts the two
+messages are byte-identical. `recall.ts` carries both predicates (`:95`, `:105`), separately
+asserted. `live_run_budget`'s exemption verified against the schema and its own test; no other
+table has acquired it.
+
+**One gap, reported not fixed.** `DEMO_SURVIVING_WORK_SQL` (`demo.ts:129`) carries
+`WHERE repo_id = $1` and the comment at `demo.ts:301` asserts that it does — but the invariant-5
+assertion loop at `test/demo-plane.test.ts:198-208` covers five SQL constants and omits this
+one. Same for `shared-state.ts`'s two exported constants. The SQL is correct today; the guard
+that would catch its removal does not exist. That is CLAUDE.md's own rule about comments and
+tests, and it is a coverage gap rather than a violation.
+
+### Two documentation defects found on the way
+
+**`03` §8's numbering collides with CLAUDE.md's.** `CLAUDE.md:294` says *"From
+`spec/03-MEMORY-MODEL.md` §8"* and then lists **eight** invariants; §8 is a **nine**-item list
+headed "What must be tested", and its content is different (CLAUDE.md's list is mostly §4.2's
+invariants). Both conventions are in live use and the collision has already mis-fired:
+`test/skill.test.ts:84` cites "§8 test 8" for the no-credential rule, where §8 item 8 is recall
+tenant isolation. Harmless in behaviour; it makes this row's report harder to produce and would
+mislead anyone auditing coverage from the citation.
+
+**A stale threshold in a comment.** `test/helpers/vectors.ts:44` still says "well inside the
+0.28 dedupe threshold". The constant has been 0.39 since V23. The assertion it supports
+(`propose.test.ts:199`, `< 0.28`) is strictly conservative against a measured fixture distance
+of 0.266, so nothing is wrong — only the comment.
+
+---
+
+## V41 — Attribution: a missing feature names the agent that reported it done
+
+**2026-08-13, ahead of U21's runner.** `docs/UNITS.md` names this as U21's third silent break
+and the sharp one: a broken app reads as *"they wrote a broken app"* unless every missing
+feature is attributable on screen. Until now that requirement existed **only as prose in a
+document** — nothing produced the attribution and nothing checked for it, which is exactly what
+CLAUDE.md forbids: *"Do not assert in a comment or a doc what the tests do not check."*
+
+Built test-first, per `spec/11-SHIP-LOOP.md`, so the contract the runner must satisfy is fixed
+before the runner exists rather than discovered after. `src/demo/attribution.ts` is the module;
+`WorkStep` is the whole contract and it is three fields and a verdict.
+
+The fixtures are the real ones: `bench/fixtures/src/orders/repository.ts` with C1/C2/C3 applied
+is the tree arbitration produces, and the same three applied to one shared snapshot is the tree
+last-write-wins produces. `test/patches.test.ts` already proves those differ by two changes;
+this proves the difference can be **named**.
+
+The test failed first for the right reason:
+
+```
+FAIL test/attribution.test.ts
+Error: Cannot find module '../src/demo/attribution.js'
+```
+
+### Three mutations, and the second one refuted the first version of the test
+
+**Mutation 1 — drop the invented-intent-id check** from `unattributableLosses`:
+
+```
+     × refuses an intent id that appears in no step of the run
+      Tests  1 failed | 5 passed (6)
+```
+
+**Mutation 2 — attribute to any step rather than only a `done` one.** This is the one worth
+recording honestly, because it **passed**:
+
+```
+      Tests  6 passed (6)
+```
+
+The `reported === 'done'` filter was correct and **untested**. Every step in the fixture
+reported `done`, and the test that was supposed to cover it deleted the step rather than
+changing its verdict — so removing the filter changed nothing observable. The gap was in the
+test, not the code. A test was added for the case a missing-step test cannot reach: an agent
+that was deduped is *present in the run* and did not claim the feature, so attributing the loss
+to it puts a real name and a real intent id beside a feature that agent never said it
+delivered — a false accusation that passes every null check, because nothing about it is null.
+Re-run against the strengthened test:
+
+```
+     × refuses a loss whose agent reported something other than done
+      Tests  1 failed | 6 passed (7)
+```
+
+**Mutation 3 — make presence mean "the file exists" rather than "the file contains the patch":**
+
+```
+     × finds three features in the CORTEX app and one in the naive app
+     × attributes every feature the naive lane lost to an agent, an intent and a patch
+     × refuses a loss that no agent reported done
+     × refuses a loss whose agent reported something other than done
+     × refuses an intent id that appears in no step of the run
+      Tests  5 failed | 2 passed (7)
+```
+
+That is twice now in this project that a mutation has refuted what the code's own reasoning
+claimed (V39 was the first), and both times the test was corrected rather than the result
+buried.
+
+### What is and is not built
+
+Built: the record, the loss rule, and the guard, with 7 tests. **Not built:** the panel that
+renders it. `attributeFeatures` takes two file trees and the naive lane's steps and returns one
+row per feature; wiring it to the runner and the page is U21/U25's, and the guard is now waiting
+for them rather than the other way round.
+
+---
+
+## V42 — The `credentials` row of the mechanical gate, red since 2026-08-11
+
+**2026-08-13.** `bash scripts/gate-mechanical.sh --report` failed on three hits. All three are
+this repository's own placeholders: a fixture proving the SQL recorder never logs a parameter
+value, a fixture proving the demo API refuses a credential-shaped field, and a `curl` recipe in
+`docs/UNITS.md`. The script's own comment names the cost: *"a row that is always red is a row
+nobody reads."*
+
+### The thing the brief did not have, and it decides the fix
+
+The obvious repair is to rewrite the three strings into the already-blessed `user:password@`
+shape. **It cannot work.** `--report` scans `git log -p --all`, and all three entered history as
+`+` lines in commits `0219d24` and `50a984b` on 2026-08-11. Verified by extracting every hit
+from the scan with its diff prefix:
+
+```
+line 16124 [prefix=+]     const secret = 'postgresql://user:hunter2@host/db';
+line 17936 [prefix=+]   `-d '{"dsn":"postgresql://u:p@h/db"}'` comes back 400 with the reason.
+line 20934 [prefix=+]     { dsn: 'postgresql://user:pw@host/db' },
+```
+
+No edit to the working tree removes a line from a commit that is already written. The available
+repairs were: rewrite history, widen the shape, or **name the strings**. History rewrite four
+days before ship, on a repo with a deployed stack, is not proportionate. Widening is the move
+the script exists to catch.
+
+### What was built: an inventory of literals instead of a shape
+
+There are exactly seven distinct connection strings in the whole of history, so an inventory is
+tractable:
+
+```
+postgresql://u:p@h/db
+postgresql://user:hunter2@host/db
+postgresql://user:pass@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full
+postgresql://user:password@host:26257/cortex?sslmode=verify-full
+postgresql://user:password@host:26257/database?sslmode=verify-full
+postgresql://user:password@host:26257/leasehold?sslmode=verify-full
+postgresql://user:pw@host/db
+```
+
+Matched with `grep -F`. The inventory lines excuse themselves, because each line *is* the
+string. The script's self-match for its own pattern definitions is unchanged and still anchored.
+
+### Is the check stricter, equal, or weaker? **Stricter, and here is the demonstration**
+
+Not equal, and the honest accounting has two directions. Three fixed literals that were caught
+are now excused — deliberately, because they are fixtures and prose rather than secrets. In the
+other direction, the shape `user:password@` excused **every** connection string whose password
+happened to be the word `password`, on any host, in any file, forever. An inventory excuses
+seven strings a human wrote down and nothing else. **The count of unseen future strings excused
+goes from unbounded to zero.** A real credential is a different string under both rules, so
+neither ever let one through; what changed is what a *new* one can hide behind.
+
+Run against a probe — a new, undeclared string of exactly the previously-blessed shape:
+
+```
+PROBE LINE: a new, undeclared, credential-shaped string of the previously-blessed shape
+
+--- OLD rule (shape: user:password@) ---
+EXCUSED  <-- slips through
+
+--- NEW rule (inventory of literals) ---
+CAUGHT   <-- newly caught
+```
+
+### The row, green
+
+```
+typecheck              PASS npx tsc --noEmit exits 0
+sql-containment        PASS no SQL outside src/memory/ and src/db/
+env-ignored            PASS git check-ignore .env matches
+credentials            PASS no credential pattern in all history (placeholders excluded)
+
+mechanical rows: PASS
+```
+
+### The script is now under test, and the strictness is the assertion
+
+`test/gate-mechanical.test.ts`, 4 tests. It runs `--report` for real — stubbing `tsc` or
+`git log` would assert something other than what `/check` row 4 runs — and it asserts the
+blessing is by literal rather than by shape. Mutation, re-adding the old shape to the inventory:
+
+```
+     × declares whole connection strings, not fragments a family could hide behind
+       AssertionError: user:password@ is a fragment, not a connection string
+     × does not excuse a new string that merely looks like a declared one
+       AssertionError: user:password@ would excuse an undeclared credential
+      Tests  2 failed | 2 passed (4)
+```
+
+Two independent assertions catch it, with the message an auditor needs.
+
+**The empty-inventory failure mode is guarded, because it is the dangerous one.** `grep -vF ''`
+excuses every line in the scan, so an inventory that parsed to nothing would turn the row into
+an unconditional PASS — strictly worse than the FAIL it replaced. The script refuses to run:
+
+```
+gate-mechanical: the placeholder inventory is empty, which would excuse every
+line in the scan. Refusing to report a PASS that means nothing.
+EXIT=1
+```
+
+**No test fixture and no doc was edited.** `test/recorder.test.ts:96` already asserts
+`not.toContain(secret)` on the whole string as well as `not.toContain('hunter2')`, and a
+distinctive password token is the right fixture for "never logs a parameter value". Churning
+three well-reasoned files to satisfy a rule that history makes unsatisfiable would have been
+motion rather than a fix.
+
+**Adding to the inventory is meant to be a decision.** A new placeholder turns the row red until
+someone writes it down. That is the mechanism working.

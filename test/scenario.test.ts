@@ -373,17 +373,36 @@ describe('the NAIVE arm runs the same script and loses', () => {
     expect(log.some((sql) => /INSERT INTO intents/.test(sql))).toBe(false);
   });
 
-  it('runs the same statements as CORTEX, so the contrast is the coordination layer', async () => {
-    const cortex = await runScenario({ sessionId: await session(), arm: 'cortex', embed });
-    const naive = await runScenario({ sessionId: await session(), arm: 'naive', embed });
+  /**
+   * The only test in this file that runs **two** full scenarios, and so the only one the
+   * suite-wide 30s budget does not fit.
+   *
+   * Measured on an idle machine, 2026-08-13: **22,466 ms of 30,000** — 2.1x the next
+   * slowest test here, with 7.5s of headroom. Under `npm test` it shares one Basic-tier
+   * cluster with 25 other files and it timed out, then passed on its own. That is not a
+   * flake to re-run; it is a test whose real cost sits at three quarters of its budget and
+   * whose margin shrinks every time the suite grows.
+   *
+   * The budget is raised here and nowhere else. `vitest.config.mts` stays at 30s, because
+   * that global is what keeps a genuinely hung test from hanging the suite, and every other
+   * test in this file fits inside it comfortably. Nothing about the assertion changes: two
+   * real runs against the real cluster, compared on the work they attempted.
+   */
+  it(
+    'runs the same statements as CORTEX, so the contrast is the coordination layer',
+    async () => {
+      const cortex = await runScenario({ sessionId: await session(), arm: 'cortex', embed });
+      const naive = await runScenario({ sessionId: await session(), arm: 'naive', embed });
 
-    const scripted = (steps: typeof cortex.steps) =>
-      steps.filter((s) => s.kind === 'propose').map((s) => s.statement).sort();
+      const scripted = (steps: typeof cortex.steps) =>
+        steps.filter((s) => s.kind === 'propose').map((s) => s.statement).sort();
 
-    // `07` §2: "Same scenario, same cassettes, visibly different outcome." If the arms
-    // attempted different work, the difference in outcome would prove nothing.
-    expect(scripted(naive.steps)).toEqual(scripted(cortex.steps));
-  });
+      // `07` §2: "Same scenario, same cassettes, visibly different outcome." If the arms
+      // attempted different work, the difference in outcome would prove nothing.
+      expect(scripted(naive.steps)).toEqual(scripted(cortex.steps));
+    },
+    90_000,
+  );
 
   /**
    * THE LOSS ITSELF, PROVEN WITHOUT A RACE.

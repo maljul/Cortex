@@ -146,6 +146,28 @@ What does not belong in a unit list, and so lives here:
   **The changefeed sink's second copy of the status rule was deleted, not updated** — it would
   have vetoed this silently while the unit test passed. **Not deployed:** `ChangefeedFn` still
   carries the old filter until `node infra/bundle.mjs && npx cdk deploy`.
+- **The mechanical gate's `credentials` row blesses declared strings, not a shape (V42,
+  2026-08-13).** It had read FAIL on every `--report` run since 2026-08-11 on three of this
+  repo's own placeholders, and **rewriting them into the blessed shape cannot fix it**:
+  `--report` scans `git log -p --all` and all three are `+` lines in commits `0219d24` and
+  `50a984b`, which no working-tree edit can reach. `PLACEHOLDER_STRINGS` is now an inventory of
+  the **seven** exact connection strings in the whole of history, matched with `grep -F`. It is
+  **stricter, not equal**: the old `user:password@` excused every DSN whose password was the
+  word `password` on any host for ever, and the inventory excuses seven strings and nothing —
+  unseen future strings excused goes from unbounded to zero, at the stated price of three fixed
+  literals that were caught and now are not. **An empty inventory would make the row an
+  unconditional PASS** (`grep -vF ''` excuses everything), so the script refuses to run on one.
+  `test/gate-mechanical.test.ts` runs `--report` for real and fails if a shape is ever re-added.
+  Adding a placeholder is meant to be a decision — a new one turns the row red until it is
+  written down.
+- **A missing feature is attributed by code, not by prose (V41, 2026-08-13).** U21's third
+  silent break was written down in `docs/UNITS.md` and checked by nothing.
+  `src/demo/attribution.ts` returns one record per feature and `unattributableLosses` refuses
+  any feature present under arbitration and absent without it that lacks an agent, an intent id,
+  or an intent id the run's own steps contain. **The runner owes it a `WorkStep` per task per
+  arm** — `{ taskId, agent, intentId, reported }` — and `reported` must distinguish `done`,
+  because attributing a loss to a deduped agent is a false accusation that passes every null
+  check. **The panel that renders these rows is not built**; the guard is waiting for U21/U25.
 - **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
   Bedrock yields a deterministic local vector, the intent is marked
   (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is
@@ -193,12 +215,21 @@ What does not belong in a unit list, and so lives here:
   the scope at `COMMIT`, so a pooled connection cannot carry one visitor's scope into the
   next request.
 - Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09; under
-  test since V15.** Reader reads and cannot write; writer writes and cannot `DROP`;
+  test since V15 — for two of the three planes.** Reader reads and cannot write;
   `cortex_demo` reaches its own live demo scope and nothing else. Do not re-check this
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 300/300 across 24 files, 586s against the real
+  the weaker "no privilege at all".
+  **The write plane is the exception, and `/check` found it blind on 2026-08-13 (V40).**
+  `src/db/pool.ts:7` says `CORTEX_DSN` is `cortex_writer`; `npm run db:check` says it connects
+  as **`julian`**, and there is no `CORTEX_WRITER_DSN` in `.env`. The role exists and V9 proved
+  it is refused `DROP` — what is unproven is that this variable names it. The file asserts the
+  principal for the reader (`:124`) and the demo plane (`:284`) and for `CORTEX_DSN` opens a
+  client it calls `admin` (`:238`), asserting nothing; that missing assertion is the one that
+  would have caught this. **"writer writes and cannot `DROP`" is therefore still log-only.**
+  Deviation in `docs/SPEC-DELTA.md`; the decision about which principal the write plane should
+  be for the recording is open and Julian's. **Suite 300/300 across 24 files, 586s against the real
   cluster (2026-08-13, V39)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
@@ -291,7 +322,14 @@ only checking did.
 
 ## Invariants that must never regress
 
-From `spec/03-MEMORY-MODEL.md` §8. Tests live in `test/`.
+Tests live in `test/`. **This list is not `spec/03-MEMORY-MODEL.md` §8's list, and saying it
+was cost a `/check` row its clarity (V40).** §8 is *"What must be tested"* and has **nine**
+items; the eight below are the invariants, drawn mostly from §4.2. Both numberings are in live
+use across `test/`, cited as **"§8 test N"** for §8's nine and **"invariant N"** for these
+eight. The collision has already mis-fired once — `test/skill.test.ts:84` cites "§8 test 8" for
+the no-credential rule, where §8 item 8 is recall tenant isolation. Nothing behavioural depends
+on it; do not renumber either list to fix it, because every existing citation would then be
+wrong. All nine of §8's items have a test (the map is in V40).
 
 1. Dedupe and claim share **one** transaction. If a similarity check and a claim
    insert ever land in different transactions, connections, or requests, the
@@ -318,6 +356,7 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
 `npm run gate:consolidate` (hosted) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
 `npm run changefeed status|create|cancel` ·
+`bash scripts/gate-mechanical.sh --report` (`/check` row 4; also runs as the commit hook) ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +
 cluster `<=>`; republishes the recall threshold table) · `npm run measure:statements` (live
 Titan + cluster `<=>`; every pairwise distance between demo statements — **run it after any

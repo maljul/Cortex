@@ -50,20 +50,69 @@ if [ "$REPORT" != "1" ]; then
   esac
 fi
 
-# Placeholder DSNs that are supposed to be in the repo — .env.example and the
-# error message in env-doctor. Matching them is a false positive, not a leak.
+# Placeholder DSNs that are supposed to be in this repository — .env.example, the error
+# message in env-doctor, two test fixtures and one `curl` recipe in the docs. Matching them
+# is a false positive, not a leak.
 #
-# The two CREDENTIAL_ lines are this script matching itself. The patterns below are
-# committed text, and one of them spells out an API key prefix, so from the moment
-# they were committed the report row read FAIL on every run — on a hit that was the
-# check's own definition. That is the failure the comment under CREDENTIAL_CI
-# already describes for `check.md`: a row that is always red is a row nobody reads.
+# THIS IS AN INVENTORY OF EXACT STRINGS, AND IT REPLACED A SHAPE ON 2026-08-13.
 #
-# Anchored to the assignment, so it excuses the definition and nothing else. Do not
-# widen it to cover prose. Write *about* these patterns without spelling them out —
-# the first attempt at this fix put the literal in a comment and in the verification
-# log, and the check correctly blocked the commit both times.
-PLACEHOLDER='user:password@|user:pass@|^\+?CREDENTIAL_C[IS]='
+# It used to be `user:password@|user:pass@`, matched as a pattern. Three of the strings
+# below did not fit that shape, so from 2026-08-11 the `--report` row read FAIL on every
+# run — which is the failure the comment under CREDENTIAL_CI already describes: a row that
+# is always red is a row nobody reads.
+#
+# The obvious repair is to rewrite the three strings into the blessed shape. It does not
+# work, and knowing why is the whole reason this list exists: `--report` scans
+# `git log -p --all`, the three strings entered history as `+` lines in commits `0219d24`
+# and `50a984b`, and no edit to the working tree can remove a line from a commit that is
+# already written. The only repairs available are to rewrite history, to widen the shape,
+# or to name the strings. This names them.
+#
+# **Naming them is narrower than the shape, on the axis that matters.** `user:password@`
+# excused every connection string whose password happened to be the word `password`, on any
+# host, in any file, forever — an unbounded family, none of which anyone had ever seen. An
+# inventory excuses seven strings a human wrote down and nothing else. A real credential is
+# a different string under both rules, so neither lets one through; what changes is the
+# number of *unseen future* strings excused, and it goes from infinite to zero. The price is
+# named honestly: three literals that were previously caught are now excused, deliberately,
+# because they are fixtures and prose rather than secrets.
+#
+# Adding to this list is meant to be a decision. If a new placeholder appears, the row goes
+# red until someone writes it down — that is the mechanism working, not a nuisance.
+#
+# Matched with `grep -F`, so each line is a fixed string and a scanned line is excused when
+# it *contains* one. An empty inventory would make `grep -vF ''` excuse everything, so the
+# guard below refuses to run on one and `test/gate-mechanical.test.ts` asserts it is not
+# empty and that every entry is a whole connection string rather than a fragment.
+#
+# BEGIN PLACEHOLDER INVENTORY
+PLACEHOLDER_STRINGS=$(cat <<'PLACEHOLDERS'
+postgresql://u:p@h/db
+postgresql://user:hunter2@host/db
+postgresql://user:pass@host.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full
+postgresql://user:password@host:26257/cortex?sslmode=verify-full
+postgresql://user:password@host:26257/database?sslmode=verify-full
+postgresql://user:password@host:26257/leasehold?sslmode=verify-full
+postgresql://user:pw@host/db
+PLACEHOLDERS
+)
+# END PLACEHOLDER INVENTORY
+
+if [ -z "$PLACEHOLDER_STRINGS" ]; then
+  echo "gate-mechanical: the placeholder inventory is empty, which would excuse every" >&2
+  echo "line in the scan. Refusing to report a PASS that means nothing." >&2
+  exit 1
+fi
+
+# The script matching itself. The two CREDENTIAL_ patterns below are committed text and one
+# of them spells out an API key prefix, so they are hits on the check's own definition.
+#
+# Anchored to the assignment, so it excuses the definition and nothing else. Do not widen it
+# to cover prose. Write *about* these patterns without spelling them out — the first attempt
+# at this fix put the literal in a comment and in the verification log, and the check
+# correctly blocked the commit both times. (The inventory above is the sanctioned way to
+# spell one out: it excuses its own lines, because each line *is* the string.)
+PLACEHOLDER_SELF='^\+?CREDENTIAL_C[IS]='
 
 # Two patterns, because one of them must not be case-folded.
 #
@@ -135,7 +184,7 @@ else
   SCOPE="staged diff"
 fi
 CREDS=$( { grep -iE "$CREDENTIAL_CI" "$SCAN"; grep -E "$CREDENTIAL_CS" "$SCAN"; } \
-         | grep -viE "$PLACEHOLDER")
+         | grep -vE "$PLACEHOLDER_SELF" | grep -vF "$PLACEHOLDER_STRINGS")
 if [ -z "$CREDS" ]; then
   row "credentials" "PASS" "no credential pattern in $SCOPE (placeholders excluded)"
 else

@@ -918,3 +918,81 @@ cut line and decision 7 keeps the current deployed page serving throughout, so t
 bounded. **If the app corpus is not ready, the existing TypeScript fixtures still work and the
 demo shows diffs rather than running apps** — everything built so far stands, and only the last
 presentation step is lost.
+
+---
+
+## 2026-08-13 — The mechanical gate blesses declared strings, not a credential shape
+
+**Context.** `scripts/gate-mechanical.sh --report`'s `credentials` row had been FAIL since
+2026-08-11 on three of this repository's own placeholders. The script's own comment names why
+that matters: *"a row that is always red is a row nobody reads."*
+
+**The constraint that decided it.** The natural repair — rewrite the three strings into the
+already-blessed `user:password@` shape — cannot work. `--report` scans `git log -p --all`, and
+all three entered history as `+` lines in commits `0219d24` and `50a984b`. A commit cannot be
+edited by editing the working tree. Three repairs existed: rewrite history, widen the shape, or
+name the strings.
+
+**Rewriting history was rejected.** It changes every SHA from 2026-08-11 forward, on a repo with
+a deployed stack, four days before ship, to relocate three fake connection strings that are not
+secrets. Disproportionate.
+
+**Widening the shape was rejected** because it is the move the script exists to catch, and
+because the shape was already the problem: `user:password@` excused every connection string
+whose password happened to be the word `password`, on any host, in any file, for ever.
+
+**Decision: an inventory of exact literals, matched with `grep -F`.** Seven strings, which is
+all of them in the whole of history. The count of *unseen future* strings the check excuses goes
+from unbounded to zero; the price, stated rather than buried, is three fixed literals that were
+previously caught and are now excused deliberately. A real credential was never excused under
+either rule.
+
+**Why an inventory rather than three more patterns.** A pattern blesses a family. A literal
+blesses one string a human wrote down. Adding to the list turns the row red until someone makes
+that decision explicitly — which is the mechanism working, not friction to be removed.
+
+**Two failure modes are guarded because they are how this fix could rot.** An empty inventory
+would make `grep -vF ''` excuse every line in the scan, turning the row into an unconditional
+PASS — strictly worse than the FAIL it replaced — so the script refuses to run on one. And
+`test/gate-mechanical.test.ts` asserts every entry is a whole connection string and that a new
+string of the old blessed shape is *not* excused, so re-introducing a pattern fails two
+independent tests.
+
+**No fixture and no doc was edited.** `test/recorder.test.ts:96` already asserts
+`not.toContain(secret)` on the whole string as well as on the distinctive token, and a
+distinctive password is the right fixture for "never logs a parameter value". Churning three
+well-reasoned files to satisfy a rule history makes unsatisfiable would have been motion rather
+than a fix.
+
+---
+
+## 2026-08-13 — A missing feature is attributed by code, and the guard ships before the runner
+
+**Context.** U21's third silent break: a broken naive app reads as *"they wrote a broken app"*
+unless every missing feature names the agent that reported it done, its intent id, its patch,
+and the file where the change is not. The requirement existed only as prose in `docs/UNITS.md`.
+
+**Decision: build the record and its guard now, ahead of U21's runner.** `spec/11-SHIP-LOOP.md`
+puts the invariant's test first, and the runner does not exist yet — so writing this after would
+mean writing a test against an implementation that already chose its own shape. Doing it now
+fixes the contract the runner must satisfy: `WorkStep` is `{ taskId, agent, intentId, reported }`
+and nothing more, because every extra field is one a runner could supply wrongly with nothing
+noticing.
+
+**Presence is measured against the patch text, not a per-feature marker.** A marker string
+maintained by hand is a second place for the corpus to drift out of the workload, and drift
+there produces a page that quietly *mis*-attributes rather than one that fails. The three demo
+patches rewrite disjoint regions — `test/patches.test.ts` asserts they do — so containment of
+the replacement text is exact.
+
+**Attribution comes from the naive lane's steps, and only from steps that reported `done`.** An
+agent that was deduped, blocked or gave up is present in the run and did not claim the feature;
+naming it would put a real agent and a real intent id beside work that agent never said it
+delivered. That is a false accusation which passes every null check, because nothing about it is
+null — and a mutation proved the filter enforcing it was untested when first written (V41).
+
+**The guard is scoped to losses.** A feature both lanes kept accuses nobody and needs no agent.
+A guard demanding one would fail every run for a reason the page is not making.
+
+**Not built: the panel.** This is the record and the rule. Rendering it is U21/U25's, and the
+guard now waits for them rather than the other way round.

@@ -744,3 +744,44 @@ once, backs off past the winner's commit, retries alone and is cleanly blocked.
 Every property `src/db/retry.ts` documents is stated relative to the constant and is
 unchanged, so `test/retry.test.ts` needed no edit — that it asserts against `BASE_DELAY_MS`
 rather than against literals is why this was a one-line change and not a rewrite.
+
+---
+
+### `04` §3's write plane is `cortex_writer`; `CORTEX_DSN` connects as `julian` *(2026-08-13, V40)*
+
+Found by `/check` row 5, run blind. `spec/04-ARCHITECTURE.md:75` gives the Write plane the
+principal `cortex_writer` with `SELECT`/`INSERT`/`UPDATE`/`DELETE` on the six tables "and
+nothing else", and `src/db/pool.ts:7` restates that as fact:
+
+```
+ * - `write` — `cortex_writer`, via `CORTEX_DSN`. The CLI and the MCP tools.
+```
+
+`npm run db:check` reports otherwise:
+
+```
+DSN shape
+  host     agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud:26257
+  user     julian
+```
+
+`.env` carries `CORTEX_DSN`, `CORTEX_READER_DSN` and `CORTEX_DEMO_DSN` — there is no
+`CORTEX_WRITER_DSN`. The role `cortex_writer` genuinely exists on the cluster, is granted by
+`sql/001_init.sql:197`, and V9 verified it is refused `DROP`. What is not true is that
+`CORTEX_DSN` names it.
+
+**The spec is not wrong; the environment does not match it.** Recorded here rather than in
+`docs/DECISIONS.md` because §3's table is the thing a reader would take on trust.
+
+**What makes it a finding rather than a note:** `test/privilege-planes.test.ts` asserts the
+principal for the reader (`:124`) and for the demo plane (`:284`), and for `CORTEX_DSN` it opens
+a client it calls `admin` (`:238`, `:270`, `:395`, `:485`) and asserts nothing about who it is.
+So CLAUDE.md's *"writer writes and cannot `DROP`… `test/privilege-planes.test.ts` is the guard
+rather than the log"* holds for two planes of three. The missing assertion is exactly the one
+that would have caught this — and its absence is the shape of V9, where the narrow question was
+answered truthfully while the account held everything through a membership nobody asked about.
+
+**Not settled by attempting the write**, which is what this project's own rule demands. A `DROP`
+attempt as `CORTEX_DSN` against the live cluster four days before ship is not a risk a
+report-only gate should take. The open question is which principal the write plane should be for
+the recording and the submission, and it is Julian's.
