@@ -50,15 +50,36 @@ export class PatchError extends Error {}
  * corpus that moved with the working directory would make a patch apply in one and throw in
  * another. `bench/reason.ts` resolves its corpus the same way and for the same reason.
  */
-function corpusRoot(): string {
-  return join(fileURLToPath(new URL('../../', import.meta.url)), 'bench/fixtures');
+function repoRoot(): string {
+  return fileURLToPath(new URL('../../', import.meta.url));
 }
 
-/** Reads the committed fixture files an agent is about to work on. */
-export function loadFixtureTree(files: readonly string[]): FileTree {
+/**
+ * The benchmark's corpus — the 40-file orders service `06` §4 describes. Frozen by `08` §4's
+ * passed gate; nothing the demo does may change it.
+ */
+export const BENCH_CORPUS = 'bench/fixtures';
+
+/**
+ * The demo's own corpus — the small orders dashboard the agents build on screen, added
+ * 2026-08-13 so a lost write is a missing *feature* rather than a missing hunk. Separate from
+ * the benchmark's on purpose: see `bench/demo-app/README.md`.
+ */
+export const DEMO_APP_CORPUS = 'bench/demo-app';
+
+/**
+ * Reads committed files an agent is about to work on, keyed by their path within `root`.
+ *
+ * `root` is explicit rather than global because there are now two corpora and they must never
+ * be confused: patching a benchmark fixture would invalidate `08` §4's committed results.
+ */
+export function loadFixtureTree(
+  files: readonly string[],
+  root: string = BENCH_CORPUS,
+): FileTree {
   const tree: FileTree = {};
   for (const file of files) {
-    tree[file] = readFileSync(join(corpusRoot(), file), 'utf8');
+    tree[file] = readFileSync(join(repoRoot(), root, file), 'utf8');
   }
   return tree;
 }
