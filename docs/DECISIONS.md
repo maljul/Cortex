@@ -456,3 +456,37 @@ on-demand billed, destroyed with the stack.
 This adds a service `04` §2's deployment table does not list. Recorded here for that
 reason; it is an addition to that table rather than a departure from it, and `04` §2's
 "no long-lived compute anywhere" is untouched.
+
+---
+
+## 2026-08-12 — Each demo arm runs in its own sandbox scope, and both stay on screen
+
+`07` §2 calls the naive toggle the demo's spine: "same scenario, same cassettes, visibly
+different outcome. Contrast persuades; description does not." The obvious implementation is
+one session that re-runs, and it is wrong for a reason that only shows up once the mechanism
+works: a second CORTEX run in the same scope **dedupes against the first**. That is the
+mechanism behaving perfectly and a demo that reads as broken, because the judge sees
+`deduped` where the first run showed `granted` and has no way to know why.
+
+So each arm gets its own scope, and both results stay on screen side by side rather than
+replacing one another. The second half matters as much as the first: a toggle that swaps the
+view makes the contrast depend on the judge's memory of a screen they are no longer looking
+at, and `07` §1 gives them ninety seconds and no patience. Two columns of numbers ask nothing
+of them.
+
+## 2026-08-12 — The meter quotes the benchmark for tokens, and labels it
+
+`07` §2's meter lists "tokens saved". The demo scenario spends no reasoning tokens — it
+embeds and arbitrates, it does not reason — so there is no token figure this session could
+honestly display, and `07` §1 requires every number on screen to be real.
+
+Three options were live: omit the row, show TBD, or quote the benchmark. The row is quoted
+from `bench/results/2026-08-10T22-38-54-176Z` — `wasted_tokens` 4000 naive against 867
+CORTEX — under an explicit "measured in the benchmark over 30 tasks, not in this session"
+label. That number is real, published, and reproducible from a clean clone; what would have
+been dishonest is letting it read as this run's, which the label prevents.
+
+TBD was rejected for this surface specifically. The rule against placeholder numbers exists
+so that nobody writes a plausible fiction, and TBD is the right answer in a results file
+where the reader is auditing. On a judge-facing panel it reads as unfinished rather than as
+rigour, and there is a true number available to show instead.

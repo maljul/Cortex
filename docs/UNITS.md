@@ -530,11 +530,24 @@ plainly in `04` §3 rather than left for a reader to infer.
 - `propose`, `close`, `recall` and `consolidate` all take a plane and a demo session, so a
   visitor's arbitration is the same transaction under `cortex_demo`'s RLS.
 
-**Remaining: the SPA itself.** `07` §2's three panels (fleet / memory / meter), the naive
-toggle, and the show-SQL view. Everything it needs is deployed and returning real data;
-drive it from `POST /demo/run`, `GET /demo/state`, `GET /demo/sql-log` and the WebSocket.
-The page at https://d11xbslgdgomdp.cloudfront.net is still U14's placeholder — it carries
-no panel layout worth keeping, and `07` §2 is where the layout comes from.
+**The SPA is built and deployed (2026-08-12, V29).** `infra/site/index.html` — three
+panels, the naive toggle, the show-SQL view — at https://d11xbslgdgomdp.cloudfront.net.
+Vanilla, one file, no build step; `scripts/deploy-site.mts` injects the endpoints because
+they are CloudFormation outputs. `test/site.test.ts` guards invariant 8 against the source:
+no input, form or credential-shaped name, including commented out.
+Three backend gaps were closed to feed it — `action_ledger` reaches `demoState()` and the
+changefeed so `03` §2's fourth tier has a source, claim p50 and the retry counter are
+measured from the run per `04` §7, and `GET /demo/state` reports the mode and its reason per
+`05` §5. **Recreating the changefeed is required after touching `WATCHED`**; the procedural
+tier stays empty until `npm run changefeed create` runs.
+
+**What is left is the one thing no script can do: read it cold.** The done-when is "the four
+beats read clearly to someone who has not seen it", and the Chrome extension was not
+connected, so nothing has driven the page in a browser. Every request it makes is verified
+(V29) and the payloads are right; layout, the toggle, the SQL view and the live rows
+animating in are unconfirmed. **Julian opens it, and says whether the beats land.** Until
+then this unit is not done, and the honest failure mode is a page that is correct and
+unreadable.
 
 **Beat 1 does not fire, and that is a decision waiting, not a bug.** `03` §4.1's published
 SQL filters recall at `dist < 0.35`, and under real Titan embeddings every honest wording

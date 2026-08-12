@@ -13,6 +13,32 @@ is not undone by a later reader.
 
 ## Open
 
+### `07` §4's mode line claims cached reasoning that does not happen *(2026-08-12, U16)*
+
+§4 requires "an always-visible line in REPLAY: `replay mode: agent reasoning is cached, all
+database behaviour is live`". The second clause is true. The first is not: the demo scenario
+performs **no model reasoning at all**. It embeds statements via Bedrock Titan — live calls,
+not cassettes — and every decision on screen comes from `propose`, `close`, `recall` and
+`consolidate`, none of which reasons about anything.
+
+Shipping §4's wording verbatim would assert a cache that does not exist, on the one page a
+judge reads, in the sentence whose entire purpose is honesty about liveness. `07` §4 itself
+says never to narrate replay footage as live inference; the same rule read backwards forbids
+narrating live behaviour as replayed. The deployed line is:
+
+> **live database, live embeddings** — Every row on this page was committed by CockroachDB
+> and arrived over its own changefeed. Dedupe distances come from live Bedrock embeddings.
+> This scenario performs no model reasoning, so nothing here is replayed from a cassette.
+
+It is served from `GET /demo/state`'s `mode` block rather than written into the markup, so
+the page cannot claim a liveness the backend is not reporting.
+
+**Closes when the scenario gains a LIVE reasoning step.** That belongs with U17, which owns
+`04` §5's quota rungs, and U19, which records in LIVE mode. At that point REPLAY becomes a
+real second value, §4's wording becomes accurate, and this entry is deleted rather than
+amended. `test/demo-plane.test.ts` asserts the deployed reason never says "reasoning is
+cached", so the wrong line cannot come back quietly.
+
 ### `03` §4.1's `dist < 0.35` is tighter than real embeddings reach, so recall returns nothing *(2026-08-11, V28)*
 
 §4.1's published SQL filters findings at `WHERE n.dist < 0.35`, and `recall()` ships that
