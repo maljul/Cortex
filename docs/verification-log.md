@@ -3554,3 +3554,94 @@ for keeping the page up, and rung 4's whole job is to say that nothing is live.
 ```
 
 278 → 297: 19 in `test/degraded-embedding.test.ts`. `npx tsc --noEmit` clean.
+
+---
+
+## V38 — U21's verify-first: the ten-task cut chosen on measured Titan distances
+
+**2026-08-12.** The fleet-demo design §3 says task statements "must be measured... This is not
+optional and no test can substitute for it", and gives the reason: a seed statement chosen by
+ear once sat 0.2969 from agent-2's intent, inside the dedupe threshold, and silently deleted
+beat 4. `npm run measure:statements` (new) embeds candidates with live Titan and computes every
+pairwise distance with the cluster's own `<=>` via `DISTANCE_SQL`.
+
+23 statements, 253 pairs, 23 Bedrock calls:
+
+```
+DECLARED DUPLICATE PAIRS — these must land INSIDE the threshold
+  fires   P6a/P6b  0.0610   margin 0.3290
+  fires   P5a/P5b  0.1812   margin 0.2088
+  fires   P4a/P4b  0.2056   margin 0.1844
+  fires   P2a/P2b  0.2058   margin 0.1842
+  fires   P1a/P1b  0.3203   margin 0.0697
+  fires   P3a/P3b  0.3630   margin 0.0270
+
+EVERYTHING ELSE — these must stay OUTSIDE it
+  clear     I3/R3  0.4293   margin 0.0393
+  clear     P3a/R2  0.5160   margin 0.1260
+  clear     P3b/SEED-fact  0.6325   margin 0.2425
+  ...
+6/6 declared pairs fire; 0 undeclared collisions.
+```
+
+**The cut: `P6a P6b P2a P2b C1 C2 C3 I3 R3 A1`** — design §3's slices exactly (two duplicate
+pairs, one contended trio, the recall task plus its dependency, one abandoned task).
+
+```
+THE CUT — P6a P6b P2a P2b C1 C2 C3 I3 R3 A1
+  dedupes  P6a/P6b  0.0610
+  dedupes  P2a/P2b  0.2058
+  closest non-pair inside the cut: I3/R3 0.4293
+```
+
+**P6 and P2 were chosen on margin, and P3 was rejected on it.** P3a/P3b at 0.3630 clears 0.39
+by 0.0270 and sits exactly on the lower edge of the dedupe sweep's perfect band — too thin to
+hang a demo on, since any re-record could push it over. P1 at 0.3203 is the reserve. P6 and P2
+also demonstrate two different shapes: P6's halves touch **different files**, so dedupe fires
+with no claim overlap at all, while P2's touch the same one.
+
+**The finding worth keeping: `I3/R3` at 0.4293 lands in the gap between the two thresholds,
+and that gap is what having two of them is for.** R3 depends on I3's work, so it must *not* be
+deduped against it (0.4293 > 0.39, by 0.0393) and it *must* recall the finding it produced
+(0.4293 < 0.60). That is the ordering argument from V34 — dedupe tighter, recall looser,
+because a dedupe false positive cancels work while a recall false positive costs attention —
+showing up as a task pair that only works because the two constants differ.
+
+### The script's first version applied the wrong constraint, and the correction is the point
+
+It flagged two of three seed-fact candidates as "DEDUPES — deletes a beat" at 0.3813 and
+0.3308. That was wrong. **The seed's fact and the seed's statement do not share a constraint,
+because they live in different tables and are searched by different queries:**
+
+- the **fact** is consolidated into `findings`, and `findDuplicate` only ever reads `intents`.
+  A fact cannot dedupe a task at any distance. Its real constraints are **< 0.60** from R3's
+  statement or beat 1 stays dark, and **> 0.20** from whatever R3's own closure consolidates,
+  or `consolidate()` reinforces the seed instead of inserting — the `conf 0.60 · ×2` bug
+  `src/demo/scenario.ts` already records.
+- the **statement** becomes an intent closed as reverted, which `03` §4.3 maps to status
+  `done`, so it **is** in `findDuplicate`'s candidate set and must stay **> 0.39** from every
+  task in the cut.
+
+Re-measured against the real constraints:
+
+```
+SEED FACT CANDIDATES — go to `findings`, so dedupe never sees them
+  recalled by R3 if < 0.6; merged into by consolidation if < 0.2
+  USABLE  S1-fact  R3 0.3813  recalled  (rank margin 0.2187)
+  USABLE  S2-fact  R3 0.5115  recalled  (rank margin 0.0885)
+  USABLE  S3-fact  R3 0.3308  recalled  (rank margin 0.2692)
+
+SEED STATEMENT — becomes an intent, so it IS a dedupe candidate
+  SAFE  nearest task in the cut: C2 at 0.7372  margin 0.3472
+```
+
+**The design consequence:** the seed's **statement must stay in a different domain from the
+cut** while its **fact belongs squarely in the cut's domain**. A seed intent reworded to be
+about minor units — the obvious way to make the story tidy — would sit inside 0.39 of I3 and
+dedupe the very task it exists to inform. The current statement ("switch the orders queue
+driver to SQS") is 0.7372 from its nearest cut member and carries forward unchanged, which is
+also what design §3 asks for.
+
+**Not yet decided:** which of S1/S3 becomes the seed fact. All three are usable; S3 has the
+widest rank margin. That is U21's to settle when the seed is written, against the measured
+distance to R3's *own* consolidated outcome, which does not exist until the runner does.

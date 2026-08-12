@@ -25,6 +25,7 @@
     "gate:stream": "tsx scripts/gate-stream.mts",
     "gate:consolidate": "tsx scripts/gate-consolidate.mts",
     "gate:degrade": "tsx scripts/gate-degrade.mts",
+    "measure:statements": "tsx scripts/measure-statements.mts",
     "sweep:recall": "tsx scripts/sweep-recall.mts"
   },
   "keywords": [],
