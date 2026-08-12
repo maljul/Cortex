@@ -31,6 +31,26 @@ function tidy(sql: string): string {
   return sql.trim().replace(/\s+/g, ' ');
 }
 
+/** Recognises the claim acquisition in a recorded transcript. */
+const CLAIM_INSERT = /INSERT INTO claims/;
+
+/**
+ * How long each claim acquisition took, in the order they ran.
+ *
+ * `04` §7 requires the demo UI to display claim p50 live, and the honest source for it is
+ * the statement that actually acquired the claim — timed by the driver, not estimated
+ * around it.
+ *
+ * **It lives here rather than where the meter is assembled**, because recognising a
+ * statement means naming SQL, and this repository keeps SQL inside `src/memory/` and
+ * `src/db/` only. `scripts/gate-mechanical.sh` caught the first arrangement doing it in
+ * `src/demo/scenario.ts`; the rule is worth more than the convenience, so the knowledge
+ * moved to the module that already reads SQL for a living.
+ */
+export function claimLatenciesMs(statements: readonly RecordedStatement[]): number[] {
+  return statements.filter((statement) => CLAIM_INSERT.test(statement.sql)).map((s) => s.ms);
+}
+
 export class StatementRecorder {
   readonly statements: RecordedStatement[] = [];
 

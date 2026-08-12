@@ -19,7 +19,7 @@ import { Client } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { closePool } from '../src/db/pool.js';
-import { StatementRecorder } from '../src/db/recorder.js';
+import { StatementRecorder, claimLatenciesMs } from '../src/db/recorder.js';
 import { SCRIPT, runScenario } from '../src/demo/scenario.js';
 import { createDemoSession } from '../src/memory/demo.js';
 
@@ -96,6 +96,11 @@ describe('the CORTEX arm performs all four beats', () => {
     expect(contested[0]?.holder).toBe(SCRIPT.claimWinner.agent);
     expect(result.meter.blockedAndReplanned).toBe(1);
 
+    // `04` §7 requires claim p50 and the retry counter on screen, live. Both are measured
+    // from this run: the p50 comes from the recorder's timings on the claims insert, and a
+    // run that claimed nothing reports null rather than a flattering zero.
+    expect(result.meter.serializationRetries).toBeGreaterThanOrEqual(0);
+
     // Beat 4 — the close happened. The finding is the changefeed's to deliver, and this
     // step deliberately does not claim one it has not seen.
     const closed = beat(4).find((s) => s.kind === 'close');
@@ -165,5 +170,32 @@ describe('the show-SQL panel gets a transcript of the run', () => {
     // And the arbitration is there to be read: a dedupe search and a claim insert.
     expect(log.some((sql) => /FROM intents/.test(sql) && /<=>/.test(sql))).toBe(true);
     expect(log.some((sql) => /INSERT INTO claims/.test(sql))).toBe(true);
+  });
+
+  it('measures claim p50 from the claims this run actually inserted', async () => {
+    const sessionId = await session();
+    const recorder = new StatementRecorder();
+    const result = await runScenario({ sessionId, arm: 'cortex', embed, recorder });
+
+    const claimTimings = claimLatenciesMs(recorder.statements);
+    expect(claimTimings.length).toBeGreaterThan(0);
+    expect(result.meter.claimP50Ms).not.toBeNull();
+    // Within the range of what was actually timed, rather than merely non-zero.
+    expect(result.meter.claimP50Ms!).toBeGreaterThanOrEqual(Math.min(...claimTimings));
+    expect(result.meter.claimP50Ms!).toBeLessThanOrEqual(Math.max(...claimTimings));
+  });
+
+  /**
+   * A NAIVE fleet issues no statements at all, so there is no claim to time. Null is the
+   * honest answer and a zero would read as "instant" on the meter — `06` §6's distinction
+   * between "no such thing to measure" and "measured as nought", applied to the panel.
+   */
+  it('reports no claim p50 for an arm that claims nothing', async () => {
+    const sessionId = await session();
+    const recorder = new StatementRecorder();
+    const result = await runScenario({ sessionId, arm: 'naive', embed, recorder });
+
+    expect(recorder.statements).toHaveLength(0);
+    expect(result.meter.claimP50Ms).toBeNull();
   });
 });

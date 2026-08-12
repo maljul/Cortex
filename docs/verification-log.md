@@ -2574,3 +2574,131 @@ work; everything they need is now deployed and returning real data. The page at 
 CloudFront URL is still U14's placeholder and says so.
 
 Suite 225/225, `tsc` clean.
+
+---
+
+## V29 — The demo SPA is deployed, and all four memory tiers reach it
+**2026-08-12 · U16, phase 3 · PASS on everything reachable without a browser**
+
+`07` §2's three panels are built and live at https://d11xbslgdgomdp.cloudfront.net. What is
+verified below is the page as served and the exact request sequence it makes; what is **not**
+verified is how it renders, and that is stated plainly at the end.
+
+### Three backend gaps closed first
+
+`07` §2 groups the memory panel by `03` §2's four tiers, and the fourth had no source:
+`action_ledger` was in neither `demoState()` nor the changefeed's watched tables. Both now
+carry it. `04` §7 requires claim p50 and the retry counter on screen live, and both are now
+measured from the run rather than estimated. `05` §5 requires the mode and its reason to be
+readable by the SPA, and `GET /demo/state` now returns them.
+
+### The page as served over CloudFront
+
+```
+$ curl -s https://d11xbslgdgomdp.cloudfront.net/ -o /tmp/page.html -w 'http %{http_code}  %{size_download} bytes\n'
+http 200  20162 bytes
+
+$ head -4 /tmp/page.html
+<script>
+  window.CORTEX_API_URL = "https://clotk5952m.execute-api.us-east-1.amazonaws.com";
+  window.CORTEX_STREAM_URL = "wss://4hiryvz6yd.execute-api.us-east-1.amazonaws.com/live";
+</script>
+
+$ grep -ciE '<input|<form|<textarea' /tmp/page.html
+0
+```
+
+Zero input elements on the surface invariant 8 was written about. `test/site.test.ts` holds
+that as a regression guard against the source, including commented-out and hidden fields,
+because "just a debug field" is how this rule dies.
+
+### The sequence the page actually makes
+
+Pre-warm on load — `POST /demo/session` then `GET /demo/state`, which both warms the sandbox
+(`07` §1: "nothing loads slowly") and fetches the mode line §4 requires be always visible:
+
+```
+mode : live database, live embeddings
+says : Every row on this page was committed by CockroachDB and arrived over its own
+       changefeed. Dedupe distances come from live Bedrock embeddings. This scenario
+       performs no model reasoning, so nothing here is replayed from a cassette.
+tiers: ['claims', 'intents', 'findings', 'ledger']
+budget: {'used': 0, 'cap': 200, 'remaining': 200}
+```
+
+Then a CORTEX run and the state refresh that follows it:
+
+```
+  beat 1  agent-0  seed     -> seeded
+  beat 1  agent-1  recall   -> nothing known
+  beat 2  agent-2  propose  -> granted
+  beat 2  agent-4  propose  -> deduped
+  beat 3  agent-3  propose  -> granted
+  beat 3  agent-5  propose  -> blocked
+  beat 4  agent-2  close    -> done
+  meter: {"duplicateWorkAvoided":1,"duplicateWorkDone":0,"lostWrites":0,
+          "blockedAndReplanned":1,"findingsRecalled":0,"claimP50Ms":42,
+          "serializationRetries":0}
+
+  tier row counts: claims=1 intents=3 findings=2 ledger=2
+  budget: {'used': 8, 'cap': 200, 'remaining': 192}
+```
+
+**`findings=2` is beat 4 arriving.** One is the seeded past; the second was written by the
+changefeed sink after the close, and reached the panel over the same socket. **`claimP50Ms:
+42` is `04` §7's requirement met with a measured number** — the median of the claim
+acquisitions the recorder timed in this run, not an estimate.
+
+### Both gates still pass after the changefeed was recreated
+
+Adding `action_ledger` to the watched list means cancelling and recreating the job, which is
+the kind of step that silently does not happen. It happened:
+
+```
+cancelled existing 1200539750027591681
+created job 1200831090094833665
+watching    intents, claims, findings, action_ledger
+```
+
+```
+npm run gate:stream       PASS 4/4   delivered in 78ms
+npm run gate:consolidate  PASS 4/4   finding arrived in 501ms
+```
+
+### The mechanical gate caught a real violation of mine
+
+The first version of the claim-p50 metric matched `INSERT INTO claims` inside
+`src/demo/scenario.ts`, and `scripts/gate-mechanical.sh` refused the commit:
+
+```
+  sql-containment        FAIL src/demo/scenario.ts:421:
+      .filter((statement) => /INSERT INTO claims/.test(statement.sql))
+```
+
+Correct refusal. Recognising a statement means naming SQL, and this repository keeps SQL in
+`src/memory/` and `src/db/` only. Moved to `claimLatenciesMs()` in `src/db/recorder.ts`,
+which already reads SQL for a living. Recorded because the tempting fix — narrowing the
+check, or staging less — is exactly what the gate exists to catch.
+
+### What is NOT verified, and who has to do it
+
+**Nothing here checks how the page looks or reads.** The Chrome extension was not connected,
+so no browser drove it:
+
+```
+Browser extension is not connected. Please ensure the Claude browser extension is
+installed and running…
+```
+
+Every request the page issues is verified above, and the payloads it renders from are
+correct — but layout, the naive toggle in a real browser, the show-SQL view, and the live
+rows animating in are unconfirmed. U16's done-when is *"the four beats read clearly to
+someone who has not seen it"*, which was never something a script could answer. **The unit
+stays 🔶 until Julian opens it cold.**
+
+One transient worth recording: the first `POST /demo/session` after a deploy returned no
+`sessionId` and the retry succeeded immediately. Cold start on a function whose pool had not
+been created yet. It is the reason the page pre-warms on load rather than on first click,
+and it is a candidate for U17's rung work if it recurs.
+
+Suite 249/249, `tsc` clean.

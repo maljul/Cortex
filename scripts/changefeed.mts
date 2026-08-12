@@ -29,12 +29,19 @@ if (existsSync(ENV_PATH)) process.loadEnvFile(ENV_PATH);
 const STACK = 'CortexStack';
 
 /**
- * The tables the live view needs. `04` §2's flow E is about the demo panel updating from
- * the database's own change stream, and the three tiers a visitor watches move are these.
- * `findings` is included because beat 4 is consolidation arriving, and `action_ledger`
- * and `repos` are not, because nothing on screen renders them.
+ * The tables the live view needs — `03` §2's four memory tiers, one per group in `07` §2's
+ * memory panel: working (`claims`), episodic (`intents`), semantic (`findings`) and
+ * procedural (`action_ledger`).
+ *
+ * `repos` is deliberately absent. A session's own scope row is the session, not something
+ * the session did, and nothing on screen renders it.
+ *
+ * **Changing this list means re-creating the job.** A running changefeed watches the tables
+ * it was created with; adding one here and redeploying changes nothing until
+ * `npm run changefeed create` runs. `action_ledger` was added in U16 for exactly this
+ * reason and the procedural tier stayed empty until the job was recreated.
  */
-const WATCHED = ['intents', 'claims', 'findings'];
+const WATCHED = ['intents', 'claims', 'findings', 'action_ledger'];
 
 function aws(args: string[]): string {
   const result = spawnSync('aws', args, { encoding: 'utf8' });

@@ -27,7 +27,8 @@
  * panel like everything else. What must never happen is the panel implying the fleet
  * discovered something it was handed — so the response labels the seed as a seed.
  */
-import type { StatementRecorder } from '../db/recorder.js';
+import { claimLatenciesMs, type StatementRecorder } from '../db/recorder.js';
+import { getRetryCount } from '../db/retry.js';
 import { close } from '../memory/close.js';
 import { consolidate } from '../memory/consolidate.js';
 import { propose } from '../memory/propose.js';
@@ -100,6 +101,21 @@ export interface RunResult {
     lostWrites: number;
     blockedAndReplanned: number;
     findingsRecalled: number;
+    /**
+     * `04` §7 requires the UI to display claim p50 and the retry counter live. Both are
+     * measured from this run rather than estimated:
+     *
+     * - `claimP50Ms` is the median of the claim acquisitions the `StatementRecorder` timed
+     *   — see `claimLatenciesMs`, which owns recognising them because naming SQL belongs
+     *   in `src/db/`. Null when nothing was claimed, which is every NAIVE run: a NAIVE
+     *   fleet issues no statements at all, and a zero there would read as "very fast"
+     *   rather than "never happened".
+     * - `serializationRetries` is a delta around this run, not the process total: the
+     *   Lambda's counter is module-scope and survives between invocations, so a raw read
+     *   would show a visitor the retries of everyone before them.
+     */
+    claimP50Ms: number | null;
+    serializationRetries: number;
   };
 }
 
@@ -177,14 +193,27 @@ async function seedPast(options: RunOptions): Promise<BeatStep[]> {
   ];
 }
 
+/** Median, on the small samples a single run produces. */
+function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? Math.round((sorted[middle - 1]! + sorted[middle]!) / 2)
+    : sorted[middle]!;
+}
+
 export async function runScenario(options: RunOptions): Promise<RunResult> {
   const steps: BeatStep[] = [];
+  const retriesBefore = getRetryCount();
   const meter = {
     duplicateWorkAvoided: 0,
     duplicateWorkDone: 0,
     lostWrites: 0,
     blockedAndReplanned: 0,
     findingsRecalled: 0,
+    claimP50Ms: null as number | null,
+    serializationRetries: 0,
   };
 
   const scope = planeFor(options);
@@ -386,6 +415,9 @@ export async function runScenario(options: RunOptions): Promise<RunResult> {
       detail: { note: 'nothing consolidates: the outcome is local to this agent' },
     });
   }
+
+  meter.serializationRetries = getRetryCount() - retriesBefore;
+  meter.claimP50Ms = median(claimLatenciesMs(options.recorder?.statements ?? []));
 
   return { arm: options.arm, sessionId: options.sessionId, steps, meter };
 }

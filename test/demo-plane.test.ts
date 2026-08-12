@@ -31,6 +31,7 @@ import {
   DEMO_CLAIMS_SQL,
   DEMO_FINDINGS_SQL,
   DEMO_INTENTS_SQL,
+  DEMO_LEDGER_SQL,
   DEMO_ROW_COUNT_SQL,
   createDemoSession,
   demoState,
@@ -195,8 +196,57 @@ describe('creating a session — invariant 6', () => {
 
 describe('reading a session — invariant 5', () => {
   it('carries WHERE repo_id on every statement it issues', () => {
-    for (const sql of [DEMO_CLAIMS_SQL, DEMO_INTENTS_SQL, DEMO_FINDINGS_SQL, DEMO_ROW_COUNT_SQL]) {
+    for (const sql of [
+      DEMO_CLAIMS_SQL,
+      DEMO_INTENTS_SQL,
+      DEMO_FINDINGS_SQL,
+      DEMO_LEDGER_SQL,
+      DEMO_ROW_COUNT_SQL,
+    ]) {
       expect(sql).toMatch(/repo_id\s*=\s*\$1/);
+    }
+  });
+
+  /**
+   * `07` §2 groups the memory panel by `03` §2's four tiers, and procedural was the one
+   * with no data source until U16 — `demoState` queried three tables and the changefeed
+   * watched three. A panel with an always-empty fourth group reads as a broken tier rather
+   * than as a quiet omission.
+   */
+  it('returns all four memory tiers, procedural included', async () => {
+    const session = await createDemoSession();
+    try {
+      const state = await demoState(session.sessionId);
+      expect(state).not.toBeNull();
+      expect(state?.claims).toEqual([]);
+      expect(state?.intents).toEqual([]);
+      expect(state?.findings).toEqual([]);
+      expect(state?.ledger).toEqual([]);
+    } finally {
+      await purge(session.sessionId);
+    }
+  });
+
+  /**
+   * `05` §5: the current mode and the reason for it MUST be readable by the SPA, so the
+   * interface can render a degraded state truthfully instead of discovering it through a
+   * failed request. It must also not claim replayed reasoning, which is `07` §4's wording
+   * and is not true of this deployment — see `docs/SPEC-DELTA.md`.
+   */
+  it('reports a mode the page can display, and does not claim cached reasoning', async () => {
+    const session = await createDemoSession();
+    try {
+      const state = await demoState(session.sessionId);
+      expect(state?.mode.name).toBeTruthy();
+      expect(state?.mode.reason).toBeTruthy();
+      // `07` §4's prescribed line is "agent reasoning is cached, all database behaviour is
+      // live". The first half is false here — this scenario performs no model reasoning —
+      // so the assertion is that the page never claims it, not that the word is absent:
+      // the honest wording says reasoning is *not* replayed, and must be free to say so.
+      expect(state?.mode.reason).not.toMatch(/reasoning is cached/i);
+      expect(state?.mode.reason).toMatch(/no model reasoning/i);
+    } finally {
+      await purge(session.sessionId);
     }
   });
 

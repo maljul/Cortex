@@ -1,89 +1,486 @@
 <!--
-  The hosted demo's landing page. `08` §5's "hosted demo reachable anonymously".
+  THE DEMO — spec/07-DEMO-AND-SUBMISSION.md §1, §2, §3, §4.
 
-  Deliberately plain. The three-panel SPA with the naive toggle and the show-SQL panel is
-  U16, built against `07` §2 and §3; what this page is for is U14's done-when — that an
-  anonymous visitor with no account, no setup and no credential reaches a real session on
-  a real cluster, and that the change stream reaches their browser.
+  §1 sets the brief: a judge arrives with no context, no account and no patience, and in
+  under ninety seconds must reach *the database is doing something here that a vector store
+  plus a lock service could not do*. Everything below is subordinate to that sentence.
 
-  There is no credential field on this page, under any name, on any path, commented out
-  or feature flagged off. That is `03` §8 invariant 8 and `05` §5, and it is a property of
-  every version of this file, not of this one.
+  Four properties this file must never lose, each one a rule rather than a preference:
+
+  1. **No input element of any kind.** Not a text field, not a form, not a hidden one, not
+     one behind an advanced panel, not one commented out. `03` §8 invariant 8, `05` §5 and
+     `07` §4's second absolute rule. The reasoning is not that a judge would refuse to
+     supply a credential — it is that the field itself is the hazard, because once it exists
+     on a public page somebody eventually pastes a live production key into it.
+     `test/site.test.ts` fails if one appears.
+  2. **No error page, ever, in place of a scenario.** `07` §4 and `04` §5 invariant 1. Every
+     failure path below renders a working page that explains itself.
+  3. **Every number on screen is real and comes from the database** (`07` §1). The only
+     figures here that this session did not measure are the benchmark's, and they are
+     labelled as the benchmark's where they appear.
+  4. **No endpoint is hardcoded.** `scripts/deploy-site.mts` injects `window.CORTEX_API_URL`
+     and `window.CORTEX_STREAM_URL` at upload time, because both are CloudFormation outputs
+     and a page carrying last stack's hostname is worse than one carrying none.
+
+  Vanilla, one file, no build step. A bundler would put an artifact between this source and
+  what a judge loads, for a page that needs neither modules nor a framework.
 -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CORTEX — arbitrated memory for agent fleets</title>
+<title>CORTEX — shared, arbitrated memory for fleets of coding agents</title>
 
 <style>
-  :root { color-scheme: light dark; }
-  body {
-    font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
-    margin: 0 auto; padding: 2rem 1.25rem; max-width: 46rem;
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --panel: #131820;
+    --line: #232b36;
+    --ink: #e7ecf3;
+    --dim: #8b97a8;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --accent: #60a5fa;
   }
-  h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
-  p.lede { margin: 0 0 2rem; opacity: .75; }
-  section { border: 1px solid currentColor; border-radius: 6px; padding: 1rem; margin: 0 0 1rem; opacity: .95; }
-  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 .75rem; opacity: .6; }
-  pre { overflow-x: auto; margin: 0; font-size: .8rem; }
-  button { font: inherit; padding: .4rem .9rem; cursor: pointer; }
-  .stream { max-height: 12rem; overflow-y: auto; font-size: .78rem; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  header { padding: 1.1rem 1.25rem .75rem; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 1.05rem; letter-spacing: .02em; }
+  h1 span { color: var(--dim); font-weight: 400; }
+  .thesis { margin: .35rem 0 0; color: var(--dim); max-width: 68ch; }
+
+  /* The mode line. Always visible, per `07` §4. */
+  .mode {
+    margin: .7rem 0 0; padding: .5rem .7rem; border: 1px solid var(--line);
+    border-left: 3px solid var(--ok); border-radius: 3px;
+    background: #0f1621; color: var(--dim); font-size: .82rem; max-width: 100ch;
+  }
+  .mode b { color: var(--ok); font-weight: 600; }
+
+  main {
+    display: grid; grid-template-columns: 21rem minmax(0, 1fr) 20rem;
+    gap: 1px; background: var(--line); border-top: 1px solid var(--line);
+    min-height: calc(100vh - 8.5rem);
+  }
+  section { background: var(--bg); padding: 1rem 1.1rem; overflow-y: auto; max-height: calc(100vh - 8.5rem); }
+  h2 {
+    margin: 0 0 .85rem; font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--dim); font-weight: 600;
+  }
+  h2 small { float: right; text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  .card {
+    border: 1px solid var(--line); border-radius: 4px; padding: .55rem .65rem;
+    margin-bottom: .5rem; background: var(--panel);
+  }
+  .card .who { color: var(--accent); }
+  .card .what { color: var(--dim); font-size: .82rem; margin-top: .15rem; }
+  .card .note { font-size: .78rem; margin-top: .35rem; color: var(--dim); }
+
+  .badge {
+    display: inline-block; float: right; font-size: .68rem; padding: .08rem .4rem;
+    border-radius: 10px; border: 1px solid currentColor; text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .b-granted { color: var(--ok); } .b-deduped { color: var(--warn); }
+  .b-blocked { color: var(--bad); } .b-idle { color: var(--dim); }
+  .b-proceeded { color: var(--bad); } .b-done { color: var(--ok); }
+  .b-seeded, .b-overwrote { color: var(--dim); }
+
+  .tier { margin-bottom: 1rem; }
+  .tier h3 {
+    margin: 0 0 .35rem; font-size: .72rem; color: var(--dim); font-weight: 600;
+    border-bottom: 1px dotted var(--line); padding-bottom: .2rem;
+  }
+  .row {
+    display: flex; gap: .6rem; padding: .28rem 0; border-bottom: 1px solid #171d26;
+    font-size: .8rem; align-items: baseline;
+  }
+  .row .pk { color: var(--dim); flex: 0 0 7.5rem; font-size: .74rem; }
+  .row .body { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .row.fresh { animation: land 1.4s ease-out; }
+  @keyframes land { from { background: #1d2b3f; } to { background: transparent; } }
+
+  .meter dt { color: var(--dim); font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; }
+  .meter dd { margin: 0 0 .7rem; font-size: 1.3rem; }
+  .meter .pair { display: flex; gap: 1.1rem; }
+  .meter .pair div { flex: 1; }
+  .meter .arm { font-size: .68rem; color: var(--dim); display: block; }
+  .cortex { color: var(--ok); } .naive { color: var(--bad); } .none { color: var(--dim); }
+
+  button {
+    font: inherit; width: 100%; text-align: left; padding: .55rem .7rem; margin-bottom: .5rem;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 4px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button small { display: block; color: var(--dim); font-size: .72rem; }
+
+  pre.sql { margin: 0; font-size: .74rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .stmt { padding: .3rem 0; border-bottom: 1px solid #171d26; display: flex; gap: .55rem; }
+  .stmt .meta { color: var(--dim); flex: 0 0 8.5rem; font-size: .72rem; }
+  .stmt .txn { color: var(--accent); }
+  .empty { color: var(--dim); font-size: .82rem; }
+  footer { padding: .6rem 1.25rem; color: var(--dim); font-size: .74rem; border-top: 1px solid var(--line); }
 </style>
 
-<h1>CORTEX</h1>
-<p class="lede">Shared, arbitrated memory for a fleet of coding agents, on CockroachDB.</p>
+<header>
+  <h1>CORTEX <span>— shared, arbitrated memory for fleets of coding agents</span></h1>
+  <p class="thesis">
+    Durable execution gives exactly-once within one workflow. It does not give mutual
+    exclusion between agents that do not know each other exists. This does, in the database
+    that already holds the memory.
+  </p>
+  <p class="mode" id="mode"><b>live database, live embeddings</b> — connecting…</p>
+</header>
 
-<section>
-  <h2>Your sandbox session</h2>
-  <p>No account, no key, nothing to install. This starts a scope of your own on the live
-     cluster; it expires by itself.</p>
-  <button id="start">Start a session</button>
-  <pre id="session">not started</pre>
-</section>
+<main>
+  <section>
+    <h2>The fleet <small id="fleet-arm">idle</small></h2>
+    <div id="fleet"></div>
+  </section>
 
-<section>
-  <h2>What the cluster says it is</h2>
-  <pre id="identity">…</pre>
-</section>
+  <section>
+    <h2>The memory <small id="memory-source">waiting for a run</small></h2>
+    <div id="memory"></div>
+  </section>
 
-<section>
-  <h2>Live change stream</h2>
-  <p>Rows as the database emits them, over a changefeed — not echoes of what this page
-     believes it sent.</p>
-  <pre class="stream" id="stream">not connected</pre>
-</section>
+  <section>
+    <h2>The meter</h2>
+    <dl class="meter" id="meter"></dl>
+    <h2 style="margin-top:1.2rem">Run it</h2>
+    <button id="run-cortex" disabled>
+      Run with CORTEX
+      <small>five agents, one arbitrated memory</small>
+    </button>
+    <button id="run-naive" disabled>
+      Run without it
+      <small>same script, no shared memory</small>
+    </button>
+    <button id="toggle-sql">
+      Show SQL
+      <small>the statements this run executed</small>
+    </button>
+  </section>
+</main>
+
+<footer id="footer">No account, no key, no cluster, nothing to install.</footer>
 
 <script>
-  // Written into the page at deploy time by `scripts/deploy-site.mts`, because the API
-  // and WebSocket endpoints are CloudFormation outputs and are not knowable when this
-  // file is written. Neither is a credential: both are public endpoints that anyone may
-  // call, which is the whole point of `05` §5.
   const API = window.CORTEX_API_URL || '';
   const STREAM = window.CORTEX_STREAM_URL || '';
 
-  const show = (id, value) => { document.getElementById(id).textContent = value; };
+  const $ = (id) => document.getElementById(id);
+  const text = (el, value) => { el.textContent = value; };
 
-  fetch(`${API}/identity`)
-    .then((r) => r.json())
-    .then((d) => show('identity', `${d.cluster.version}\nconnected as ${d.cluster.user}`))
-    .catch(() => show('identity', 'the backend is not reachable right now'));
+  /**
+   * `07` §3's cast. Five cards, always present, so the panel has a shape before the first
+   * run rather than growing one — movement between states is the narrative, and there is
+   * no movement if the cards appear at the same moment as their verdicts.
+   */
+  const AGENTS = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5'];
 
-  document.getElementById('start').addEventListener('click', async () => {
-    show('session', 'starting…');
+  /**
+   * The benchmark's figures, and the only numbers on this page this session did not
+   * measure. `07` §1 requires every number on screen to be real; these are real, published
+   * and reproducible from a clean clone — they are simply measured somewhere else, and the
+   * label says so rather than letting them read as this run's.
+   */
+  const BENCH = { source: 'bench/results/2026-08-10T22-38-54-176Z', naive: 4000, cortex: 867 };
+
+  /** One sandbox scope per arm: re-running CORTEX in one scope dedupes against itself. */
+  const runs = { cortex: null, naive: null };
+  let showingSql = false;
+  let liveSession = null;
+
+  // ---------------------------------------------------------------- fleet
+
+  function renderFleet(result) {
+    const byAgent = new Map();
+    for (const step of result ? result.steps : []) {
+      if (step.agent === 'agent-0') continue;
+      byAgent.set(step.agent, step);
+    }
+
+    $('fleet').innerHTML = '';
+    for (const id of AGENTS) {
+      const step = byAgent.get(id);
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const decision = step ? step.decision : 'idle';
+      const badge = `<span class="badge b-${decision.replace(/[^a-z]/g, '') || 'idle'}">${decision}</span>`;
+      const what = step ? step.statement : 'waiting for work';
+
+      let note = '';
+      if (step && step.detail) {
+        // Invariants 3 and 4 made visible: a blocked agent is shown *who* holds the file,
+        // and a deduped agent is shown the prior outcome it inherited. Both are the whole
+        // reason those are decisions an agent can act on rather than rejections.
+        const contested = step.detail.contested;
+        if (Array.isArray(contested) && contested.length) {
+          note = `<div class="note">blocked by <b>${contested[0].holder}</b> — re-plans instead of polling</div>`;
+        } else if (step.detail.of) {
+          note = `<div class="note">adopted the outcome of an intent already in flight</div>`;
+        } else if (step.detail.note) {
+          note = `<div class="note">${step.detail.note}</div>`;
+        }
+      }
+
+      card.innerHTML = `${badge}<div class="who">${id}</div><div class="what">${what}</div>${note}`;
+      $('fleet').appendChild(card);
+    }
+  }
+
+  // ---------------------------------------------------------------- memory
+
+  /** `03` §2's four tiers, in the order `07` §2 lists them. */
+  const TIERS = [
+    { key: 'claims', table: 'claims', label: 'working — claims' },
+    { key: 'intents', table: 'intents', label: 'episodic — intents' },
+    { key: 'findings', table: 'findings', label: 'semantic — findings' },
+    { key: 'ledger', table: 'action_ledger', label: 'procedural — action_ledger' },
+  ];
+
+  const memory = { claims: [], intents: [], findings: [], ledger: [] };
+  const fresh = new Set();
+
+  /** Each row shows its real primary key, per `07` §2. */
+  function pkOf(tier, row) {
+    if (tier === 'claims') return row.resourceKey || row.resource_key || '';
+    return String(row.id || '').slice(0, 8);
+  }
+
+  function bodyOf(tier, row) {
+    if (tier === 'claims') return `held by ${row.holder}`;
+    if (tier === 'intents') return `${row.agentId || row.agent_id} — ${row.statement} <b>${row.status}</b>`;
+    if (tier === 'findings') {
+      const confidence = Number(row.confidence).toFixed(2);
+      const corroborations = row.corroborations;
+      return `${row.fact} <span class="pk">conf ${confidence} · ×${corroborations}</span>`;
+    }
+    return `${row.action} — ${row.idempotencyKey || row.idempotency_key}`;
+  }
+
+  function renderMemory() {
+    if (showingSql) return;
+    const host = $('memory');
+    host.innerHTML = '';
+
+    let total = 0;
+    for (const tier of TIERS) {
+      const rows = memory[tier.key];
+      total += rows.length;
+      const block = document.createElement('div');
+      block.className = 'tier';
+      block.innerHTML = `<h3>${tier.label}</h3>`;
+
+      if (!rows.length) {
+        block.innerHTML += '<div class="empty">nothing yet</div>';
+      } else {
+        for (const row of rows) {
+          const key = `${tier.key}:${pkOf(tier.key, row)}`;
+          block.innerHTML +=
+            `<div class="row${fresh.has(key) ? ' fresh' : ''}">` +
+            `<span class="pk">${pkOf(tier.key, row)}</span>` +
+            `<span class="body">${bodyOf(tier.key, row)}</span></div>`;
+        }
+      }
+      host.appendChild(block);
+    }
+
+    if (total === 0) {
+      host.innerHTML = '<div class="empty">Run a scenario and rows will arrive here from the database’s own changefeed.</div>';
+    }
+  }
+
+  function applyState(state) {
+    memory.claims = state.claims || [];
+    memory.intents = state.intents || [];
+    memory.findings = state.findings || [];
+    memory.ledger = state.ledger || [];
+    renderMemory();
+  }
+
+  /** A row arriving over the WebSocket — what committed, not what this page believes it sent. */
+  function applyChange(message) {
+    const tier = TIERS.find((t) => t.table === message.topic);
+    if (!tier || !message.after) return;
+
+    const rows = memory[tier.key];
+    const key = pkOf(tier.key, message.after);
+    const index = rows.findIndex((r) => pkOf(tier.key, r) === key);
+    if (index >= 0) rows[index] = message.after;
+    else rows.unshift(message.after);
+
+    fresh.add(`${tier.key}:${key}`);
+    text($('memory-source'), 'live from the changefeed');
+    renderMemory();
+  }
+
+  // ---------------------------------------------------------------- meter
+
+  function value(arm, get) {
+    const run = runs[arm];
+    if (!run) return '<span class="none">—</span>';
+    const v = get(run.meter);
+    return v === null || v === undefined ? '<span class="none">—</span>' : v;
+  }
+
+  function renderMeter() {
+    const rows = [
+      ['duplicate work avoided', (m) => m.duplicateWorkAvoided],
+      ['duplicate work done', (m) => m.duplicateWorkDone],
+      ['writes lost', (m) => m.lostWrites],
+      ['blocked, then re-planned', (m) => m.blockedAndReplanned],
+      ['claim p50', (m) => (m.claimP50Ms === null ? null : m.claimP50Ms + ' ms')],
+      ['serialization retries', (m) => m.serializationRetries],
+    ];
+
+    let html = '';
+    for (const [label, get] of rows) {
+      html +=
+        `<dt>${label}</dt><dd class="pair">` +
+        `<div><span class="arm">cortex</span><span class="cortex">${value('cortex', get)}</span></div>` +
+        `<div><span class="arm">naive</span><span class="naive">${value('naive', get)}</span></div>` +
+        `</dd>`;
+    }
+
+    // Labelled, because it is the one figure here that this session did not measure.
+    html +=
+      `<dt>wasted tokens</dt><dd class="pair">` +
+      `<div><span class="arm">cortex</span><span class="cortex">${BENCH.cortex}</span></div>` +
+      `<div><span class="arm">naive</span><span class="naive">${BENCH.naive}</span></div></dd>` +
+      `<div class="empty">measured in the benchmark over 30 tasks, not in this session — ${BENCH.source}</div>`;
+
+    $('meter').innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------- sql
+
+  async function renderSql() {
+    const session = runs.cortex || runs.naive;
+    const host = $('memory');
+
+    if (!session) {
+      host.innerHTML = '<div class="empty">Run a scenario first — this panel shows the statements it executed, and nothing else.</div>';
+      return;
+    }
+
+    text($('memory-source'), 'every statement this run sent to CockroachDB');
+    host.innerHTML = '<div class="empty">loading…</div>';
+
+    const response = await fetch(`${API}/demo/sql-log?session=${session.sessionId}`);
+    const log = await response.json();
+
+    if (!log.statements.length) {
+      host.innerHTML =
+        '<div class="empty">This run executed no statements at all. That is the naive arm: ' +
+        'agents with no shared memory have no shared memory to write to.</div>';
+      return;
+    }
+
+    let html =
+      `<div class="empty" style="margin-bottom:.6rem">${log.statements.length} statements, ${log.arm} arm. ` +
+      'Note the dedupe search and the claim insert inside a single BEGIN — that co-location is the whole thesis.</div>';
+
+    for (const s of log.statements) {
+      const isTxn = /^(BEGIN|COMMIT|ROLLBACK)/.test(s.sql);
+      html +=
+        `<div class="stmt"><span class="meta">${s.ms}ms · $${s.parameters} · ${s.rows}r</span>` +
+        `<pre class="sql${isTxn ? ' txn' : ''}">${s.sql.replace(/</g, '&lt;')}</pre></div>`;
+    }
+    host.innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------- runs
+
+  async function newSession() {
     const response = await fetch(`${API}/demo/session`, { method: 'POST' });
-    const session = await response.json();
-    if (!response.ok) { show('session', session.error); return; }
+    if (!response.ok) throw new Error('session');
+    return response.json();
+  }
 
-    show('session', `session ${session.sessionId}\nexpires ${session.expiresAt}`);
+  function listen(sessionId) {
+    if (liveSession) liveSession.close();
+    liveSession = new WebSocket(`${STREAM}?session=${sessionId}`);
+    liveSession.addEventListener('message', (event) => applyChange(JSON.parse(event.data)));
+  }
 
-    const socket = new WebSocket(`${STREAM}?session=${session.sessionId}`);
-    socket.addEventListener('open', () => show('stream', 'connected, waiting for changes…'));
-    socket.addEventListener('message', (event) => {
-      const line = document.getElementById('stream');
-      if (line.textContent.startsWith('connected')) line.textContent = '';
-      line.textContent += `${event.data}\n`;
-    });
-    socket.addEventListener('close', () => {
-      document.getElementById('stream').textContent += '\nstream closed';
-    });
+  async function run(arm) {
+    $('run-cortex').disabled = true;
+    $('run-naive').disabled = true;
+    text($('fleet-arm'), `${arm} — running`);
+
+    try {
+      // A scope of its own. Re-running CORTEX in one scope would dedupe against the
+      // previous run, which is correct behaviour and an unreadable demo.
+      const session = await newSession();
+      listen(session.sessionId);
+      for (const tier of TIERS) memory[tier.key] = [];
+      renderMemory();
+
+      const response = await fetch(`${API}/demo/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ session: session.sessionId, arm }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'run failed');
+
+      runs[arm] = { sessionId: session.sessionId, meter: result.meter, steps: result.steps };
+      renderFleet(result);
+      renderMeter();
+      text($('fleet-arm'), arm);
+
+      const state = await fetch(`${API}/demo/state?session=${session.sessionId}`);
+      if (state.ok) applyState(await state.json());
+      if (showingSql) renderSql();
+    } catch (error) {
+      // Never an error page: `07` §4 and `04` §5 invariant 1. The page keeps working and
+      // says what it could not do.
+      text($('footer'), 'That run could not reach the backend. Everything already on screen is still real; try again in a moment.');
+    } finally {
+      $('run-cortex').disabled = false;
+      $('run-naive').disabled = false;
+    }
+  }
+
+  // ---------------------------------------------------------------- boot
+
+  $('run-cortex').addEventListener('click', () => run('cortex'));
+  $('run-naive').addEventListener('click', () => run('naive'));
+  $('toggle-sql').addEventListener('click', () => {
+    showingSql = !showingSql;
+    $('toggle-sql').firstChild.textContent = showingSql ? 'Show memory' : 'Show SQL';
+    if (showingSql) renderSql();
+    else { text($('memory-source'), 'live from the changefeed'); renderMemory(); }
   });
+
+  renderFleet(null);
+  renderMeter();
+  renderMemory();
+
+  /**
+   * Pre-warm, per `07` §1's "nothing loads slowly. Pre-warm and pre-seed everything."
+   * This one call warms the Lambda sandbox and its connection pool — V22 measured a cold
+   * query at ~690ms against 3ms warm — and fetches the mode line the page is required to
+   * display. The buttons stay disabled until it lands, so a judge's first click is fast.
+   */
+  (async () => {
+    try {
+      const session = await newSession();
+      const state = await (await fetch(`${API}/demo/state?session=${session.sessionId}`)).json();
+      $('mode').innerHTML = `<b>${state.mode.name}</b> — ${state.mode.reason}`;
+      $('run-cortex').disabled = false;
+      $('run-naive').disabled = false;
+    } catch (error) {
+      $('mode').innerHTML =
+        '<b>backend unreachable</b> — the page is here and honest about it: nothing below is live right now.';
+    }
+  })();
 </script>

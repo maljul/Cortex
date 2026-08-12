@@ -53,6 +53,27 @@ export const DEMO_SESSION_ROW_CAP = 200;
  */
 const COUNTED_TABLES = ['agents', 'claims', 'intents', 'findings', 'action_ledger'] as const;
 
+/**
+ * What the page says about its own liveness, per `07` §4's honesty rule.
+ *
+ * §4 prescribes the literal line "replay mode: agent reasoning is cached, all database
+ * behaviour is live", and this deployment **must not** ship that wording: the scenario
+ * performs no model reasoning at all, so there is nothing cached and claiming otherwise
+ * would be exactly the misrepresentation A7 and the honesty rule exist to prevent. The
+ * embeddings that drive dedupe *are* live Bedrock calls, which is worth saying because it
+ * is the part a sceptic would assume was faked.
+ *
+ * Recorded against `07` §4 in `docs/SPEC-DELTA.md`. When U17 builds the LIVE reasoning path
+ * and its quota rung, this becomes a real two-value mode and §4's wording becomes correct.
+ */
+const DEMO_MODE = {
+  name: 'live database, live embeddings',
+  reason:
+    'Every row on this page was committed by CockroachDB and arrived over its own ' +
+    'changefeed. Dedupe distances come from live Bedrock embeddings. This scenario ' +
+    'performs no model reasoning, so nothing here is replayed from a cassette.',
+} as const;
+
 export const DEMO_CLAIMS_SQL = `
   SELECT resource_key, holder, intent_id, acquired_at, expires_at
     FROM claims
@@ -73,6 +94,20 @@ export const DEMO_FINDINGS_SQL = `
     FROM findings
    WHERE repo_id = $1
    ORDER BY last_confirmed_at DESC
+   LIMIT 50
+`;
+
+/**
+ * Procedural memory — `03` §2's fourth tier, and the one `07` §2's memory panel had no
+ * source for until U16. The idempotency key is the interesting column on screen: it is
+ * what makes a retried tool call safe, and it is a real value rather than a description
+ * of one.
+ */
+export const DEMO_LEDGER_SQL = `
+  SELECT id, intent_id, idempotency_key, action, applied_at
+    FROM action_ledger
+   WHERE repo_id = $1
+   ORDER BY applied_at DESC
    LIMIT 50
 `;
 
@@ -117,6 +152,14 @@ export interface DemoIntent {
   closedAt: Date | null;
 }
 
+export interface DemoLedgerEntry {
+  id: string;
+  intentId: string;
+  idempotencyKey: string;
+  action: string;
+  appliedAt: Date;
+}
+
 export interface DemoFinding {
   id: string;
   fact: string;
@@ -131,7 +174,15 @@ export interface DemoState {
   claims: DemoClaim[];
   intents: DemoIntent[];
   findings: DemoFinding[];
+  ledger: DemoLedgerEntry[];
   rows: { used: number; cap: number; remaining: number };
+  /**
+   * What the interface must be able to say about itself, per `05` §5: "The current mode,
+   * the reason for it, and the session's remaining row budget MUST be readable by the SPA,
+   * so that the interface can render a degraded state truthfully instead of discovering it
+   * through a failed request."
+   */
+  mode: { name: string; reason: string };
 }
 
 /**
@@ -224,6 +275,7 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
       const claims = await client.query(DEMO_CLAIMS_SQL, [sessionId]);
       const intents = await client.query(DEMO_INTENTS_SQL, [sessionId]);
       const findings = await client.query(DEMO_FINDINGS_SQL, [sessionId]);
+      const ledger = await client.query(DEMO_LEDGER_SQL, [sessionId]);
       const counted = await client.query<{ used: string }>(DEMO_ROW_COUNT_SQL, [sessionId]);
 
       const used = Number(counted.rows[0]?.used ?? 0);
@@ -254,11 +306,19 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
           contradictions: Number(r.contradictions),
           lastConfirmedAt: r.last_confirmed_at,
         })),
+        ledger: ledger.rows.map((r) => ({
+          id: r.id,
+          intentId: r.intent_id,
+          idempotencyKey: r.idempotency_key,
+          action: r.action,
+          appliedAt: r.applied_at,
+        })),
         rows: {
           used,
           cap: DEMO_SESSION_ROW_CAP,
           remaining: Math.max(0, DEMO_SESSION_ROW_CAP - used),
         },
+        mode: DEMO_MODE,
       };
     },
     { plane: 'demo', demoSession: sessionId },
