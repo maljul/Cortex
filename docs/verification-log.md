@@ -2820,3 +2820,206 @@ is that the page functions as depicted, which is rule A7, and that every number 
 from the database. **Whether it reads is Julian's call.**
 
 Suite 249/249, `tsc` clean.
+
+---
+
+## V30 — U16b: the agents are real, the NAIVE column is measured, and `03` §5's cap is reachable
+
+Date: 2026-08-12 · Cluster `agent-hack-30704` · Stack `CortexStack`, redeployed (bundle rev 3)
+
+### What was wrong
+
+Two figures on the demo's meter were written by the script, not measured, and both were in
+the NAIVE column:
+
+```
+meter.duplicateWorkDone += 1;   // unconditional
+meter.lostWrites += 1;          // unconditional
+```
+
+The naive arm executed **zero statements** — the show-SQL panel said so in as many words —
+so there was no write to lose and nothing observed the losing. Every behavioural test passed,
+because what they asserted was the constant.
+
+### The guard, and that it is load-bearing
+
+`test/scenario.test.ts` now scans `src/demo/scenario.ts` as text. Run against the **old**
+code before anything was implemented:
+
+```
+× increments a meter field only under a condition
+  AssertionError: expected [ …(2) ] to deeply equal []
+  + [ "meter.duplicateWorkDone += 1;", "meter.lostWrites += 1;" ]
+```
+
+Two mutations against the **new** code, one per rule:
+
+```
+meter literal      duplicateWorkDone: duplicates.length  ->  duplicateWorkDone: 1
+                   × never sets a meter figure from a numeric literal
+
+unguarded bump     if (caller.decision === 'deduped') duplicateWorkAvoided += 1;
+                   ->  duplicateWorkAvoided += 1;
+                   × increments a meter figure only under a condition
+```
+
+**The first version of the guard was itself wrong** and is worth recording: it flagged the
+file's own header, which quotes the two fabricated lines while explaining why they are gone.
+A rule that fires on the description of the defect it prevents is a rule that gets deleted,
+so comments are stripped before the scan and a separate assertion proves the stripping did
+not eat the file. A second miss was worse: rewriting the file to assemble the meter at the
+end made every rule pass with **nothing to check**, so the field names are now listed
+explicitly and a live test asserts the list matches `RunResult.meter`'s actual keys.
+
+### The race, measured on the deployed stack
+
+Eight consecutive CORTEX runs against `https://clotk5952m.execute-api.us-east-1.amazonaws.com`:
+
+```
+winners   agent-3 agent-5 agent-5 agent-5 agent-3 agent-3 agent-3 agent-3
+retries   0       3       3       1       3       1       2       1
+contended/replanned: none
+```
+
+The winner is not fixed by the code and is not fixed in practice — 5 to 3 over eight runs.
+`serializationRetries` is **non-zero for the first time in this project**, which closes U12's
+note that the benchmark's serialised scheduler makes that metric 0 by construction.
+
+### Both arms, twice each, hosted
+
+```
+===== CORTEX =====
+run 1  2497ms  53 statements in 10 txns
+        meter {"duplicateWorkAvoided":1,"duplicateWorkDone":0,"lostWrites":0,
+               "blockedAndReplanned":1,"findingsRecalled":0,"claimP50Ms":33,
+               "serializationRetries":0}
+        beat3 ["agent-3:granted","agent-5:blocked"]
+run 2  1447ms  81 statements in 15 txns
+        meter {... "claimP50Ms":30, "serializationRetries":5}
+        beat3 ["agent-3:granted","agent-5:blocked"]
+
+===== NAIVE =====
+run 1  910ms  52 statements in 12 txns
+        meter {"duplicateWorkAvoided":0,"duplicateWorkDone":1,"lostWrites":3,
+               "blockedAndReplanned":0,"findingsRecalled":0,"claimP50Ms":null,
+               "serializationRetries":1}
+        fate  ["agent-2:overwritten","agent-4:saved","agent-3:overwritten","agent-5:overwritten"]
+        cell  ["agent-4"]
+run 2  999ms  58 statements in 14 txns
+        meter {... "lostWrites":3, "serializationRetries":3}
+        fate  ["agent-2:saved","agent-4:overwritten","agent-3:overwritten","agent-5:overwritten"]
+        cell  ["agent-2"]
+```
+
+`lostWrites` is a subtraction over two counted quantities — four acknowledged saves against
+what the cell still holds — and **which** agent survives changes between runs (agent-4, then
+agent-2). A later browser-driven run produced `lostWrites 1` with three survivors, so the
+range observed so far is **1–3**. That is the honest spread of a real race, and the meter now
+says so on screen rather than implying a determinism the page does not have. `claimP50Ms` is
+`null` for NAIVE — `06` §6's distinction between "no such thing to measure" and "measured as
+nought", still holding.
+
+### Isolated failure-rate measurement, and a correction to my own first one
+
+An initial 20-run probe reported 13/20 throwing. **That measurement was contaminated** — a
+vitest run was hitting the same cluster concurrently. Re-measured in isolation, 12 runs per
+arm:
+
+```
+backoff ladder: 37/56/87/161ms
+cortex: threw 1/12 · retries 0,1,8,1,1,1,6,1,1,1,1,1
+naive:  threw 0/12 · retries 0,2,2,2,3,2,2,1,1,2,2,3 · lostWrites 2,3,3,3,3,3,3,3,3,3,3,3
+```
+
+`retries 8` is two agents each exhausting four retries — both gave up together. See the
+`03` §5 entry in `docs/SPEC-DELTA.md`: the cause is that `backoffMs` sleeps 20–320 ms in total
+against a propose transaction that takes about a second. `src/db/retry.ts` is **not** changed;
+the demo follows §5's own next sentence instead and re-plans once (`replanOnce`), and an
+exhausted re-plan is reported as `contended` rather than thrown. Before this it escaped to
+`infra/lambda/demo.ts` and became a 503 reading "The demo backend could not reach its
+database" — an error page on the path behind the run button (`04` §5 invariant 1) and false
+besides.
+
+### The show-SQL panel, driven in a browser
+
+`53 statements in 10 transactions, cortex arm.` Grouped by transaction, the whole arbitration
+is readable — these are four of the ten blocks, verbatim from the page:
+
+```
+transaction 1
+  BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE
+  SELECT set_config($1, $2, true)
+  SELECT id, agent_id, status, outcome, embedding <=> $2 AS dist FROM intents WHERE …
+  INSERT INTO intents (…) RETURNING id
+  INSERT INTO claims (…) ON CONFLICT … RETURNING resource_key, expires_at
+  COMMIT
+
+transaction 5                       <- agent-4 deduped: it searched and left no row
+  … SELECT … FROM intents …  2r
+  ROLLBACK
+
+transaction 7                       <- agent-5 lost the race, and read who won
+  … INSERT INTO claims …     0r
+  SELECT resource_key, holder, intent_id, expires_at FROM claims WHERE repo_id = $1 …  1r
+  ROLLBACK
+
+transaction 9                       <- the duplicate measurement, computed by the cluster
+  SELECT $1::VECTOR(1024) <=> $2::VECTOR(1024) AS dist
+```
+
+`0r` on the claims insert followed by the holder lookup is **invariant 3 visible in SQL** —
+the loser learning who holds the key before it rolls back. Grouping is what made this
+readable: concurrent agents interleave, and the flat list this panel used to render would have
+cut every transaction into fragments.
+
+The NAIVE arm reads `47 statements in 11 transactions, naive arm. No claim, no dedupe, no
+arbitration — these agents read a shared file, did the work, and wrote the whole file back
+over each other.` Its blocks are `SELECT demo_shared_state FROM repos` and `UPDATE repos SET
+demo_shared_state = $2`, in separate transactions, which is the read-modify-write the losses
+come out of.
+
+### The page
+
+Driven in Chrome at https://d11xbslgdgomdp.cloudfront.net. Both arms run, the toggle works,
+the SQL view works, no console output of any kind on load or on either run. The fleet cards
+read `NOTHING KNOWN / DONE / GRANTED / DEDUPED / BLOCKED` for CORTEX with "blocked by agent-3
+— re-plans instead of polling", and `SAVED / OVERWRITTEN` for NAIVE with "its entry is gone:
+another agent saved a snapshot taken before this one landed". The memory panel shows all four
+tiers populated for CORTEX and, for NAIVE, the four tiers empty beside a fifth block — "the
+whole of this fleet's shared memory — one JSON cell" — holding whatever survived.
+
+### Gates still green
+
+```
+npm run gate:stream       PASS  delivered over the changefeed  138ms  topic=findings
+npm run gate:consolidate  PASS  finding arrived over the change stream  502ms
+npm run changefeed status 1200831090094833665  running  error=none
+
+npm run bench             live model calls    embed 0, reason 0     (both arms)
+```
+
+`npm run bench` matters here for one reason: this unit exported `toVector` from
+`src/memory/propose.ts` and a predicate from `src/db/retry.ts`, and `bench/` imports from
+`src/`. Replay still reaches no network at all, so the reproducibility claim in
+`bench/results/*/summary.md` survives the change.
+
+Suite **256/256 across 21 files, 485s** against the real cluster. `npx tsc --noEmit` clean.
+`scripts/gate-mechanical.sh` hook mode exits 0 on the staged diff.
+
+### What this does NOT establish
+
+- **LIVE reasoning is not built.** `04` §5 brake 2's run counter needs a table `03` §2 does
+  not define, and U16b says to stop and ask before adding one. The Bedrock rate for Sonnet
+  4.5 is **TBD** — two fetches of `https://aws.amazon.com/bedrock/pricing/` and the Bedrock
+  model docs did not return it, and this repository does not write placeholder numbers.
+  What the committed cassettes do give is the shape: 30 recorded reasoning calls total
+  15,018 input tokens (avg 501, max 1067) and 2,164 output (avg 72, max 111), so five agents
+  is on the order of 3k tokens per run.
+- **Beat 1 still reports "nothing known"**, which is `03` §4.1's open threshold and not a
+  regression.
+- **`scripts/gate-mechanical.sh --report` has a pre-existing red `credentials` row** — three
+  placeholder DSNs committed long before this unit (`test/recorder.test.ts`,
+  `test/demo-plane.test.ts`, `docs/UNITS.md`'s curl example). Report mode scans all history,
+  so it has been failing since those landed; hook mode scans the staged diff and passes. The
+  script's own comment warns that a permanently-red row is one nobody reads. Flagged for
+  Julian, not edited — the file says to say so rather than narrow the check.
