@@ -807,10 +807,23 @@ invariant 8.
 beats observed." *(design §11, verbatim)*
 **Specs:** `06` §2, `06` §4, `03` §4.2 — plus design §3 and §4, which are the shape.
 **Verify live first:** (a) the Titan distance between **every pair** of statements in the
-curated cut, before any of it ships — design §3 calls this non-optional and says no test can
-substitute; (b) the row count of a ten-task cortex run against `DEMO_SESSION_ROW_CAP`, which
-is 200 and now applies per scope, so the ceiling is found deliberately rather than in front of
-a judge.
+curated cut — **DONE, V38**; (b) the row count of a ten-task cortex run against
+`DEMO_SESSION_ROW_CAP`, which is 200 and now applies per scope, so the ceiling is found
+deliberately rather than in front of a judge — **still to do, and it needs the runner.**
+
+**The cut is chosen and it is `P6a P6b P2a P2b C1 C2 C3 I3 R3 A1`** (V38, `npm run
+measure:statements`). Design §3's slices exactly. The measured numbers, which belong beside
+the statements when they are written into code:
+
+- `P6a/P6b` **0.0610** and `P2a/P2b` **0.2058** — the two dedupe pairs, chosen on margin.
+  P6's halves touch *different* files so dedupe fires with no claim overlap; P2's share one.
+- **P3 was rejected at 0.3630** — 0.0270 inside the threshold, on the exact lower edge of the
+  dedupe sweep's perfect band, too thin to hang a demo on. P1 (0.3203) is the reserve.
+- `I3/R3` **0.4293** — outside dedupe by 0.0393 and inside recall by 0.1707. **The recall pair
+  only works because the two thresholds differ**, which is V34's ordering argument showing up
+  as a task pair.
+- The seed statement is **0.7372** from its nearest cut member and carries forward unchanged.
+- 6/6 declared pairs fire; **0 undeclared collisions** across all 253 measured pairs.
 **Silent break:** **the fair naive lane's two transactions collapsing into one.** Design §4.2
 makes the naive lane run the same dedupe search and the same claim in *separate* transactions
 — that split is the entire thing being demonstrated, it is `01` §3's falsification test made
@@ -821,7 +834,13 @@ the demo showed no difference at all. The show-SQL panel is already grouped by t
 the cortex lane produces one.
 **Second silent break:** a task statement reworded by ear. §3 records what this cost once — a
 seed 0.2969 from agent-2's intent, inside the dedupe threshold, which deleted beat 4 without a
-single test failing.
+single test failing. `npm run measure:statements` is the check; run it after any rewording.
+**And know which constraint applies to what** (V38): the seed's *fact* goes to `findings`,
+which `findDuplicate` never reads, so it cannot dedupe anything at any distance — it must be
+< 0.60 from R3 to be recalled and > 0.20 from R3's own outcome not to be merged. The seed's
+*statement* becomes an intent at status `done` and **is** a dedupe candidate. The first version
+of the measurement script applied the statement's rule to the fact and rejected two good
+candidates.
 **Note:** re-recording cassettes is required — "produce a patch" is a different prompt shape
 and the cassette key is a hash of the prompt, so the committed library will miss by design.
 

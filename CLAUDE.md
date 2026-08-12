@@ -300,7 +300,9 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run gate:consolidate` (hosted) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
 `npm run changefeed status|create|cancel` ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +
-cluster `<=>`; republishes the recall threshold table).
+cluster `<=>`; republishes the recall threshold table) · `npm run measure:statements` (live
+Titan + cluster `<=>`; every pairwise distance between demo statements — **run it after any
+rewording**, design §3 and V38).
 
 `npx tsc --noEmit` exits clean and must stay that way — it is what someone cloning
 the repo runs first, and Production Readiness is scored.
