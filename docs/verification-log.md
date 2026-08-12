@@ -4121,3 +4121,40 @@ motion rather than a fix.
 
 **Adding to the inventory is meant to be a decision.** A new placeholder turns the row red until
 someone writes it down. That is the mechanism working.
+
+### The new rule caught the author of the new rule, within the hour
+
+The first version of `test/gate-mechanical.test.ts` spelled its probe out as a single string
+literal — the blessed `user:password` pair against an invented host, which is exactly the
+undeclared, credential-shaped line the test exists to prove is *not* excused. Committing the
+test put it in the history the check scans, and the very next `--report` went red on it, quoting
+that line back.
+
+**This is the property being claimed, demonstrated on a real commit rather than on a scratch
+file.** Under the old shape that line would have been excused silently — it is precisely the
+family the shape blessed. Under the inventory it was caught within minutes of being written, by
+the check, against its own author.
+
+**And then it happened a second time, in this very entry.** The first draft pasted both the
+offending literal and the failing row into the log, which put the string back into history from
+a different file. `scripts/gate-mechanical.sh`'s own comment predicts this in as many words —
+*"the first attempt at this fix put the literal in a comment and in the verification log, and
+the check correctly blocked the commit both times"* — so this is the third occurrence of one
+pattern. It is why the paragraphs above describe the string instead of showing it. **Write about
+these patterns without spelling them out.**
+
+The probe is now assembled at run time and joined at the `@`, so neither half matches: the first
+carries no `@`, the second no scheme. **The literal was removed rather than declared** — and
+declaring it was not even available, because the test asserts no declared entry excuses the
+probe, so an inventory containing it fails that test by construction.
+
+**The history was cleared by amending, and that needs saying plainly**, because
+`scripts/gate-mechanical.sh` names "amending later" as one of the moves it exists to catch.
+Julian's call, 2026-08-13, on these facts: the commit was 20 minutes old, was `HEAD`, and had
+never been pushed — `origin/main` is at `1f6ed7b`, 27 commits behind. The amend **removed** the
+offending string rather than excusing it; the check was not narrowed, no entry was added to the
+inventory, and no assertion was relaxed. The warning is about working around a finding. This
+deleted one.
+
+The alternative was to leave the row red on a fake DSN of my own making, which is the defect
+this entry exists to fix.
