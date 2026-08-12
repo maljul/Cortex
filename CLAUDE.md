@@ -47,9 +47,42 @@ What does not belong in a unit list, and so lives here:
   CORTEX recall returned 0.
 - **All five of `05` §5's demo routes exist, and the show-SQL panel is a transcript**
   (U16, V28). `src/db/recorder.ts` wraps the live client, so a statement reaches the panel
-  only by having gone to the driver. The recorded log shows one `BEGIN` holding the dedupe
-  search and the claim insert — invariant 1, readable rather than asserted. **The SPA
-  itself is not built**; `docs/UNITS.md` U16 has the remaining scope.
+  only by having gone to the driver. Since U16b the log is **grouped by transaction**
+  (`RecordedStatement.txn`, one per `withRetry` attempt) because concurrent agents interleave
+  two `BEGIN`s and a flat list stops showing invariant 1 at all; grouped, each block holds
+  its own dedupe search and its own claim insert. **The SPA is built and deployed**
+  (`infra/site/index.html`, V29); what is unconfirmed is whether it *reads* — see
+  `docs/UNITS.md` U16.
+- **The demo's agents are genuinely concurrent and every meter figure is measured (U16b, V30).**
+  Two things were fabricated before this and both are gone: `meter.duplicateWorkDone += 1`
+  and `meter.lostWrites += 1` were unconditional, and the NAIVE arm executed **zero
+  statements** — an arm that transacts nothing cannot lose a write. It now does real
+  read-modify-write work against `repos.demo_shared_state` (`src/memory/shared-state.ts`,
+  `06` §2's last-write-wins against a row rather than a file), and `lostWrites` is a
+  subtraction over a readback. `duplicate work done` is measured for **both** arms by one
+  rule — the dedupe threshold applied after the fact, with distances computed by the
+  cluster's own `<=>` (`src/memory/duplicates.ts`) — so `07` §1's "every number comes from
+  the database" holds literally. `test/scenario.test.ts` fails if a meter figure is set from
+  a numeric literal or incremented without a condition. **Beat 3 is a real race** and
+  `SCRIPT.claimWinner`/`claimLoser` are now `contenderA`/`contenderB`: nothing may assume
+  which one wins. **Beat 2 is deliberately still a sequence** — dedupe is a temporal
+  relationship, and racing it deletes the beat rather than hardening it.
+- **`03` §5's five-attempt cap is reachable now that agents genuinely contend, and the
+  backoff is why (V30).** Both beat-3 agents exhaust it on roughly one run in twelve:
+  `backoffMs` sleeps 20–320ms in total against a propose transaction that takes about a
+  second, so two colliding agents restart into each other. The demo follows §5's own next
+  sentence — an exhausted agent **re-plans once**, visibly (`replanOnce` in
+  `src/demo/scenario.ts`) — and an exhausted re-plan is reported as `contended`, never as an
+  exception, because that path is behind the run button and `04` §5 invariant 1 admits no
+  error page. **`src/db/retry.ts` is deliberately untouched**: raising the cap contradicts
+  §5, and widening the jitter reverses a documented, tested property of `backoffMs` — either
+  changes invariant 6's mechanism for every write path on the strength of one demo. It is
+  Julian's call, with the measurement in `docs/SPEC-DELTA.md`.
+- **LIVE reasoning is not built and is blocked on two decisions.** `04` §5 brake 2's global
+  run counter has nowhere to live but a **new table**, and `03` §2's six are the memory
+  model — that is a stop-and-ask. And the actual Bedrock rate for Sonnet 4.5 is **TBD**: two
+  fetches of AWS's pricing page did not return it, and this repository does not write
+  placeholder numbers. Do not enable LIVE until both are closed.
 - **Changefeed delivery is proven end to end, not just entitled (V26).** `npm run
   gate:stream` takes a session anonymously from the hosted API, writes one row as
   `cortex_demo`, and receives it back over the WebSocket in ~126ms. V25 established the
@@ -93,9 +126,10 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 225/225** — 170 after U15 (down from 174 because 13
-  blanket demo assertions became 9 sharper ones, not because anything was removed), U14
-  added 27 and U16 has added 28 so far.
+  the weaker "no privilege at all". **Suite 256/256 across 21 files, 485s against the real
+  cluster (2026-08-12, V30)** — 170 after U15 (down from 174 because 13 blanket demo
+  assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
+  took it to 249 and U16b to 256.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the

@@ -490,3 +490,88 @@ TBD was rejected for this surface specifically. The rule against placeholder num
 so that nobody writes a plausible fiction, and TBD is the right answer in a results file
 where the reader is auditing. On a judge-facing panel it reads as unfinished rather than as
 rigour, and there is a true number available to show instead.
+
+## 2026-08-12 — The naive arm's shared state is a JSONB column on `repos`
+
+U16b §3b required the NAIVE arm to perform its work against the database and lose it for
+real, and left the shape of the shared artifact to be decided and recorded. It is
+`repos.demo_shared_state JSONB`, added `ADD COLUMN IF NOT EXISTS` on U15's precedent.
+
+`06` §2 specifies "shared state: JSON file on disk, last-write-wins" for this arm, and
+`bench/arms/naive.ts` already implements exactly that against a real file. The demo needed
+the same mechanism against a row, so the column is one whole cell that each agent reads,
+holds while it works, and writes back entire — because the whole-artifact rewrite *is* the
+loss, and a row per entry would be an append that loses nothing.
+
+The two alternatives U16b offered were a reserved fact key in `findings`, and a new table.
+
+`findings` was rejected on two counts. It requires a `VECTOR(1024)` that a work log has no
+meaning for, and a fake finding would surface in the demo's own semantic-memory panel — the
+naive arm's shared file appearing as CORTEX-shaped memory is precisely the confusion the
+toggle exists to remove. `intents` fails the same way. A seventh table was not considered
+seriously: `03` §2's six are the memory model and U16b says to stop and ask before adding
+one, and this is not memory — it is the thing the naive fleet uses *instead* of memory.
+
+`repos` is where a demo session's own demo-only state already lives (`demo_expires_at`,
+U15), it is one row per session, it carries the same row-level security policy as
+everything else so confinement is unchanged, and — the load-bearing detail — **it is not in
+the changefeed's watch list**, so the naive arm writes real rows without manufacturing
+change events for a panel that has nothing to render them in. No changefeed recreation was
+needed.
+
+It does not consume the `03` §7 row budget, which counts the five tenant tables and
+deliberately not `repos`. That is consistent: the cell is part of the session's own scope
+row, like its expiry, not something the session spent its budget on.
+
+## 2026-08-12 — Beat 3 is a real race; beat 2 is deliberately still a sequence
+
+U16b §3a asked for the five agents to run concurrently. Beat 3's two do. Beat 2's two do
+not, and the distinction is not a shortcut.
+
+Dedupe is a **temporal** relationship. `07` §3 beat 2 is "agent-4 declares an intent worded
+differently from agent-2's **in-flight** intent" — a later agent discovering that its task
+is already underway. Two agents proposing in the same instant on the same key is not a
+dedupe at all: arbitration correctly grants one and blocks the other, which is beat 3.
+Racing beat 2 would not have made it more honest, it would have deleted it and left the
+demo with two copies of beat 3.
+
+Contention is a **simultaneous** relationship, and beat 3 is where `07` §3 says "in the same
+instant" — the one word in that table that was not true until now. Both proposals are in
+flight at once on their own pooled connections, the unique index on
+`(repo_id, resource_key)` decides, and nothing in `src/demo/scenario.ts` may assume which
+one wins. `SCRIPT.claimWinner` and `SCRIPT.claimLoser` were renamed to `contenderA` and
+`contenderB` for that reason: a name that turns out false on half the runs is worse than a
+dull one. `test/scenario.test.ts` asserts that exactly one is granted and that the blocked
+one names *the other*, never which.
+
+## 2026-08-12 — An agent that exhausts `03` §5's five attempts re-plans once, and the retry helper is not touched
+
+Genuine concurrency made SERIALIZABLE conflicts routine for the first time in this project,
+which is what U16b §3a predicted and wanted. It also made the five-attempt cap reachable:
+measured at roughly **one run in twelve** for beat 3's pair, both agents exhausting
+together (V30). The naive arm's four concurrent writers on one row did not exhaust it once
+in twelve.
+
+An exhausted 40001 used to escape `runScenario`, reach `infra/lambda/demo.ts`, and become a
+503 reading "The demo backend could not reach its database" — which is an error page on the
+path behind the run button, forbidden by `04` §5 invariant 1, and false besides: the
+database was reached and the transaction gave up.
+
+The fix is `replanOnce` in `src/demo/scenario.ts`, and it is `03` §5's own instruction
+rather than a workaround for it. §5 caps the helper at five and says why in its next
+bullet: "losing fast and re-planning is the desired behaviour; blocking turns the fleet
+into a queue." An agent that exhausts the cap has lost fast; what it does next is re-plan,
+and for an agent whose plan is one proposal that means proposing again. It does so once,
+and the step carries `replanned: true` so the panel says it happened. A second exhaustion
+is reported as `contended` — an outcome, never an exception.
+
+**What was deliberately not done, and why it is Julian's.** The underlying cause is that
+`backoffMs` sleeps 20–320 ms while a propose transaction against CockroachDB Cloud takes
+about a second, so two agents that collide restart into each other. The two candidate fixes
+are a larger `BASE_DELAY_MS` and full jitter, and both change the mechanism *every* write
+path in this project depends on (invariant 6) on the strength of one demo. Full jitter
+additionally overturns a documented, tested property — `src/db/retry.ts` states that the
+jitter window is deliberately narrower than the gap between attempts so successive delays
+cannot overlap, and `test/retry.test.ts` asserts it over 200 draws. Reversing that is a
+decision with a rationale to argue with, not a tuning tweak, so it is recorded here with
+the measurement and left open.

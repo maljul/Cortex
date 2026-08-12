@@ -24,6 +24,29 @@ CREATE TABLE IF NOT EXISTS repos (
 -- live cluster without error and that property is not negotiable for one column.
 ALTER TABLE repos ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMPTZ;
 
+-- The NAIVE arm's shared work state, and nothing else's. NULL on every real repository
+-- and on every CORTEX run, per spec/06-BENCHMARK-SPEC.md section 2: "Shared state: JSON
+-- file on disk, last-write-wins."
+--
+-- This is the database analogue of that file, and it is here rather than in one of the
+-- four memory tiers on purpose. It is not memory — it is the thing the naive fleet uses
+-- INSTEAD of memory, and putting it in `findings` or `intents` would have made the
+-- contrast a difference in how one table is used rather than a difference in kind. It
+-- also would not have fitted: both of those require a VECTOR(1024) this has no meaning
+-- for, and a fake finding would surface in the demo's own semantic-memory panel.
+--
+-- On `repos` specifically: the demo session's scope row is already where a session's own
+-- demo-only state lives (demo_expires_at, directly above), it is one row per session, it
+-- carries the same row-level security policy as everything else, and it is NOT in the
+-- changefeed's watch list — so the naive arm writes real rows without inventing change
+-- events for a panel that has nothing to show them in.
+--
+-- One whole-cell column rather than a row per entry, deliberately. The losses the naive
+-- arm demonstrates come from reading a snapshot, working, and writing the whole snapshot
+-- back over whatever landed in between. A row per entry would be an append, which does
+-- not lose writes and would not be last-write-wins.
+ALTER TABLE repos ADD COLUMN IF NOT EXISTS demo_shared_state JSONB;
+
 CREATE TABLE IF NOT EXISTS agents (
   id           STRING PRIMARY KEY,            -- 'agent-3'
   repo_id      UUID NOT NULL REFERENCES repos(id),

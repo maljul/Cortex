@@ -238,6 +238,32 @@ last one was never cosmetic: without it a blocked agent knows who holds the key 
 not for how long, which is what decides between re-planning and waiting, and invariant
 3 exists to make that judgement possible.
 
+### `03` §5's five-attempt cap is reachable, and the backoff is why *(2026-08-12, U16b)*
+
+§5 requires every write transaction to retry a 40001 "with exponential backoff plus jitter,
+capped at five attempts". Nothing in this project had genuinely concurrent writers until the
+demo's agents became concurrent, so the cap had never been reached. It is now: two
+proposals racing for one claim key exhaust all five attempts, **both of them**, on roughly
+one run in twelve against this cluster (V30).
+
+The cap is not the problem and must not be raised — §5's next bullet is what makes it
+right, and the demo now follows it (`docs/DECISIONS.md`, `replanOnce`). What is worth
+recording against the spec is the cause: `backoffMs` sleeps 20–320 ms in total while one
+propose transaction against CockroachDB Cloud takes about a second, so two agents that
+collide back off by far less than the window they collided in and restart into each other.
+The jitter draw is one `BASE_DELAY_MS` wide, which is a twelfth of that window, so it
+decorrelates almost nothing — and decorrelation is the entire reason §5 asks for jitter.
+
+**This is an observation, not a change.** Both candidate fixes — a larger base, or full
+jitter — alter the helper every write path in the project depends on under invariant 6, and
+full jitter reverses a property `src/db/retry.ts` states deliberately and
+`test/retry.test.ts` asserts over 200 draws. §5 specifies "exponential backoff plus jitter"
+and names no constants, so neither fix would be a spec deviation; choosing one is Julian's.
+
+**Closes when a base delay or jitter policy is chosen and measured**, or when it is decided
+that a re-plan at the agent level is the right answer and the helper stays as it is. Either
+way the entry is deleted rather than amended.
+
 ## Corrected in the spec already — do not re-open
 
 ### `05` §6 documented `CORTEX_DEDUPE_THRESHOLD` and nothing read it *(closed 2026-08-11 — removed)*
@@ -539,3 +565,18 @@ have added a hop and a failure mode for no behaviour this deployment can express
 
 Recorded rather than reconciled: if the concurrency restriction is ever lifted, splitting
 the consumers becomes worth doing, and §2's map is then right rather than aspirational.
+
+### `06` §2 puts the naive arm's shared state on disk; the demo's is a JSONB cell *(2026-08-12, U16b)*
+
+§2 specifies the NAIVE arm as "shared state: JSON file on disk, last-write-wins", and
+`bench/arms/naive.ts` implements exactly that. The hosted demo's naive arm implements the
+same mechanism against `repos.demo_shared_state` instead, because a demo whose naive arm
+touches no database executes no statements — and an arm that executes nothing cannot lose a
+write, which is how two of its meter figures came to be written by hand rather than
+measured.
+
+Not a contradiction: §2 governs the benchmark, `07` governs the demo, and the property §2 is
+specifying is *last-write-wins on a whole-artifact rewrite*, which is preserved exactly —
+read the whole cell, hold it while working, write the whole cell back. Recorded because a
+reader comparing `bench/arms/naive.ts` with `src/memory/shared-state.ts` will find two
+implementations of one specified behaviour and should know that is deliberate.

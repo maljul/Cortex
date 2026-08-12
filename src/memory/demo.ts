@@ -17,6 +17,8 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import type { Plane } from '../db/pool.js';
+import type { StatementRecorder } from '../db/recorder.js';
 import { withRetry } from '../db/retry.js';
 
 /**
@@ -111,6 +113,42 @@ export const DEMO_LEDGER_SQL = `
    LIMIT 50
 `;
 
+/**
+ * Which of these agents still has the work it was granted, recorded against this session.
+ *
+ * The CORTEX half of the demo's `writes lost` row. `06` §6 draws a hard line between "no
+ * such thing to measure" and "measured as nought", and a bare 0 written into that cell
+ * would be neither — so the arm is asked the same question the NAIVE arm is asked, and
+ * answers it by reading the database back: of the work you acknowledged, how much is still
+ * there and still yours? Arbitration is the reason the answer is all of it, and the
+ * subtraction that produces the zero is over two counted quantities.
+ *
+ * `deduped` is excluded because a deduped agent never acquired work to lose; `abandoned`
+ * is excluded because abandoning is a decision, not a loss.
+ */
+export const DEMO_SURVIVING_WORK_SQL = `
+  SELECT DISTINCT agent_id
+    FROM intents
+   WHERE repo_id = $1
+     AND agent_id = ANY($2::STRING[])
+     AND status IN ('in_flight', 'done')
+`;
+
+/**
+ * The NAIVE arm's shared work cell, for the memory panel.
+ *
+ * `07` §2's centre panel renders `03` §2's four tiers, and after a NAIVE run all four are
+ * legitimately empty — which reads as a failure rather than as the result unless the panel
+ * can show what that fleet *does* have. This is it: one JSON cell holding whatever survived
+ * the last write. Put side by side with four populated tiers, the contrast is visible
+ * rather than described, which is what `07` §2 asks the toggle to do.
+ */
+export const DEMO_SHARED_STATE_SQL = `
+  SELECT demo_shared_state
+    FROM repos
+   WHERE id = $1
+`;
+
 export const DEMO_ROW_COUNT_SQL = `
   SELECT ${COUNTED_TABLES.map((t) => `(SELECT count(*) FROM ${t} WHERE repo_id = $1)`).join(' + ')}
          AS used
@@ -160,6 +198,13 @@ export interface DemoLedgerEntry {
   appliedAt: Date;
 }
 
+/** One entry as `src/memory/shared-state.ts` stores it. Read here, never written here. */
+interface SharedEntryRow {
+  agent: string;
+  statement: string;
+  note: string;
+}
+
 export interface DemoFinding {
   id: string;
   fact: string;
@@ -175,6 +220,11 @@ export interface DemoState {
   intents: DemoIntent[];
   findings: DemoFinding[];
   ledger: DemoLedgerEntry[];
+  /**
+   * Everything the NAIVE arm has instead of the four tiers above, and `null` for every
+   * CORTEX session because that arm never writes it. See `DEMO_SHARED_STATE_SQL`.
+   */
+  sharedState: { entries: { agent: string; statement: string; note: string }[] } | null;
   rows: { used: number; cap: number; remaining: number };
   /**
    * What the interface must be able to say about itself, per `05` §5: "The current mode,
@@ -246,6 +296,35 @@ export async function isLiveDemoScope(repoId: string): Promise<boolean> {
 }
 
 /**
+ * The agents from `agentIds` whose granted work is still recorded in this session.
+ *
+ * See `DEMO_SURVIVING_WORK_SQL`. Carries `WHERE repo_id` like every other read here, per
+ * invariant 5, rather than leaning on the policy that would also enforce it.
+ */
+export async function survivingWork(
+  sessionId: string,
+  agentIds: readonly string[],
+  options: { plane?: Plane; recorder?: StatementRecorder } = {},
+): Promise<string[]> {
+  if (agentIds.length === 0) return [];
+
+  return withRetry(
+    async (client) => {
+      const { rows } = await client.query<{ agent_id: string }>(DEMO_SURVIVING_WORK_SQL, [
+        sessionId,
+        agentIds,
+      ]);
+      return rows.map((row) => row.agent_id);
+    },
+    {
+      plane: options.plane ?? 'demo',
+      demoSession: sessionId,
+      ...(options.recorder ? { recorder: options.recorder } : {}),
+    },
+  );
+}
+
+/**
  * Everything the demo panel shows for one session, or `null` when the id names anything
  * that is not a live demo scope.
  *
@@ -276,9 +355,13 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
       const intents = await client.query(DEMO_INTENTS_SQL, [sessionId]);
       const findings = await client.query(DEMO_FINDINGS_SQL, [sessionId]);
       const ledger = await client.query(DEMO_LEDGER_SQL, [sessionId]);
+      const shared = await client.query<{
+        demo_shared_state: { completed?: Record<string, SharedEntryRow> } | null;
+      }>(DEMO_SHARED_STATE_SQL, [sessionId]);
       const counted = await client.query<{ used: string }>(DEMO_ROW_COUNT_SQL, [sessionId]);
 
       const used = Number(counted.rows[0]?.used ?? 0);
+      const completed = shared.rows[0]?.demo_shared_state?.completed;
 
       return {
         session: { sessionId: session.id, expiresAt: session.demo_expires_at },
@@ -313,6 +396,15 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
           action: r.action,
           appliedAt: r.applied_at,
         })),
+        sharedState: completed
+          ? {
+              entries: Object.values(completed).map((entry) => ({
+                agent: entry.agent,
+                statement: entry.statement,
+                note: entry.note,
+              })),
+            }
+          : null,
         rows: {
           used,
           cap: DEMO_SESSION_ROW_CAP,

@@ -511,7 +511,7 @@ SQL role per anonymous visitor to be had. What it buys is failing **closed** —
 `cortex.demo_session` set, nothing visible — which is V5's failure mode inverted. Said
 plainly in `04` §3 rather than left for a reader to infer.
 
-### U16 — Demo SPA: three panels, naive toggle, show-SQL 🔶 **backend done, SPA not started**
+### U16 — Demo SPA: three panels, naive toggle, show-SQL 🔶 **built and deployed; reads cold, unconfirmed**
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(08 §5, 38–44h, verbatim)*
 **Specs:** `07` §2, `07` §3, `05` §5
@@ -548,6 +548,59 @@ connected, so nothing has driven the page in a browser. Every request it makes i
 animating in are unconfirmed. **Julian opens it, and says whether the beats land.** Until
 then this unit is not done, and the honest failure mode is a page that is correct and
 unreadable.
+
+**U16b (2026-08-12, V30) — the agents are real and the NAIVE column is measured.** Two things
+were wrong and both were found by reading the code rather than the screen. They are fixed.
+
+- **The NAIVE column was fabricated.** `meter.duplicateWorkDone += 1` and
+  `meter.lostWrites += 1` were unconditional, and the naive arm executed **zero statements**,
+  so there was no write to lose and nothing observed the losing. Two constants were rendered
+  in the same table and the same style as figures the driver had timed — `07` §1 and rule A7,
+  broken. The naive arm now performs its work against the database through
+  `src/memory/shared-state.ts` (`repos.demo_shared_state`, a JSONB cell read whole and written
+  back whole, which is `06` §2's last-write-wins against a row instead of a file), and the
+  losses are **measured by reading the cell back**: acknowledged writes minus surviving ones.
+- **Beat 3 is now a real race.** The two contenders propose concurrently on their own pooled
+  connections and CockroachDB's unique index decides. `SCRIPT.claimWinner`/`claimLoser` are
+  renamed `contenderA`/`contenderB`, because a name that is false on half the runs is worse
+  than a dull one, and no test may assert which one wins. **Beat 2 stays a sequence** — dedupe
+  is a temporal relationship and racing it would delete the beat rather than harden it
+  (`docs/DECISIONS.md`).
+- **`duplicate work done` is measured for both arms by one rule** (`src/memory/duplicates.ts`):
+  the dedupe threshold applied after the fact to whatever each arm actually did, with the
+  distances computed by CockroachDB's own `<=>` so the number on screen comes from the
+  database. CORTEX scores 0 because its duplicate agent was deduped and did no work; NAIVE
+  scores 1 because nothing stopped either of them. Same rule, two inputs.
+- **The guard is a source-text test** (`test/scenario.test.ts`): no meter figure may be set
+  from a numeric literal, and an increment must be guarded by a condition on its own line.
+  Its first version was itself wrong — it flagged the file's header, which quotes the two
+  fabricated lines while explaining them — so comments are stripped before the scan and a
+  separate assertion proves the stripping did not eat the file.
+- **The show-SQL panel groups by transaction.** Concurrency interleaves two BEGINs, which
+  destroys the one thing the panel exists to show; `RecordedStatement.txn` restores it and
+  makes it stronger — two transactions overlapping in time, each holding its own dedupe
+  search and its own claim insert.
+- **`serializationRetries` is non-zero for the first time in this project** (measured 1–3 per
+  CORTEX run), which closes U12's note that the benchmark's serialised scheduler makes that
+  metric 0 by construction.
+
+**One finding that is not this unit's to fix, and is recorded rather than patched.** Genuine
+concurrency made `03` §5's five-attempt cap reachable — both beat-3 agents exhausting it on
+about **one run in twelve**. `backoffMs` sleeps 20–320 ms in total while a propose transaction
+takes about a second, so two colliding agents restart into each other. The demo now follows
+§5's own next sentence — an agent that has lost fast **re-plans**, once, visibly
+(`replanOnce`) — and `src/db/retry.ts` is untouched, because changing its base delay or its
+jitter policy changes invariant 6's mechanism for every write path on the strength of one
+demo. `docs/SPEC-DELTA.md` carries the measurement; the choice is Julian's.
+
+**LIVE reasoning (`U16b` §3c) is NOT built, and is blocked on two things Julian owns.**
+`04` §5 brake 2 — the global run counter — has nowhere to live but a new table, and `03` §2's
+six tables are the memory model; U16b itself says to stop and ask before adding one. And §6
+requires the actual Bedrock rate for Sonnet 4.5 written down before LIVE is enabled: two
+fetches of AWS's pricing page did not return it, so it is **TBD** and the rule against
+placeholder numbers applies. Everything the spend would be measured against is ready — the
+committed cassettes put one reasoning call at ~501 input and ~72 output tokens (max 1067/111),
+so five agents is on the order of 3k tokens per run.
 
 **Beat 1 does not fire, and that is a decision waiting, not a bug.** `03` §4.1's published
 SQL filters recall at `dist < 0.35`, and under real Titan embeddings every honest wording

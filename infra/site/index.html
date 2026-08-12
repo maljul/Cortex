@@ -88,7 +88,11 @@
   .b-granted { color: var(--ok); } .b-deduped { color: var(--warn); }
   .b-blocked { color: var(--bad); } .b-idle { color: var(--dim); }
   .b-proceeded { color: var(--bad); } .b-done { color: var(--ok); }
-  .b-seeded, .b-overwrote { color: var(--dim); }
+  .b-seeded, .b-saved { color: var(--dim); }
+  .b-overwritten { color: var(--bad); }
+  /* Rare, and it has to render: both agents exhausting their SERIALIZABLE attempts is an
+     outcome the run reports rather than an error it raises. `04` §5 invariant 1. */
+  .b-contended { color: var(--warn); }
 
   .tier { margin-bottom: 1rem; }
   .tier h3 {
@@ -124,6 +128,21 @@
   .stmt { padding: .3rem 0; border-bottom: 1px solid #171d26; display: flex; gap: .55rem; }
   .stmt .meta { color: var(--dim); flex: 0 0 8.5rem; font-size: .72rem; }
   .stmt .txn { color: var(--accent); }
+
+  /*
+    One block per transaction. The agents run concurrently now, so a flat list interleaves
+    two BEGINs and the co-location invariant 1 is about stops being readable — which is the
+    one thing this panel exists to show. Grouped, each block is a whole transaction.
+  */
+  .txn-block {
+    border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: 3px;
+    padding: .35rem .55rem; margin-bottom: .5rem; background: var(--panel);
+  }
+  .txn-block > h4 {
+    margin: 0 0 .25rem; font-size: .7rem; font-weight: 600; color: var(--accent);
+    letter-spacing: .06em;
+  }
+  .txn-block .stmt:last-child { border-bottom: 0; }
   .empty { color: var(--dim); font-size: .82rem; }
   footer { padding: .6rem 1.25rem; color: var(--dim); font-size: .74rem; border-top: 1px solid var(--line); }
 </style>
@@ -258,6 +277,14 @@
   const memory = { claims: [], intents: [], findings: [], ledger: [] };
   const fresh = new Set();
 
+  /**
+   * The naive fleet's entire shared memory: one JSON cell holding whatever survived the
+   * last write. Rendered beside the four tiers rather than instead of them, because the
+   * comparison is the point — four populated tiers against one cell missing most of what
+   * was put in it. Null for every CORTEX run, which never writes it.
+   */
+  let sharedState = null;
+
   /** Each row shows its real primary key, per `07` §2. */
   function pkOf(tier, row) {
     if (tier === 'claims') return row.resourceKey || row.resource_key || '';
@@ -302,16 +329,40 @@
       host.appendChild(block);
     }
 
-    if (total === 0) {
-      // After a naive run this panel is legitimately empty, and saying "run a scenario"
-      // would read as a failure to a judge who just ran one. The emptiness *is* the
-      // result: a fleet with no shared memory has no shared memory to write to, which is
-      // the same fact the show-SQL panel states as "0 statements".
+    if (total === 0 && !sharedState) {
       host.innerHTML = ranSomething
         ? '<div class="empty">Nothing. That is the result: these agents share no memory, ' +
           'so there is nothing for them to write to and nothing for the next one to find. ' +
           'Run it with CORTEX to see the same script fill this panel.</div>'
         : '<div class="empty">Run a scenario and rows will arrive here from the database’s own changefeed.</div>';
+      return;
+    }
+
+    // What the naive fleet has instead. It is one row in the database, read back after the
+    // run, and the entries missing from it are the writes its own agents were told had
+    // been saved. The four tiers above stay on screen and stay empty, which is the honest
+    // shape of the comparison rather than a substitution.
+    if (sharedState) {
+      const block = document.createElement('div');
+      block.className = 'tier';
+      block.innerHTML =
+        '<h3>the whole of this fleet’s shared memory — one JSON cell</h3>';
+
+      if (!sharedState.entries.length) {
+        block.innerHTML += '<div class="empty">empty</div>';
+      } else {
+        for (const entry of sharedState.entries) {
+          block.innerHTML +=
+            '<div class="row"><span class="pk">' + entry.agent + '</span>' +
+            '<span class="body">' + entry.statement + '</span></div>';
+        }
+      }
+
+      block.innerHTML +=
+        '<div class="empty" style="margin-top:.4rem">Four agents were told their work was ' +
+        'saved. This is what is still there: each save wrote the whole cell back from a ' +
+        'snapshot taken before the others landed.</div>';
+      host.appendChild(block);
     }
   }
 
@@ -320,6 +371,7 @@
     memory.intents = state.intents || [];
     memory.findings = state.findings || [];
     memory.ledger = state.ledger || [];
+    sharedState = state.sharedState || null;
     renderMemory();
   }
 
@@ -374,6 +426,19 @@
       `<div><span class="arm">naive</span><span class="naive">${BENCH.naive}</span></div></dd>` +
       `<div class="empty">measured in the benchmark over 30 tasks, not in this session — ${BENCH.source}</div>`;
 
+    /*
+      Said out loud rather than implied. The benchmark is bit-reproducible and says so; this
+      page is not, because its agents genuinely run at the same time and the database
+      decides between them. A judge who runs it twice and sees different numbers should
+      have been told to expect that, or the demo looks unreliable instead of live.
+    */
+    html +=
+      '<div class="empty" style="margin-top:.9rem">Every figure above except the last row ' +
+      'was measured during the run you just triggered. The agents run concurrently, so ' +
+      'these are the outcome of a real race — run it twice and the winner and the number ' +
+      'of lost writes will change. The benchmark is the reproducible artifact; this is the ' +
+      'live one.</div>';
+
     $('meter').innerHTML = html;
   }
 
@@ -398,21 +463,60 @@
     const log = await response.json();
 
     if (!log.statements.length) {
+      // Kept as a truthful fallback rather than as the naive arm's expected state. It used
+      // to be the naive arm's *only* state — that arm executed nothing, which is why the
+      // two numbers beside it could not have been measured. Now both arms transact.
       host.innerHTML =
-        '<div class="empty">This run executed no statements at all. That is the naive arm: ' +
-        'agents with no shared memory have no shared memory to write to.</div>';
+        '<div class="empty">This run executed no statements. Run a scenario and this ' +
+        'panel fills with the statements it sent.</div>';
       return;
     }
 
-    let html =
-      `<div class="empty" style="margin-bottom:.6rem">${log.statements.length} statements, ${log.arm} arm. ` +
-      'Note the dedupe search and the claim insert inside a single BEGIN — that co-location is the whole thesis.</div>';
+    /*
+      Grouped by transaction. `txn` is assigned once per `withRetry` attempt, so a block is
+      exactly one transaction — including a retried one, which really was a second attempt.
 
+      Grouped through a Map rather than by comparing each statement with the one before it.
+      Two agents racing **interleave**: BEGIN(1), BEGIN(2), SELECT(1), SELECT(2)… so an
+      adjacent comparison would cut a single transaction into a block per statement and show
+      the opposite of what this panel is for. The interleaving is the evidence that they
+      really did race; the grouping is what makes each one readable anyway.
+
+      `?? 0` covers a transcript written before `txn` existed — the log store has a two-hour
+      TTL, so this is a window, not a permanent branch.
+    */
+    const byTxn = new Map();
     for (const s of log.statements) {
-      const isTxn = /^(BEGIN|COMMIT|ROLLBACK)/.test(s.sql);
-      html +=
-        `<div class="stmt"><span class="meta">${s.ms}ms · $${s.parameters} · ${s.rows}r</span>` +
-        `<pre class="sql${isTxn ? ' txn' : ''}">${s.sql.replace(/</g, '&lt;')}</pre></div>`;
+      const key = s.txn ?? 0;
+      if (byTxn.has(key)) byTxn.get(key).statements.push(s);
+      else byTxn.set(key, { txn: key, statements: [s] });
+    }
+    const blocks = [...byTxn.values()];
+
+    const arbitration = blocks.filter((b) =>
+      b.statements.some((s) => /INSERT INTO claims/.test(s.sql)),
+    ).length;
+
+    let html =
+      `<div class="empty" style="margin-bottom:.6rem">${log.statements.length} statements in ` +
+      `${blocks.length} transactions, ${log.arm} arm. ` +
+      (arbitration
+        ? 'Read one block at a time: the dedupe search and the claim insert are inside the ' +
+          'same BEGIN, on one snapshot. That co-location is the whole thesis, and blocks ' +
+          'that overlap in time are agents that genuinely raced.'
+        : 'No claim, no dedupe, no arbitration — these agents read a shared file, did the ' +
+          'work, and wrote the whole file back over each other.') +
+      '</div>';
+
+    for (const block of blocks) {
+      html += `<div class="txn-block"><h4>transaction ${block.txn}</h4>`;
+      for (const s of block.statements) {
+        const isTxn = /^(BEGIN|COMMIT|ROLLBACK)/.test(s.sql);
+        html +=
+          `<div class="stmt"><span class="meta">${s.ms}ms · $${s.parameters} · ${s.rows}r</span>` +
+          `<pre class="sql${isTxn ? ' txn' : ''}">${s.sql.replace(/</g, '&lt;')}</pre></div>`;
+      }
+      html += '</div>';
     }
     host.innerHTML = html;
   }
@@ -442,6 +546,7 @@
       const session = await newSession();
       listen(session.sessionId);
       for (const tier of TIERS) memory[tier.key] = [];
+      sharedState = null;
       renderMemory();
 
       const response = await fetch(`${API}/demo/run`, {

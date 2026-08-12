@@ -25,7 +25,17 @@ export function resetRetryCount(): void {
   retries = 0;
 }
 
-function isSerializationFailure(error: unknown): boolean {
+/**
+ * Whether this is a SERIALIZABLE conflict.
+ *
+ * Exported because a caller sometimes needs to know that a 40001 **survived** all five
+ * attempts. `03` §5 caps the helper there deliberately — "losing fast and re-planning is
+ * the desired behaviour" — so what happens after the cap is the caller's decision, not
+ * this module's, and the caller cannot make it without being able to recognise the error.
+ * `src/demo/scenario.ts` is the first caller with genuinely concurrent agents and so the
+ * first one for which the cap is reachable at all.
+ */
+export function isSerializationFailure(error: unknown): boolean {
   return (error as { code?: string } | null)?.code === SERIALIZATION_FAILURE;
 }
 

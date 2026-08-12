@@ -93,8 +93,15 @@ class Decided extends Error {
   }
 }
 
-/** VECTOR literals go over the wire as '[a,b,c]'. */
-function toVector(embedding: readonly number[]): string {
+/**
+ * VECTOR literals go over the wire as '[a,b,c]'.
+ *
+ * Exported so `src/memory/duplicates.ts` measures distances through the same formatting
+ * and the same dimension check this transaction uses. A second copy would be a second
+ * place for the width to drift, and V-5-era experience here is that a width mismatch
+ * fails as a wrong answer rather than as an error.
+ */
+export function toVector(embedding: readonly number[]): string {
   if (embedding.length !== EMBEDDING_DIMENSIONS) {
     throw new Error(
       `embedding must have ${EMBEDDING_DIMENSIONS} dimensions, got ${embedding.length}`,
