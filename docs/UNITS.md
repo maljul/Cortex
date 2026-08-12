@@ -541,13 +541,24 @@ measured from the run per `04` §7, and `GET /demo/state` reports the mode and i
 `05` §5. **Recreating the changefeed is required after touching `WATCHED`**; the procedural
 tier stays empty until `npm run changefeed create` runs.
 
-**What is left is the one thing no script can do: read it cold.** The done-when is "the four
-beats read clearly to someone who has not seen it", and the Chrome extension was not
-connected, so nothing has driven the page in a browser. Every request it makes is verified
-(V29) and the payloads are right; layout, the toggle, the SQL view and the live rows
-animating in are unconfirmed. **Julian opens it, and says whether the beats land.** Until
-then this unit is not done, and the honest failure mode is a page that is correct and
-unreadable.
+**The page has now been driven in a browser (2026-08-12, V32), and the mechanical half is
+confirmed.** All four beats fire; the show-SQL panel puts the dedupe search and the claim
+insert inside one visible `BEGIN` so invariant 1 is legible off the screen; both arms populate
+the meter; and invariant 8 holds against the **rendered DOM** — three buttons, zero inputs —
+which is stronger than `test/site.test.ts`'s source scan. No console errors.
+
+**What is left is still the one thing no script can do: read it cold.** V32 was a *driven*
+read — `docs/UNITS.md` had been read first, so the beats were known before the page was
+opened. The done-when is "someone who has not seen it", so it needs a reader who has not.
+**Julian opens it, and says whether the beats land.** Until then this unit is not done, and
+the honest failure mode is a page that is correct and unreadable.
+
+**Three defects V32 found, none of which a test would have caught.** (1) Beat 1's
+`NOTHING KNOWN` carries no explanation in the cortex arm while the *naive* arm's identical
+badge carries one — so the winning arm is the one with the unexplained blank, two columns from
+a semantic tier displaying findings about the very subject agent-1 asked about. That is the
+one to watch a cold reader hit. (2) The show-SQL button's sub-label does not toggle with its
+label. (3) `CLAIM P50` naive stays `—` where every other row has both sides.
 
 **U16b (2026-08-12, V30) — the agents are real and the NAIVE column is measured.** Two things
 were wrong and both were found by reading the code rather than the screen. They are fixed.
@@ -610,8 +621,19 @@ SQL filters recall at `dist < 0.35`, and under real Titan embeddings every hones
 of the seeded finding sits 0.38–0.47 from the task it is about. The run reports "nothing
 known", truthfully. **Do not move the constant to make the beat work** — that is `06` §3's
 circularity, and the precedent is `03` §4.2's threshold, which Julian closed separately
-with a sweep in front of him. `docs/SPEC-DELTA.md` says what closing it needs. Until it is
-closed, beat 1 shows a seeded past and an honest empty recall.
+with a sweep in front of him.
+
+**That sweep now exists for recall too (2026-08-12, V33).** `npm run sweep:recall`, published
+beside the dedupe one at `bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`,
+against ground truth in `bench/recall-truth.json` written before anything was measured. At
+0.35, **one query in eight** gets any relevant finding back; 0.60 is the largest tested value
+that still returns nothing irrelevant; the first false positive is at 0.63. It also answers the
+ordering question — recall at 0.35 being *tighter* than dedupe at 0.39 is backwards, because a
+dedupe false positive cancels real work while a recall false positive costs attention.
+**The constant is still not picked, on purpose.** That is Julian's separate act with the
+measurement in front of him, and the sweep says plainly that its own hard negatives did not
+land close under Titan, so it bounds the value from below rather than proving a ceiling. Until
+it is closed, beat 1 shows a seeded past and an honest empty recall.
 
 **The lesson from this unit, for whoever writes SPA copy:** the demo deduped against its own
 seed on the first hosted run, because the seed statement sat 0.2969 from agent-2's — inside

@@ -23,7 +23,8 @@
     "deploy:site": "tsx scripts/deploy-site.mts",
     "changefeed": "tsx scripts/changefeed.mts",
     "gate:stream": "tsx scripts/gate-stream.mts",
-    "gate:consolidate": "tsx scripts/gate-consolidate.mts"
+    "gate:consolidate": "tsx scripts/gate-consolidate.mts",
+    "sweep:recall": "tsx scripts/sweep-recall.mts"
   },
   "keywords": [],
   "author": "",

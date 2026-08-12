@@ -72,11 +72,26 @@ mechanism looks better is the circularity `06` §3 exists to prevent, and the pr
 measurement in front of him. The demo reports "nothing known" when nothing is known, which
 is `07` §4's honesty rule working as intended.
 
-**What closing it needs:** a sweep like `bench/results/*/threshold-sweep.md`, over findings
-and queries rather than over intent pairs. Note that 0.35 is currently *tighter* than the
-dedupe threshold of 0.39, which is the wrong way round on the face of it — recall asks
-"what might be relevant", dedupe asks "is this the same work", and the second is the
-stricter question. Whoever sweeps this should say why the ordering is what it is.
+**The sweep this needed has been run (2026-08-12, V33).** `npm run sweep:recall`, published at
+`bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`, over findings and queries
+rather than intent pairs, against ground truth authored before anything was measured. It
+sharpens the problem considerably: at 0.35 **one query in eight** gets any relevant finding
+back, and 0.60 is the largest tested threshold that still returns nothing irrelevant. FOC1
+reproduced V28's 0.3801 exactly.
+
+It also answers the ordering question this entry raised. 0.35 is *tighter* than the dedupe
+threshold of 0.39, and that is backwards: answering yes to dedupe cancels an agent's task, so
+a false positive destroys work that needed doing, while answering yes to recall only adds a
+line to a context window. The test with the expensive error must be the strict one — dedupe
+tighter, recall looser. That holds independently of the demo, which is what keeps the change
+out of `06` §3's circularity.
+
+**Still open, and deliberately so: the constant is not picked.** The sweep found no band where
+precision and recall are both perfect, because ranking separates cleanly (8/8) while the
+distance at which the right finding sits spans 0.2981–0.7364. Choosing a value is Julian's
+separate act with the measurement in front of him, as `03` §4.2's was. The sweep's own stated
+limitation is that its hard negatives did not land close under Titan, so its precision column
+is optimistic and bounds the constant from below rather than proving a ceiling.
 
 ### `04` §5 brake 1 — reserved concurrency cannot be set on this account at all *(2026-08-11, V26)*
 

@@ -1,0 +1,211 @@
+{
+  "$comment": [
+    "Ground truth for the RECALL threshold sweep. spec/03-MEMORY-MODEL.md §4.1.",
+    "",
+    "Written by hand on 2026-08-12 BEFORE anything was embedded or measured, which is",
+    "the same discipline bench/tasks.json's `pair` labels were written under. If this",
+    "file is ever edited after seeing a sweep result, the sweep stops being evidence",
+    "and becomes a fit.",
+    "",
+    "The relation being declared is not similarity. It is: *an agent is about to do",
+    "this task — does the fleet already hold something that bears on it?* Every",
+    "finding below is an honest wording of what an agent would record after finishing",
+    "a piece of work in bench/tasks.json, not a restatement of the task itself.",
+    "",
+    "Each query declares `relevant`. Every (query, finding) pair NOT listed there is a",
+    "declared negative — the grid is total, 8 queries × 22 findings = 176 decided",
+    "cells, so a threshold cannot score well by being vague.",
+    "",
+    "`arguable` names the pairs where the call is genuinely debatable in either",
+    "direction. Recall relevance is fuzzier than dedupe equivalence — 'is this the",
+    "same work' has an answer, 'does this bear on my work' has a judgement — and",
+    "pretending otherwise would overstate the result. The sweep reports the band under",
+    "these calls and again under every arguable call flipped, so a reader can see how",
+    "much of the answer rests on judgement.",
+    "",
+    "Three findings carry a measured distance in `note`. Those are V28's numbers,",
+    "recorded in docs/SPEC-DELTA.md before this file existed, and they are the reason",
+    "the sweep is being run at all."
+  ],
+  "findings": [
+    {
+      "id": "FC4a",
+      "from": "C4",
+      "fact": "the orders-by-customer index covers customer_id only, so history reads still sort in memory"
+    },
+    {
+      "id": "FC4b",
+      "from": "C4",
+      "fact": "creating the orders-by-customer index needed a backfill window — it went in NOT VISIBLE first"
+    },
+    {
+      "id": "FP3a",
+      "from": "P3a",
+      "fact": "the payment charge is idempotent on the request key, which is stored on the charge row"
+    },
+    {
+      "id": "FP3b",
+      "from": "P3a",
+      "fact": "one request key reused across charge and refund collided — keys must be namespaced per operation"
+    },
+    {
+      "id": "FI3a",
+      "from": "I3",
+      "fact": "monetary amounts are integer minor units; the float columns were dropped after a two-step backfill"
+    },
+    {
+      "id": "FI3b",
+      "from": "I3",
+      "fact": "rounding half-up when converting floats to minor units lost a cent on refunds and was reverted"
+    },
+    {
+      "id": "FOC1",
+      "from": "orders-client-retry",
+      "fact": "adding a retry to the orders client broke 429 handling and was reverted",
+      "note": "V28 measured this at 0.3801 from 'add a retry to the orders client' — the closest of six honest wordings, and still outside 0.35."
+    },
+    {
+      "id": "FOC2",
+      "from": "orders-client-retry",
+      "fact": "orders client retry: skip 429",
+      "note": "V28 measured 0.3852."
+    },
+    {
+      "id": "FOC3",
+      "from": "orders-client-retry",
+      "fact": "a retry in the orders client must skip 429 — retrying it drops the order",
+      "note": "V28 measured 0.4166."
+    },
+    {
+      "id": "FP1a",
+      "from": "P1a",
+      "fact": "rate limiting login by IP alone locked out a shared office network and was reverted"
+    },
+    {
+      "id": "FP1b",
+      "from": "P1a",
+      "fact": "the login rate limiter keys on account plus IP"
+    },
+    {
+      "id": "FI8a",
+      "from": "I8",
+      "fact": "a blanket five second outbound timeout broke the report export, which legitimately takes twenty"
+    },
+    {
+      "id": "FC1a",
+      "from": "C1",
+      "fact": "the order list endpoint paginates by offset, which skips rows under concurrent inserts"
+    },
+    {
+      "id": "FC2a",
+      "from": "C2",
+      "fact": "order status transitions are recorded in their own table, not derived from the orders row"
+    },
+    {
+      "id": "FI4a",
+      "from": "I4",
+      "fact": "SMS delivery-failure retries flooded the carrier until they were capped at three attempts"
+    },
+    {
+      "id": "FP2a",
+      "from": "P2a",
+      "fact": "inventory availability is cached for thirty seconds, which is stale enough to oversell"
+    },
+    {
+      "id": "FP4a",
+      "from": "P4a",
+      "fact": "shipping address validation rejected valid PO boxes and had to be loosened"
+    },
+    {
+      "id": "FP5a",
+      "from": "P5a",
+      "fact": "expiring idle sessions at thirty minutes logged users out mid-checkout"
+    },
+    {
+      "id": "FI1a",
+      "from": "I1",
+      "fact": "the logger loses the request id when the worker forks"
+    },
+    {
+      "id": "FI6a",
+      "from": "I6",
+      "fact": "raising the password hashing cost factor doubled sign-in latency at the p99"
+    },
+    {
+      "id": "FSQ1",
+      "from": "shipping-quote-cache",
+      "fact": "shipping quotes were cached for thirty seconds and went stale after a carrier rate change"
+    },
+    {
+      "id": "FP6a",
+      "from": "P6a",
+      "fact": "order confirmation emails double-sent when the placement handler retried"
+    }
+  ],
+  "queries": [
+    {
+      "id": "Q1",
+      "task": "R1",
+      "statement": "Build a customer order history view on top of the customer lookup index",
+      "relevant": ["FC4a", "FC4b", "FC1a"],
+      "arguable": ["FC1a", "FC2a"],
+      "why": "R1 declares dependsOn C4, so C4's two findings are the declared case. FC1a is called relevant because a history view is a list and the fleet already learned offset pagination skips rows — that is a lesson transferring within a subsystem. FC2a is refused: order *status* history is different work from a customer's order history, and it shares only the word."
+    },
+    {
+      "id": "Q2",
+      "task": "R2",
+      "statement": "Extend the refund path with the same request key handling the charge path uses",
+      "relevant": ["FP3a", "FP3b", "FI3b"],
+      "arguable": ["FI3b"],
+      "why": "R2 declares dependsOn P3a. FP3b is the load-bearing one — it names the exact collision this task walks into. FI3b is called relevant because it is a recorded revert on the refund path, which is the path being edited."
+    },
+    {
+      "id": "Q3",
+      "task": "R3",
+      "statement": "Convert stored shipping quotes to the new integer minor unit representation",
+      "relevant": ["FI3a", "FI3b"],
+      "arguable": ["FSQ1"],
+      "why": "R3 declares dependsOn I3. FSQ1 is refused despite being the only other finding about shipping quotes: quote *caching* has nothing to do with the unit representation, and admitting it would mean the subsystem name alone earns a recall."
+    },
+    {
+      "id": "Q4",
+      "task": "demo",
+      "statement": "add a retry to the orders client",
+      "relevant": ["FOC1", "FOC2", "FOC3"],
+      "arguable": ["FI4a"],
+      "why": "The demo's own beat-1 query, and V28's measured case. FI4a is refused: it shares the word retry and the shape of the lesson, but SMS carrier throttling is not the orders client, and a fleet that recalls it here is recalling on vocabulary."
+    },
+    {
+      "id": "Q5",
+      "task": "P1a",
+      "statement": "Add rate limiting to the login endpoint",
+      "relevant": ["FP1a", "FP1b"],
+      "arguable": ["FP5a"],
+      "why": "FP5a is refused: session expiry and rate limiting are both auth-adjacent and both about a thirty-minute-ish window, which is exactly why it is the hard negative rather than an easy one."
+    },
+    {
+      "id": "Q6",
+      "task": "I8",
+      "statement": "Apply a five second timeout to every outbound HTTP request",
+      "relevant": ["FI8a"],
+      "arguable": ["FI4a", "FOC2"],
+      "why": "FI4a and FOC2 are refused. Both concern outbound calls failing and being retried, which is adjacent to a timeout policy without bearing on it — the timeout task needs to know which callers legitimately run long, and neither says."
+    },
+    {
+      "id": "Q7",
+      "task": "P2a",
+      "statement": "Cache inventory availability lookups for thirty seconds",
+      "relevant": ["FP2a", "FSQ1"],
+      "arguable": ["FSQ1"],
+      "why": "FSQ1 is called relevant and it is the most interesting cell in this file: a thirty-second cache that went stale after an upstream rate change is the same trap in a different subsystem. Cross-subsystem transfer is a large part of what shared memory is for, and it is the first thing a tight threshold destroys."
+    },
+    {
+      "id": "Q8",
+      "task": "P6a",
+      "statement": "Send an order confirmation email when an order is placed",
+      "relevant": ["FP6a"],
+      "arguable": [],
+      "why": "A clean case with one obvious answer, included so the corpus is not made entirely of hard ones."
+    }
+  ]
+}

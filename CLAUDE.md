@@ -40,11 +40,21 @@ What does not belong in a unit list, and so lives here:
   cluster's existing findings instead of inserting. `04` §2 routes this through
   EventBridge and the deployment does not; reasoning in `docs/SPEC-DELTA.md`.
 - **`03` §4.1's `dist < 0.35` is too tight for real embeddings, and recall returns nothing
-  because of it (V28).** Every honest wording of a finding sits 0.38–0.47 from the task it
-  describes. **This is an open decision, not a bug to patch** — moving it to make the demo
-  look better is `06` §3's circularity, and it is Julian's to close with a sweep as `03`
-  §4.2's was. It also revises U12: consolidation being unbuilt was never the only reason
-  CORTEX recall returned 0.
+  because of it (V28). The sweep that closes it has been run (V33); the number has not been
+  picked.** `npm run sweep:recall` publishes
+  `bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md` against ground truth in
+  `bench/recall-truth.json`, authored before anything was measured, distances from the
+  cluster's own `<=>` on live Titan vectors. **At 0.35 one query in eight is served; 0.60 is
+  the largest tested threshold with zero false positives; the first false positive is at
+  0.63.** Ranking separates perfectly (8/8) but the nearest relevant finding sits anywhere
+  from 0.2981 to 0.7364, so there is no perfect band and no single constant serves everything.
+  The ordering argument is the non-circular one and it predates the demo's need for it: recall
+  at 0.35 is *tighter* than dedupe at 0.39, which is backwards, because a dedupe false positive
+  cancels work that needed doing while a recall false positive only costs attention.
+  **Picking the value is Julian's separate act**, as `03` §4.2's was; the sweep states that its
+  own hard negatives did not land close under Titan, so its precision column is optimistic and
+  it bounds the constant from below rather than proving a ceiling. It also revises U12:
+  consolidation being unbuilt was never the only reason CORTEX recall returned 0.
 - **All five of `05` §5's demo routes exist, and the show-SQL panel is a transcript**
   (U16, V28). `src/db/recorder.ts` wraps the live client, so a statement reaches the panel
   only by having gone to the driver. Since U16b the log is **grouped by transaction**
@@ -130,10 +140,10 @@ What does not belong in a unit list, and so lives here:
   with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
   hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
   guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all". **Suite 256/256 across 21 files, 485s against the real
-  cluster (2026-08-12, V30)** — 170 after U15 (down from 174 because 13 blanket demo
+  the weaker "no privilege at all". **Suite 265/265 across 22 files, 497s against the real
+  cluster (2026-08-12, V33)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
-  took it to 249 and U16b to 256.
+  took it to 249, U16b to 256, and V33's `test/recall-truth.test.ts` to 265.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the
@@ -247,7 +257,8 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
 `npm run gate:consolidate` (hosted) · `npm run changefeed status|create|cancel` ·
-`npm run deploy:secrets` · `npm run deploy:site`.
+`npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +
+cluster `<=>`; republishes the recall threshold table).
 
 `npx tsc --noEmit` exits clean and must stay that way — it is what someone cloning
 the repo runs first, and Production Readiness is scored.

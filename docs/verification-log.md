@@ -3073,3 +3073,123 @@ previously failing outright, and fewer collisions means fewer attempts to sleep 
 **Not established here:** whether 250 is optimal. It was chosen as "the same order as one
 statement's round trip", which is the property that was violated, and it is the first value
 tried. A sweep would tell you more; nothing currently depends on the difference.
+
+---
+
+## V32 — The SPA driven cold in a browser: four beats confirmed, three readability defects
+
+**2026-08-12.** U16's done-when is `08` §5's "the four beats read clearly to someone who has
+not seen it", and V29 recorded that nothing had driven the deployed page in a browser at all.
+This closes the *mechanical* half of that: the page was opened at
+https://d11xbslgdgomdp.cloudfront.net, both arms were run, and both panel states were read.
+
+**What is confirmed working, by looking rather than by asserting:**
+
+- **All four beats fire.** Beat 2 renders `DEDUPED` / "adopted the outcome of an intent
+  already in flight"; beat 3 renders `GRANTED` on one contender and `BLOCKED` / "blocked by
+  agent-3 — re-plans instead of polling" on the other; beat 4 puts findings in the semantic
+  tier. All four memory tiers carry rows, including `procedural — action_ledger`, so the
+  changefeed was running.
+- **The show-SQL panel does what it was built to do.** Cortex arm: "53 statements in 10
+  transactions". Transaction 1 holds `BEGIN … SELECT … embedding <=> $2 AS dist … INSERT INTO
+  intents … INSERT INTO claims … COMMIT` — invariant 1 legible off the screen, and
+  `WHERE repo_id = $1` visible in the same block for invariant 5. Naive arm: "47 statements in
+  11 transactions", with real `SELECT demo_shared_state` / `UPDATE repos SET demo_shared_state`,
+  which is U16b's fabrication fix holding up on the rendered page rather than in the source.
+- **The meter, both arms run:** duplicate work avoided 1/0, duplicate work done 0/1, writes
+  lost 0/2, blocked-then-re-planned 1/0, claim p50 31ms cortex. `wasted tokens` 867/4000 carries
+  its own line naming `bench/results/` and saying it was not measured in this session.
+- **Invariant 8 holds against the rendered DOM**, which is stronger than `test/site.test.ts`'s
+  source scan: the accessibility tree reports three elements — `Run with CORTEX`,
+  `Run without it`, `Show memory` — and zero inputs of any kind.
+- No console errors.
+
+**Three defects, none of which a test would have caught.**
+
+1. **Beat 1 reads as broken rather than as honest, and the naive arm proves it.** In the
+   cortex arm agent-1 shows `NOTHING KNOWN` with **no second line**. In the naive arm the same
+   badge carries one: "no shared memory: a task file holds what was done, never what was
+   learned". So the arm that is supposed to win is the one with the unexplained blank — while
+   the semantic tier two columns away is displaying "the 409 retry belongs in the orders
+   client, not the server" and "adding a retry to the orders client broke 429 handling and was
+   reverted", both naming the subject agent-1 just asked about. A reader who has not seen this
+   before concludes the recall is broken. It is not; it is `03` §4.1's threshold, and V33 is
+   the sweep that measures it.
+2. **The show-SQL button's sub-label does not toggle with it.** The label swaps `Show SQL` →
+   `Show memory`; the sub-label stays "the statements this run executed" in both states, so
+   with the SQL panel open the button describes the panel you are already looking at.
+3. **`CLAIM P50` naive stays `—` after both arms have run**, where every other row has a
+   number on both sides. It is correct — the naive arm takes no claims — but in a comparison
+   column an em-dash reads as "not measured" rather than "not applicable".
+
+**What this does not close.** This was a *driven* read, not a cold one: `docs/UNITS.md` had
+already been read, so the beats were known before the page was opened. The done-when needs
+someone who has not seen it, and defect 1 is the thing to watch them hit.
+
+---
+
+## V33 — The recall threshold sweep: `0.35` serves one query in eight
+
+**2026-08-12.** `docs/SPEC-DELTA.md` recorded that `03` §4.1's `dist < 0.35` excludes exactly
+the case recall exists to serve, declined to move it, and said what closing it would need: "a
+sweep like `bench/results/*/threshold-sweep.md`, over findings and queries rather than over
+intent pairs". This is that sweep. `npm run sweep:recall` ·
+`bench/results/2026-08-10T22-38-54-176Z/recall-threshold-sweep.md`.
+
+**Method, and the two properties that make it evidence.** Ground truth is
+`bench/recall-truth.json`, authored by hand **before anything was embedded** — the same
+discipline `bench/tasks.json`'s `pair` labels were written under. The grid is total: 8 queries
+× 22 findings = 176 decided cells, 17 declared relevant, so a loose threshold cannot score
+well by being vague. Distances are computed by **CockroachDB's own `<=>`** on live Titan
+vectors, following `src/memory/duplicates.ts`, not by cosine reimplemented in TypeScript.
+
+```
+| threshold | returned | relevant | false pos | precision | recall | queries served |
+|      0.35 |        1 |        1 |         0 |     1.000 |  0.059 |            1/8 |
+|      0.39 |        4 |        4 |         0 |     1.000 |  0.235 |            3/8 |
+|      0.48 |        7 |        7 |         0 |     1.000 |  0.412 |            5/8 |
+|      0.60 |        9 |        9 |         0 |     1.000 |  0.529 |            6/8 |
+|      0.63 |       13 |       12 |         1 |     0.923 |  0.706 |            7/8 |
+|      0.75 |       20 |       15 |         5 |     0.750 |  0.882 |            8/8 |
+|      0.90 |       80 |       17 |        63 |     0.212 |  1.000 |            8/8 |
+```
+
+1. **At the shipped 0.35, one query in eight is served** and recall is 0.059. V28 showed a
+   single query returning nothing and the reading available then was that its wordings were
+   unlucky. Across eight queries the filter excludes nearly everything that bears on the work.
+2. **0.60 is the largest tested threshold with zero false positives**, and it serves 6/8. The
+   first false positive appears at 0.63. So the range 0.35 → 0.60 is *free* on this corpus,
+   and the shipped value sits at the very bottom of it.
+3. **V28's number reproduced exactly.** FOC1 — "adding a retry to the orders client broke 429
+   handling and was reverted" — measures **0.3801** from "add a retry to the orders client",
+   the same figure V28 recorded through a different code path in a different session.
+4. **Ranking is perfect where thresholding is not.** In **8 of 8** queries the nearest relevant
+   finding is closer than the nearest irrelevant one, so `ORDER BY … n.dist ASC` puts the right
+   row first every time. But the distance at which the right row sits spans **0.2981 to
+   0.7364** — a spread of 0.44 — so no single constant clears all eight while excluding noise
+   for all eight. There is no perfect band, unlike the dedupe sweep, and that is structural
+   rather than noise: "is this the same work" is a sharper question than "does this bear on my
+   work".
+
+**The ordering question SPEC-DELTA asked to be answered.** Dedupe sits at 0.39 and recall at
+0.35 — recall is *tighter*, which is the wrong way round. Answering yes to dedupe **cancels an
+agent's task**, so a false positive destroys work that needed doing. Answering yes to recall
+**adds a line to a context window**, so a false positive costs attention. The test with the
+expensive error must be the strict one, so dedupe must be tighter than recall. That argument
+does not depend on the demo and was written down on 2026-08-11, before beat 1 was known to be
+affected by it — which is what keeps moving this constant out of `06` §3's circularity.
+
+**A limitation that weakens the result, stated rather than buried.** The hard negatives are not
+as hard as they were designed to be. FI4a — "SMS delivery-failure retries flooded the carrier"
+— was written as the vocabulary trap for "add a retry to the orders client" and Titan places it
+at 0.6825, further out than FP6a at 0.6253, which was not designed as a trap at all. Shared
+vocabulary is a poor way to manufacture a near-miss under this model, so **the precision column
+is optimistic** and 1.000 must not be read as a promise. A corpus with genuinely adversarial
+negatives would break precision earlier than 0.63. This sweep bounds the constant from below;
+it does not prove a ceiling.
+
+**Not decided here.** The number is not picked. `03` §4.2's dedupe threshold was closed by
+Julian as a separate act with the measurement in front of him, and `03` §4.1's is his on the
+same terms. Whatever it becomes it is a third independent constant — `JUDGE_THRESHOLD` and the
+dedupe value are untouched, because three numbers drawn from one band would read as one number
+with three names.
