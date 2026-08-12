@@ -415,7 +415,22 @@ where a unit needs a condition §5 does not give, it is marked as added and why.
 the specs refer to keep their meaning. **U2 keeps its number and is scheduled here**, in
 the position its dependencies put it, rather than being renamed into the day-three run.
 
-Order of work: **U14 → U15 → U16 → U17 → U2 → U18 → U19 → U20.**
+Order of work, **as revised 2026-08-12**:
+**U14 → U15 → U16 → U17 (partial) → U21 → U22 → U23 → U24 → U25 → U26 → U18 → U19 → U20 → U2.**
+
+`docs/superpowers/specs/2026-08-12-fleet-demo-design.md` §11 displaces the previous order
+(`U17 → U2 → U18 → U19 → U20`) and adds U21–U26. Julian's call on 2026-08-12, taken after
+U17's brake 2 and rung 2 were already built and committed.
+
+**U17 is not cancelled and not finished.** Two of its pieces are banked (below) and the rest
+is displaced rather than dropped: rung 1 is reassigned to U24, which owns LIVE; rung 3's
+mechanism is `DEMO_SESSION_ROW_CAP`, which the design's §4.1 turns into two budgets per
+visitor, so building it now would be building it twice. Rung 4, the brake 1 replacement and
+brake 3 survive the redesign untouched and are picked up after U26 unless U24 subsumes them
+— design §7.2 says a global LIVE run counter may already be the brake 1 replacement, and
+that is a question to answer at U24 rather than assume here.
+
+**U2 slips behind all of it** (design §11).
 
 ### U14 — Infrastructure as code, deploy, changefeed to WebSocket ✅ 2026-08-11
 **Done when:** "hosted demo reachable anonymously." *(08 §5, 32–38h, verbatim)*
@@ -700,12 +715,20 @@ closed, and the two pieces that did not depend on LIVE reasoning are built and f
   column is not primarily a UI flag, it is what keeps a hash vector out of every later dedupe
   candidate set.
 
-**Still to do in this unit:** rung 1 (needs LIVE reasoning, which needs the demo's own
-cassettes so REPLAY is a real second value), rung 3 (per-session row cap → read-only session),
-rung 4 (cluster unavailable → pre-recorded walkthrough behind a banner), the brake 1
-replacement, brake 3 itself, the SPA surfacing all of it, a redeploy, and the last clause of
-the done-when — a private window on a machine that never touched the project, which is
-Julian's act and not a script's.
+**The rest of this unit is displaced, not dropped — Julian's call on 2026-08-12** after
+`docs/superpowers/specs/2026-08-12-fleet-demo-design.md` landed mid-unit. Where each piece went:
+
+- **Rung 1** → **U24**, which owns LIVE. It needs LIVE reasoning to have something to exhaust,
+  and §11 reassigned LIVE there.
+- **Rung 3** → **U24/U25's state route.** Its mechanism is `DEMO_SESSION_ROW_CAP`, and design
+  §4.1 gives each visitor **two** scopes and therefore two budgets. Building it against one
+  scope now is building it twice.
+- **Rung 4** (cluster unavailable → pre-recorded walkthrough behind an explicit banner),
+  **the brake 1 replacement**, and **brake 3** survive the redesign untouched. Picked up after
+  U26 — except that design §7.2 says the global run counter *may already be* the brake 1
+  replacement, which U24 confirms rather than assumes.
+- **The last clause of the done-when** — a private window on a machine that never touched the
+  project — is Julian's act, not a script's, and it belongs with U26's cold read.
 **Added 2026-08-12, Julian's call.** U16b §3c proposed giving each demo agent one real
 Bedrock call. It is deferred here rather than built there, because its prerequisite *is* this
 unit's work: `04` §5 brake 2 — a global run counter in CockroachDB, default 40 LIVE runs a day
@@ -758,6 +781,138 @@ A fifth rung is the likely shape — concurrency exhausted → a queued or cache
 says so — and it must not be an error status, per invariant 1.
 **The last clause of the done-when is a separate act:** a private window, on a machine
 that never touched this project. Not localhost, not a logged-in browser.
+
+---
+
+## The fleet demo — U21 to U26
+
+Added 2026-08-12 from `docs/superpowers/specs/2026-08-12-fleet-demo-design.md` §11, which is
+the design of record for this run and carries the reasoning behind every decision below. Each
+done-when is **verbatim from §11's table**. The design says each unit gets "the four things
+`/go` STEP 0 needs, including a named silent break, when it is written into `docs/UNITS.md`";
+this is that.
+
+**What this replaces.** `POST /demo/run`'s four scripted beats become a real ten-task workload
+run across two arms, streamed rather than blocking, on a rebuilt page. Design decision 7 is
+that the change is **additive and the current deployed page keeps serving** until U26's cold
+read passes, so nothing here can cost the submission.
+
+**What it must not touch** (design §1): the memory model, `src/db/retry.ts`, row-level
+security and `cortex_demo`'s confinement, the privilege planes, the published benchmark and
+its committed results directory, `bench/cassettes/` as the reproducibility claim, and
+invariant 8.
+
+### U21 — Workload runner: curated cut, five agents, fair naive lane, two scopes ⬜
+**Done when:** "ten tasks run to completion in both arms against the real cluster, all four
+beats observed." *(design §11, verbatim)*
+**Specs:** `06` §2, `06` §4, `03` §4.2 — plus design §3 and §4, which are the shape.
+**Verify live first:** (a) the Titan distance between **every pair** of statements in the
+curated cut, before any of it ships — design §3 calls this non-optional and says no test can
+substitute; (b) the row count of a ten-task cortex run against `DEMO_SESSION_ROW_CAP`, which
+is 200 and now applies per scope, so the ceiling is found deliberately rather than in front of
+a judge.
+**Silent break:** **the fair naive lane's two transactions collapsing into one.** Design §4.2
+makes the naive lane run the same dedupe search and the same claim in *separate* transactions
+— that split is the entire thing being demonstrated, it is `01` §3's falsification test made
+executable, and if a refactor ever wraps both in one `withRetry` the naive lane silently
+becomes the cortex lane. Every row would still be valid and every test would still pass while
+the demo showed no difference at all. The show-SQL panel is already grouped by transaction
+(U16b), so the guard is a test asserting the naive lane produces **two** `BEGIN` blocks where
+the cortex lane produces one.
+**Second silent break:** a task statement reworded by ear. §3 records what this cost once — a
+seed 0.2969 from agent-2's intent, inside the dedupe threshold, which deleted beat 4 without a
+single test failing.
+**Note:** re-recording cassettes is required — "produce a patch" is a different prompt shape
+and the cassette key is a hash of the prompt, so the committed library will miss by design.
+
+### U22 — Async run and streamed events ⬜
+**Done when:** "`POST /demo/run` returns inside the gateway ceiling and the whole run arrives
+over the socket." *(design §11, verbatim)*
+**Specs:** `05` §5, `04` §2, `04` §5
+**Verify live first:** API Gateway HTTP's integration timeout (design §12 item 1 — "the async
+shape depends on it"), and the pool's max connections plus whether Basic tier tolerates ten
+concurrent sessions from one runner (§12 item 2). If it does not, the fleet runs in two waves
+of five **and the page says so**; it does not silently serialise.
+**Silent break:** a run that dies after `POST /demo/run` has already returned 200. The visitor
+gets a page that never finishes and never errors — invariant 1 satisfied to the letter and
+broken in spirit. Every path through the runner must emit a terminal event, including the
+paths that throw.
+**Carry in:** this account's Lambda concurrency is 10, unraisable and indivisible (V22, V26).
+Design §5.2 fixes one visitor's run at **2** invocations with the agents as async tasks inside
+the runner; ten agents as ten Lambdas would consume the whole account for one visitor.
+
+### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ⬜
+**Done when:** "every rendered number has a test that fails if it is set from a literal."
+*(design §11, verbatim)*
+**Specs:** `06` §3, `07` §1, `07` §2
+**Verify live first:** that `conflicting_edits` is genuinely computable — it needs real line
+ranges from real patches, and it is the one `06` §3 metric the demo has never been able to
+produce.
+**Silent break:** U16b's fabrication returning somewhere new. `meter.duplicateWorkDone += 1`
+and `meter.lostWrites += 1` were once unconditional and rendered in the same table and style
+as figures the driver had timed. Design §6 is explicit that the guard —
+`test/scenario.test.ts`'s source scan — must exist **for the new runner before the runner
+does**, not after.
+**Carry forward unchanged:** `—` means this arm has no such thing to measure, `TBD` means
+nobody measured it, and a bare `0` for either is the failure. Nothing unmeasurable is rendered.
+
+### U24 — LIVE: the run counter, the capability link, the metered cap ⬜
+**Done when:** "one metered LIVE run exists and the cap is derived from it, not estimated."
+*(design §11, verbatim)*
+**Specs:** `04` §5, `05` §5, `07` §4
+**Already banked from U17 (V36):** the counter table exists — `live_run_budget`, one row per
+UTC day, atomic check-and-increment, `cortex_demo` confined to today's row with no DELETE. The
+Bedrock rate is measured and no longer TBD: **$3.30 per 1M input, $16.50 per 1M output.**
+**What this unit must still do:** re-derive the cap. `LIVE_RUNS_PER_DAY = 10` was measured
+against the *old* five-call scenario and is wrong for this workload by roughly an order of
+magnitude — at design §7.3's 50 model calls per run it is **$0.495 per run measured**, so ten
+a day for 34 days is **$168** and single-digit dollars is about **18 runs for the whole
+event**. Design §7.3's formula is `cap = remaining LIVE budget ÷ measured cost of one metered
+run`, and the metered run is this unit's job. Julian's call on 2026-08-12 was to leave the
+constant at 10 until then, because it gates nothing — no route calls `authoriseLiveRun`.
+**Verify live first:** `npm run probe:reason` — entitlement is an account fact that can change
+without this repository knowing — and then the metered run's own Bedrock `usage` figures.
+**Silent break:** the capability token. Three ways it goes wrong and each has cost this
+project or a sibling of it real time: it reaches an input element (invariant 8, and
+`test/site.test.ts` is the guard); it is interpolated into SQL or a template rather than
+**compared** (invariant 7 — a URL parameter is the most agent-reachable path there is); or it
+lands in `cdk.out/` as a template value instead of a `{{resolve:secretsmanager:...}}` dynamic
+reference, which is exactly how the first DSN arrangement leaked and why that rule exists.
+**Also settle here:** whether the global counter *is* `04` §5's brake 1 replacement. Design
+§7.2 says it may be and refuses to assume it; brake 1 as §5 writes it is falsified on this
+account (V26) and U17 substituted nothing.
+**And carry in a finding brake 3 depends on:** an AWS Budget filtered on the `Amazon Bedrock`
+service **will never fire**. The reasoning spend bills under `Claude Sonnet 4.5 (Amazon
+Bedrock Edition)`, a separate service; `Amazon Bedrock` carries only the Titan embedding line.
+
+### U25 — The new SPA ⬜ **this is the cut line**
+**Done when:** "the four beats read clearly to someone who has not seen it."
+*(design §11, verbatim — the same sentence U16 was held to)*
+**Specs:** `07` §2, `07` §3, `02` §B
+**If time runs out, this is what gets cut** (design §11). The current page then renders the new
+run through its existing three panels: uglier, real, already gate-passed, and nothing built is
+lost. Design decision 13: the runner is the evidence, the page is the presentation.
+**Silent break:** a credential field, under any name, including commented out or feature
+flagged off. Invariant 8, `02` B3, `05` §5, and the reason design decision 9 chose a capability
+URL over the password that was originally asked for.
+**Second silent break:** an animation implying an ordering the database did not produce.
+Design §9 motion rule 3 — beat 3's winner is decided by the unique index, so neither lane may
+be pre-positioned to win, and a page that animates one is depicting a determinism the system
+does not have. Rule A7.
+
+### U26 — Deploy and cold read ⬜
+**Done when:** "Julian opens the deployed page cold and the run reads." *(design §11, verbatim)*
+**Specs:** `02` §B, `04` §5
+**Verify live first:** `node infra/bundle.mjs` before `npx cdk deploy`. Nothing runs it
+automatically and a stale bundle deploys silently, which is why the handler carries a
+`BUNDLE_REVISION` bumped by hand.
+**Silent break:** the deploy appearing to succeed while serving the previous bundle. U14 built
+the revision marker for this and it only helps if it is bumped.
+**This one cannot be closed by a script**, exactly as U16 could not. Design §13 names the risk
+plainly: the rebuilt page may be correct and less readable than the one it replaces, and only a
+cold read rules that out.
+
+---
 
 ### U2 — `cortex init` ⬜ *(deferred from day one; see its entry above for why)*
 **Done when:** "`cortex init` produces a working cluster twice in a row." *(08 §3, verbatim)*

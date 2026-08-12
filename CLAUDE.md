@@ -8,6 +8,15 @@ and the two drifted within a day, which cost a unit of ambiguity over whether U2
 U7 came next. Do not reintroduce a unit list here.
 
 - Unit status, ordering, next unit → `docs/UNITS.md`
+- **The fleet demo's design → `docs/superpowers/specs/2026-08-12-fleet-demo-design.md`.**
+  Julian's, 2026-08-12. It replaces the demo's four scripted beats with a real ten-task
+  two-arm workload run, and its §11 **displaces the unit order**: U21–U26 are now in
+  `docs/UNITS.md` and U2 slips behind all of them. It is additive — decision 7 keeps the
+  current deployed page serving until U26's cold read passes — so nothing in it can cost
+  the submission. **Two of its numbers are already superseded by measurement:** §7.3 calls
+  the Bedrock rate unconfirmed and quotes $3.00/$15.00 from a secondary source; it is
+  measured at **$3.30/$16.50** (V36), which puts a designed LIVE run at **$0.495** and
+  single-digit dollars at roughly **18 runs for the whole event**, not 40 a day.
 - Evidence for every claim → `docs/verification-log.md`
 - Why something was decided → `docs/DECISIONS.md`
 - Where `spec/` no longer matches reality → `docs/SPEC-DELTA.md`
