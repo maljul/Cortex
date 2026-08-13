@@ -4881,3 +4881,111 @@ Three small consequences of the write plane moving, done the same day:
   permissions deny that path. It needs one line, and adding it will turn the `credentials` row
   red until the new placeholder string is declared in `scripts/gate-mechanical.sh`'s inventory —
   which is the mechanism working, and now a familiar dance.
+
+---
+
+## V49 — U21's second verify-first: interlock 1 reaches, interlock 2 was a dead beat, and the repair is the same one V39 found
+
+**2026-08-13, U21.** Design §12 item 8 requires each of §3.1's five interlocks to be
+*verified to actually break* the naive lane: "An interlock that merges cleanly and then works
+anyway is a dead beat, and only running it can tell you which." Interlocks 1 and 2 both work by
+recall carrying one agent's decision across a module boundary, and **the distance that decides
+whether they work had never been measured.**
+
+V38 measured statement-to-statement (I3/R3 0.4293, which is what keeps that pair out of dedupe
+and inside recall). That is the wrong number for this question. R3's agent does not recall I3's
+*statement* — it recalls the **finding**, whose text is whatever `factFromClosedIntent` derived
+from I3's closure. That sentence had no measured distance to anything.
+
+`npm run measure:statements` now has an `INTERLOCK REACHABILITY` section and a `FACT
+SEPARATION` section. Live Titan, distances from the cluster's own `<=>`:
+
+```
+INTERLOCK REACHABILITY — can the decision cross the boundary?
+  a task recalls a fact if they sit < 0.6 apart
+
+  interlock 1 — money representation, lib/money → shipping/quote → web
+    REACHES  I3-fallback  R3 0.4323  (margin 0.1677)   next nearest A1 0.8255
+    REACHES  I3-notes     R3 0.4548  (margin 0.1452)   next nearest A1 0.8671
+
+  interlock 2 — stale cache defeats the guard, inventory/repository → orders/create
+    too far  P2-fallback  C3 0.8459   next nearest P2a 0.0848
+    too far  P2-notes     C3 0.7183   next nearest P2a 0.2933
+    too far  P2-affects   C3 0.6544   next nearest P2b 0.3659
+    REACHES  P2-guard     C3 0.3633  (margin 0.2367)   next nearest P2a 0.4672
+    too far  P2-short     C3 0.7848   next nearest P2b 0.4232
+```
+
+**Interlock 1 needs no authored note at all**, which is the strongest available form of it:
+`03` §4.4's own fallback — the statement plus its result — lands 0.4323 from R3 and 0.8255 from
+everything else in the cut. Nothing is written to make the beat fire; the mechanism's default
+carries it. `I3-notes` also reaches and is 0.0225 further away, so the authored note is
+strictly worse and is not used.
+
+**Interlock 2, the one the design names as the keeper, does not work as designed.** What P2's
+agent naturally writes down — a cache was added — sits **0.8459** from the task the cache
+endangers. Two more attempts at ordinary phrasing measured 0.7183 and 0.6544. Recall reaches
+0.60. So the sharpest defect in the design would have been built, merged cleanly, and then
+silently not happened: both lanes oversell, no contrast, no beat. **No threshold was moved** —
+0.60 is the top of V33's free range and the first false positive is at 0.63; nothing in the
+region of 0.72 was ever available.
+
+**The repair is V39's finding, arriving a second time from a different direction.** V39
+measured that an abandonReason naming the *obstacle* sat 0.6725–0.7246 from the task it existed
+to warn, while the bare restatement naming the *work* sat 0.4698–0.4899 and was retrieved by all
+of them. The same rule holds here: a note naming the **change** is unreachable, a note naming
+the **work the change endangers** is reachable.
+
+```
+P2-fallback   a cache was added                        0.8459   change only
+P2-notes      a cache was added, so reads are stale    0.7183   change + consequence
+P2-affects    stale for any check that refuses …       0.6544   change + the work, cache first
+P2-guard      refusing order creation … is now unsafe  0.3633   the work first
+```
+
+The ordering is the finding: 0.85 → 0.72 → 0.65 → 0.36 as the sentence moves from naming the
+change to naming the affected work. **This is now measured twice on two unrelated pairs**, so it
+is a property of retrieval rather than a coincidence of one wording.
+
+**What it obliges the page to say.** `P2-guard` is an authored outcome note, so `07` §4's
+honesty rule extends to it exactly as it extends to the patches: the page must state that the
+closure notes are authored, and it must not claim consolidation *derived* the warning. What the
+mechanism does is **carry** the note to the agent whose work it affects — which is `03` §4.4's
+claim and is the thing an isolated workspace cannot do. Interlock 1 carries no such caveat,
+because its finding is the mechanism's own fallback.
+
+```
+FACT SEPARATION — facts closer than 0.2 merge instead of inserting
+  MERGES   P2-notes    /P2-affects   0.1630
+  MERGES   S1-fact     /S3-fact      0.1906
+  insert   F-fallback  /F-both       0.2237
+  insert   P2-affects  /P2-short     0.2291
+  insert   P2-notes    /P2-short     0.2423
+  insert   I3-fallback /I3-notes     0.2503
+  insert   S1-fact     /S2-fact      0.2735
+  insert   P2-fallback /P2-notes     0.3373
+```
+
+**Both merging pairs are two candidates for the same slot**, so neither ships together and
+neither is a problem. The reason the section exists is the pair that would have been: every
+fact in this run reaches `findings` through one changefeed sink, and `consolidate()` reinforces
+the nearest finding inside `CONSOLIDATION_DISTANCE` instead of inserting — so two of the run's
+own facts closer than 0.20 would collapse into one finding carrying two corroborations for two
+different events. That is the `conf 0.60 · ×2` bug `src/demo/scenario.ts` records, in a new
+place. **Every pair of facts actually chosen is ≥ 0.3373 apart**, since none of them appears in
+the closest eight.
+
+### The authoring choices this settles, all of them measured
+
+| Slot | Chosen | Number | Why this one |
+| --- | --- | --- | --- |
+| seed fact | `S3-fact` | 0.3308 to R3 | widest rank margin of the three usable candidates (V38 left this to U21) |
+| seed statement | unchanged | 0.7372 to C2 | different domain from the cut, as V38 requires |
+| I3's closure note | **none** | 0.4323 to R3 | the mechanism's fallback reaches; authoring one is strictly worse |
+| P2's closure note | `P2-guard` | 0.3633 to C3 | the only wording measured inside recall; authored, and labelled as such |
+| A1's retrieval key | restatement | 0.4698 to T1 | built in V39 |
+| the eleventh task | `T1` | 0.4698 from the finding, 0.8422 from the nearest live task | closest to the finding, widest dedupe margin |
+
+**Re-run this after any rewording.** The `INTERLOCK REACHABILITY` section is not a one-off: it
+is the check that a decision can still cross the boundary it was designed to cross, and a
+reworded closure note is exactly as dangerous as a reworded statement.

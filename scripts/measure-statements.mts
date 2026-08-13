@@ -163,6 +163,70 @@ const NEW_TASK_CANDIDATES: Record<string, string> = {
   'T3': "Switch refunds over to the payment provider's v3 endpoints",
 };
 
+/**
+ * INTERLOCK REACHABILITY — whether a decision can actually cross a module boundary.
+ *
+ * Design §3.1's interlocks 1 and 2 are the two the design calls the money shot and the
+ * sharpest, and both rest on a distance nobody has measured. V38 measured **statement to
+ * statement** (I3/R3 = 0.4293, which is what keeps them out of dedupe and inside recall).
+ * What interlock 1 actually needs is different: R3's agent recalls a **finding**, and the
+ * finding's text is whatever `factFromClosedIntent` derived from I3's *closure* — the notes
+ * the closing agent wrote, or `"<statement> — <result>"` when it wrote none. That sentence
+ * is not I3's statement and has no measured distance to R3 at all.
+ *
+ * Interlock 2 is worse: P2 → C3 has never been measured in any form. "Cache inventory
+ * availability lookups for thirty seconds" and "Refuse order creation when the requested
+ * quantity exceeds available stock" share almost no vocabulary, which is *why* the interlock
+ * is interesting — neither agent is wrong — and is exactly the reason Titan may put them
+ * further apart than recall can reach. If it does, the cortex lane has no way to know the
+ * guard is reading a cached value, both lanes oversell, and the interlock is a dead beat
+ * (design §12 item 8).
+ *
+ * Two candidates per informing task, and the choice between them is a **demo authoring
+ * choice** — what the closing agent writes down — never a threshold change. The same
+ * hypothesis V39 confirmed for abandonment applies: a note that names both the decision and
+ * the thing it affects sits closer to the task that needs it than a restatement does.
+ */
+const INTERLOCK_FACTS: Record<
+  string,
+  { informs: string; interlock: string; candidates: Record<string, string> }
+> = {
+  I3: {
+    informs: 'R3',
+    interlock: '1 — money representation, lib/money → shipping/quote → web',
+    candidates: {
+      // What consolidation writes with no notes at all: `03` §4.4's fallback.
+      'I3-fallback':
+        'Store monetary amounts as integer minor units instead of floating point — done',
+      // What the closing agent could write instead. Names the decision *and* what it
+      // obliges every other module to do, which is the half a restatement cannot carry.
+      'I3-notes':
+        'Monetary amounts are stored as integer minor units now, so anything that produces a price must return minor units rather than pounds',
+    },
+  },
+  P2: {
+    informs: 'C3',
+    interlock: '2 — stale cache defeats the guard, inventory/repository → orders/create',
+    candidates: {
+      'P2-fallback': 'Cache inventory availability lookups for thirty seconds — done',
+      'P2-notes':
+        'Inventory availability lookups are cached for thirty seconds, so a stock level read just after an order was placed is stale and must not be trusted to refuse an oversell',
+      // The three below lean progressively harder on C3's own vocabulary, because the first
+      // two measured 0.72–0.85 away and recall reaches 0.60. This is V39's pattern applied
+      // a second time: what gets embedded is chosen so the agent that needs it can find it,
+      // while what gets *stored* still says what happened. If none of these reaches C3,
+      // interlock 2 cannot be carried by recall at the shipped threshold and that is a
+      // design finding, not a number to move.
+      'P2-affects':
+        'Inventory stock levels are cached for thirty seconds, so any check that refuses order creation when the requested quantity exceeds available stock will read a stale level',
+      'P2-guard':
+        'Refusing order creation when the requested quantity exceeds available stock is now unsafe: availability lookups are cached for thirty seconds',
+      'P2-short':
+        'Available stock reads are cached for thirty seconds and are stale for order creation checks',
+    },
+  },
+};
+
 function tasks(): Map<string, Task> {
   const file = JSON.parse(readFileSync(resolve('bench/tasks.json'), 'utf8')) as { tasks: Task[] };
   return new Map(file.tasks.map((t) => [t.id, t]));
@@ -338,6 +402,72 @@ async function main(): Promise<void> {
     console.log(
       `  ${safe ? 'SAFE' : 'DEDUPES'}  ${id}  nearest live task ${nearestId} ${nearest.toFixed(4)}` +
         `   (A1's own statement ${toA1.toFixed(4)} — excluded from dedupe as abandoned)`,
+    );
+  }
+
+  // ---- Interlock reachability -------------------------------------------------------
+  //
+  // See `INTERLOCK_FACTS`. A fact that no task can recall is a decision that crosses no
+  // boundary, and the interlock it was written for silently does not happen.
+  console.log('\n\nINTERLOCK REACHABILITY — can the decision cross the boundary?');
+  console.log(`  a task recalls a fact if they sit < ${RECALL_MAX} apart\n`);
+
+  for (const [source, spec] of Object.entries(INTERLOCK_FACTS)) {
+    console.log(`  interlock ${spec.interlock}`);
+    for (const [id, text] of Object.entries(spec.candidates)) {
+      vectors.set(id, toVector(await embedder.embed(text)));
+
+      const toTarget = await distance(id, spec.informs);
+      // Selectivity: the nearest *other* task in the cut. A fact every task recalls is
+      // noise on the page rather than a decision reaching the agent that needed it.
+      let otherId = '';
+      let other = Infinity;
+      for (const candidate of CUT.filter((c) => c !== spec.informs && c !== source)) {
+        const d = await distance(id, candidate);
+        if (d < other) {
+          other = d;
+          otherId = candidate;
+        }
+      }
+
+      const reaches = toTarget < RECALL_MAX;
+      console.log(
+        `    ${reaches ? 'REACHES' : 'too far'}  ${id.padEnd(12)} ${spec.informs} ` +
+          `${toTarget.toFixed(4)}` +
+          `${reaches ? `  (margin ${(RECALL_MAX - toTarget).toFixed(4)})` : ''}` +
+          `   next nearest ${otherId} ${other.toFixed(4)}`,
+      );
+    }
+    console.log('');
+  }
+
+  // ---- Fact separation -------------------------------------------------------------
+  //
+  // Every fact above lands in `findings` through the same changefeed sink, and
+  // `consolidate()` **reinforces the nearest existing finding** when it sits inside
+  // `CONSOLIDATION_DISTANCE` instead of inserting a new one. Two of this run's facts closer
+  // than that would collapse into one finding carrying two corroborations — the
+  // `conf 0.60 · ×2` bug `src/demo/scenario.ts` records, in a new place, and it would make
+  // the run's memory panel show fewer findings than the run produced.
+  console.log(`FACT SEPARATION — facts closer than ${CONSOLIDATION_DISTANCE} merge instead of inserting`);
+  const factIds = [
+    ...Object.keys(SEED_CANDIDATES),
+    ...Object.values(INTERLOCK_FACTS).flatMap((s) => Object.keys(s.candidates)),
+    ...Object.keys(FACT_CANDIDATES),
+  ];
+  const factPairs: { a: string; b: string; dist: number }[] = [];
+  for (let i = 0; i < factIds.length; i += 1) {
+    for (let j = i + 1; j < factIds.length; j += 1) {
+      factPairs.push({ a: factIds[i]!, b: factIds[j]!, dist: await distance(factIds[i]!, factIds[j]!) });
+    }
+  }
+  // The closest eight, not just the violations: only one fact per informing task ships, so a
+  // pair that merges may be two candidates for the same slot and harmless. What matters is
+  // the margin between the facts actually chosen, and that needs the numbers, not a verdict.
+  for (const p of factPairs.sort((x, y) => x.dist - y.dist).slice(0, 8)) {
+    console.log(
+      `  ${p.dist < CONSOLIDATION_DISTANCE ? 'MERGES ' : 'insert '}  ` +
+        `${p.a.padEnd(12)}/${p.b.padEnd(12)} ${p.dist.toFixed(4)}`,
     );
   }
 
