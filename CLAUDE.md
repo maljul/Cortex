@@ -176,6 +176,16 @@ What does not belong in a unit list, and so lives here:
   arm** — `{ taskId, agent, intentId, reported }` — and `reported` must distinguish `done`,
   because attributing a loss to a deduped agent is a false accusation that passes every null
   check. **The panel that renders these rows is not built**; the guard is waiting for U21/U25.
+- **The demo API refuses a credential on the query string as well as in the body (V45,
+  2026-08-13).** `handleDemoRequest` scanned `request.body` alone while `infra/lambda/demo.ts`
+  parses every query parameter and passes it in, so a credential-shaped query parameter was
+  ignored and the request honoured with a 200. Nothing leaked — the parameter was dropped, never
+  stored — and no credential *field* is declared anywhere, so invariant 8 was never false. What
+  failed was `05` §5's **"rejected rather than honoured"**, which exists because a silently
+  dropped credential looks exactly like an accepted one. **The path is deliberately still not
+  scanned**: a path names a route, not a field, and the router 404s anything it does not know.
+  **Two un-deployed source changes now** — this and `ChangefeedFn`'s status filter from V39 —
+  and one `node infra/bundle.mjs && npx cdk deploy` clears both.
 - **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
   Bedrock yields a deterministic local vector, the intent is marked
   (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is

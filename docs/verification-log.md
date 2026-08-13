@@ -4473,3 +4473,75 @@ EXIT=0
 327 → 333: `test/git-hook.test.ts`'s six. **608.44s against 589.27s** on the previous rested run
 of the same day — a 3% spread, which is what noise looks like on this cluster. The number worth
 reacting to is a *multiple*, not a percentage; V43's bad run was 4.2x.
+
+---
+
+## V45 — The query string is a field too, and it was never scanned
+
+**2026-08-13, Julian's call after the session's two authorised jobs closed.** V40 found this
+blind and recorded it against U22 rather than fixing it, because at the time it was a third job.
+With the other two done he asked for it.
+
+### What it was
+
+`handleDemoRequest` scanned `request.body` and nothing else, while `infra/lambda/demo.ts` parses
+**every** query parameter into `request.query` and hands it to the same function. So on the
+deployed API a credential-shaped query parameter was ignored and the request honoured with a
+200.
+
+**Sized honestly, because the size is the reason it waited a few hours rather than none.**
+Nothing leaked: the parameter was dropped, never stored, never logged, never echoed. No
+credential *field* is declared on any surface, so invariant 8 as `CLAUDE.md` words it was never
+false. What failed is the other half of `05` §5 — *"rejected rather than honoured"*, under a rule
+that reads "in any field, under any name, on any path". That half exists precisely because a
+silently dropped credential is indistinguishable, to whoever pasted it, from an accepted one.
+The file's own `CREDENTIAL_KEY` docstring says so, and was saying so while the handler did not
+do it.
+
+### The tests come before the fix, and one of them is the non-vacuity guard
+
+Four refusal cases — a `dsn` key, a credential *value* under an innocent `note` key, an
+`api_key`, an `aws_role_arn` — across three routes and both verbs.
+
+**They deliberately carry no session id.** The refusal happens before routing, so a `400` proves
+the scan ran; an unscanned request falls through to the route's own "A session id is required",
+which is *also* a 400 and would have made a weaker assertion pass. Confirmed by watching them
+fail that exact way first:
+
+```
+AssertionError: expected { error: 'A session id is required.' } to match object { error: StringMatching /credential/i }
+```
+
+The fifth test is the guard on the other side: `session` is the one query parameter this surface
+legitimately takes, `CREDENTIAL_KEY` deliberately omits it, and a scan that refused it would
+take the demo down. It asserts a `?session=…` request reaches its route and gets a 404 for the
+ordinary reason.
+
+### Two mutations, both load-bearing
+
+```
+MUTATION 1 — scan the body only (restore the original defect)
+      Tests  4 failed | 20 skipped (24)
+
+MUTATION 2 — drop the ['query'] prefix, so the refusal no longer says where it found it
+      Tests  4 failed | 20 skipped (24)
+```
+
+The second is worth having: the SPA has to be able to name the refused field rather than the
+refused request, and without the prefix a `dsn` in the query and a `dsn` in the body are
+indistinguishable in the response.
+
+Whole file green afterwards, against the real cluster: **24 passed (24)**.
+
+### The path is deliberately not scanned
+
+A path names a route, not a field. The router answers anything it does not recognise with a 404,
+so a credential in the path reaches no handler and is echoed nowhere. Recorded as a decision
+rather than left as an omission, because "on any path" in `05` §5 means "on any route" and a
+reader could take it the other way.
+
+### NOT DEPLOYED
+
+`src/demo/api.ts` is bundled into `DemoFn`, so **the hosted API still has the gap** until
+`node infra/bundle.mjs && npx cdk deploy`. It joins `infra/lambda/changefeed.ts`'s pending
+status-filter change from V39: **two un-deployed source changes, one deploy clears both.**

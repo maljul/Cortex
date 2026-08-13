@@ -67,18 +67,24 @@ counter is the cost backstop the password was standing in for.
 
 ## 3. The workload
 
-A curated ten-task cut of `bench/tasks.json`, against the committed `bench/fixtures/`
-service. The cut is chosen so all four beats are guaranteed **by construction** rather
-than by script.
+Eleven tickets, in a demo-owned file that references benchmark ids and adds one. The cut
+is `P6a P6b P2a P2b C1 C2 C3 I3 R3 A1` plus the spared-agent task, chosen by measurement
+(V38, `npm run measure:statements`, 253 pairwise Titan distances). It is **not**
+`bench/tasks.json`, which `08` §4's passed gate freezes at 30 tasks with committed results.
 
-| Slice | Tasks | What it guarantees |
+| Slice | Tickets | What it guarantees |
 |---|---|---|
-| two duplicate pairs (differently worded) | 4 | dedupe fires twice |
-| one contended trio (overlapping file sets) | 3 | claim collision fires |
-| one recall task plus the finding it needs | 2 | recall fires |
-| one abandoned task | 1 | the wasted-token path is exercised |
+| two duplicate pairs (differently worded) | P6a/P6b **0.0610**, P2a/P2b **0.2058** | dedupe fires twice |
+| one contended trio (one shared file) | C1 C2 C3 | claim collision fires |
+| one recall pair | I3/R3 **0.4293** | recall fires — outside dedupe by 0.0393, inside recall by 0.1707 |
+| one abandoned task plus the agent it spares | A1 + T11 | the wasted-token path, and what memory buys |
 
-Five agents, two tasks each, per arm. `06` §4 fixes the fleet at 5 and this matches it.
+Five agents, two tickets each, per arm. `06` §4 fixes the fleet at 5 and this matches it.
+
+**The statements are frozen.** V38's 253 measurements are what make the pairs fire and the
+non-pairs not fire — 6/6 declared pairs, 0 undeclared collisions. Rewording any statement,
+or moving the domain off orders, voids all of them. What is free to change is **what each
+patch does and which files it touches**, and that is where §3.1's complexity lives.
 
 The fourteen-day-old seed stays. A session seconds old cannot honestly hold a memory from
 two weeks ago, and the current scenario's practice of seeding it through the same tables
@@ -91,9 +97,51 @@ the dedupe threshold, which silently deleted beat 4. Any statement added or rewo
 this cut is measured against the others under live Titan before it ships, and the measured
 distance goes in the comment. This is not optional and no test can substitute for it.
 
-**Re-recording is required.** "Produce a patch" is a different prompt shape from the
-benchmark's, and the cassette key is a hash of the prompt, so the existing cassettes will
-miss. Re-record with the demo's own prompts. See §8 for the cost.
+**Re-recording is required, and the patch bodies are not what gets recorded.** Julian's
+call on 2026-08-13: each ticket carries a **small checked-in patch**. Agents read the real
+file, decide whether to proceed given what recall and dedupe told them, claim through the
+one arbitration transaction, apply, and close. The coordination is entirely live; only the
+code content is fixed. The decision step is still a model call whose prompt shape differs
+from the benchmark's, and the cassette key is a hash of the prompt, so the committed library
+misses by design — re-record with the demo's own prompts. **The mode line must say the
+patches are authored**, alongside its existing statement about cached reasoning; `07` §4
+forbids implying a model wrote committed code.
+
+## 3.1 The interlock map — why isolation cannot rescue the naive lane
+
+This is the design work, and it is the answer to "why not just use git worktrees". Each
+defect is engineered so a worktree-isolated agent fixes it **correctly in its own branch**,
+its branch passes, the merge is **clean**, and the app is still broken. Every arrow below
+crosses a module boundary, because a cross-module contradiction is precisely what file-level
+isolation cannot see.
+
+| # | Interlock | Modules it spans | What the judge sees in the naive pane |
+|---|---|---|---|
+| 1 | **I3 → R3** — money representation | `lib/money` → `shipping/quote` → `web` | item price renders `£12.34`, shipping line is **100× off**; totals disagree |
+| 2 | **P2 → C3** — stale cache defeats the oversell guard | `inventory/repository` → `orders/create` | the guard is present and **still lets an oversell through** |
+| 3 | **C1 · C2 · C3** — three features, one file | `orders/{list,status,create}` → `orders/repository` | one of pager, status timeline, or oversell refusal is **silently missing** |
+| 4 | **P6a ‖ P6b** — same work, two modules | `notify/email` ‖ `notify/templates` | the confirmation banner renders **twice** |
+| 5 | **A1 → T11** — abandonment recall | `payments/provider` → the spared agent | an agent burns the same dead end a second time |
+
+Interlock 1 is the money shot and it rides the existing recall pair: R3 is only correct if
+it knows what I3 decided, and in the naive lane nothing carries that decision across. Interlock
+2 is the sharpest, because P2 and C3 are *different tickets in different modules* and neither
+agent is wrong — the cache is correct, the guard is correct, and together they oversell.
+Interlock 4 is the isolation proof in one line: two files, no conflict, clean merge, duplicated
+work.
+
+**The corpus is `bench/demo-app/`**, roughly fourteen files across seven modules
+(`lib`, `inventory`, `orders`, `shipping`, `notify`, `payments`, `web`). The structure is
+deliberately layered so that "which file does this ticket touch" has a non-obvious answer.
+`bench/fixtures/` and `bench/tasks.json` are untouched, so `08` §4's gate is unaffected.
+
+**Every missing feature must be attributable on screen.** A broken app reads as *"they wrote
+a broken app"* unless the page names the agent that reported it done, its intent id, its
+patch, and the file where the change is not. `src/demo/attribution.ts` produces that record
+and `unattributableLosses` refuses any feature present under arbitration and absent without
+it whose attribution is incomplete (V41, `test/attribution.test.ts`, 7 tests). Without that
+link the naive lane is an assertion rather than evidence, and rule A7 is not satisfied by a
+page that is merely correct.
 
 ---
 
@@ -134,6 +182,17 @@ show-SQL panel. What differs is only that its dedupe `SELECT` and its claim `INS
 issued in two `BEGIN` blocks rather than one — which is precisely what the transaction-grouped
 panel then puts on screen, side by side with the cortex lane's single block. The contrast
 is legible off the transcript without a word of copy explaining it.
+
+**Frame it as worktrees, because that is what the field actually ships.** A 30-day sweep of
+Hacker News and GitHub (2026-08-13) found the ecosystem's answer to parallel agents is
+uniformly *worktree isolation* — MindFlock, Shikigami and Rabbitty all pitch "each agent in
+its own Git worktree", PraisonAI merged a "git worktree workspace isolation primitive" so
+concurrent agents "can edit the same repository without clobbering each other's changes", and
+makaio-framework shipped worktree pollution guards. Every one of them frames the win as *not
+clobbering*; not one arbitrates intent. Isolation removes merge conflicts and does nothing
+about duplicate work, which is why §3.1's interlocks are all cross-module. Labelling the naive
+lane with the mechanism a judge already believes in is what turns the comparison from a
+strawman into a result.
 
 **This creates a deviation and the deviation must be published.** The demo's naive arm no
 longer matches the benchmark's naive arm as defined in `06` §2, so the two sets of numbers
@@ -284,16 +343,26 @@ are live in both modes.
 
 ## 8. Artifacts
 
-Each agent emits a real patch against a copy of the fixture repo.
+**The artifact is the running app, not a diff.** Julian's call on 2026-08-13. Each agent
+applies its ticket's committed patch to its arm's copy of `bench/demo-app/`; when the run
+ends the page loads **each arm's final module set into its own sandboxed iframe**, and both
+orders dashboards run live, side by side. A judge clicks through both. Nothing is
+screenshotted and nothing is pre-rendered — there is no *depiction* of a result, there is a
+result.
 
-- **Naive** patches land in `demo_shared_state` and are lost to last-write-wins. The naive
-  lane's final tree is literally missing a fix an agent reported as done. That is the
-  argument in one screenshot.
+- **Naive** patches land in `demo_shared_state` and are lost to last-write-wins, so its final
+  tree is missing changes agents reported as done — and §3.1's interlocks mean the changes
+  that do survive contradict each other as well.
 - **Cortex** patches are the closed intents' outcomes.
-- The page shows both final trees side by side with the missing hunk highlighted, plus a
-  link out to `bench/results/`.
+- Every visible defect carries its attribution record, so the pane names the agent, the intent
+  id, the patch and the file rather than merely looking broken.
 - Served through `GET /demo/state` rather than a sixth route, so `05` §5's route list
   does not grow.
+
+**The iframe is sandboxed, network-less and under a strict CSP.** In REPLAY the patches are
+committed and reviewable, so what executes is known code. In LIVE the decision step is a live
+model call but the patch bodies remain the committed ones, so the executed code is fixed in
+both modes. That is a property to state on the page, not leave a reader to infer.
 
 ---
 
@@ -304,13 +373,23 @@ elements, endpoints still injected at deploy time by `scripts/deploy-site.mts`.
 
 **Above the fold:** thesis, the published benchmark table, the mode line.
 
-**The hero:** two swimlanes, five agent tracks each, work items travelling. In the naive lane
-two items visibly converge on one file and one is destroyed. In the cortex lane an agent halts
-at the boundary and a line connects it to the holder. Beat markers light as the real event
-fires; if a beat does not fire, the rail says so rather than faking it.
+**The hero is the result, not the process.** Two sandboxed iframes side by side, each running
+one arm's final orders dashboard. Left is worktree-isolated; right is arbitrated. Both are
+clickable. The naive pane shows §3.1's defects — a shipping line 100× off, a doubled
+confirmation banner, an oversell the guard let through, a feature silently absent — each
+labelled with the agent that reported it done.
 
-**Below:** the meter, both arms; the two final trees; the show-SQL transcript, still grouped by
-transaction so invariant 1 stays readable off the screen.
+**Directly beneath, the journey:** two swimlanes, five agent tracks each, work items
+travelling. In the naive lane two items converge on one file and one is destroyed; in the
+cortex lane an agent halts at the boundary with a line drawn to the holder. Every agent step
+streams as it happens — `started → reading → decided → claiming → patched | blocked | deduped`
+— so a judge watches the collision rather than reading that it occurred. Beat markers light as
+the real event fires; if a beat does not fire, the rail says so rather than faking it.
+
+**Below that:** the meter, both arms; the attribution table linking each missing feature to its
+agent and intent id; the show-SQL transcript, still grouped by transaction so invariant 1 stays
+readable off the screen — and so the naive lane's **two** `BEGIN` blocks sit visibly beside the
+cortex lane's **one**.
 
 **Motion rules, each a rule and not a preference:**
 
@@ -369,9 +448,16 @@ In the repo's sense: invoke it, do not reason about it.
 1. API Gateway HTTP's integration timeout (§5.1) — the async shape depends on it.
 2. Pool max connections and Basic-tier tolerance for ten concurrent sessions (§5.2).
 3. Row count of a ten-task cortex run against `DEMO_SESSION_ROW_CAP` (§4.1).
-4. Titan distances for every task statement in the cut (§3).
+4. ~~Titan distances for every statement in the cut (§3)~~ — **DONE, V38.** 253 pairs
+   measured, 6/6 declared pairs fire, 0 undeclared collisions. Re-run
+   `npm run measure:statements` after any rewording.
 5. Bedrock's Sonnet 4.5 rate, from Cost Explorer after a metered run (§7.3).
 6. That re-recorded cassettes replay with `liveCalls: {embed: 0, reason: 0}` (§3).
+7. That the iframe sandbox genuinely blocks network egress under the deployed CSP — forced,
+   not reasoned about, per `04` §5 invariant 4's standard applied to the same class of claim.
+8. That each of §3.1's five interlocks actually produces its visible defect in the naive lane.
+   An interlock that merges cleanly and then *works anyway* is a dead beat, and only running
+   it can tell you which.
 
 ---
 
@@ -396,3 +482,7 @@ To be written into `docs/SPEC-DELTA.md` as they land, not in advance:
 - `04` §5 brake 2's "40 LIVE runs per day" default is not adopted; the cap is derived — §7.3
 - `07` §3's four beats stop being a script and become observed moments — decision 5
 - `05` §5's `POST /demo/run` changes from synchronous to run-id-plus-stream — §5.1
+- `06` §4's corpus is `bench/fixtures/`; the demo's is `bench/demo-app/` and its ticket list
+  is a demo-owned file, because `08` §4's gate freezes `bench/tasks.json` — §3
+- `07` §2's centre panel is "live rows arriving from the changefeed"; the hero is now two
+  running applications, with the rows moved below — §9

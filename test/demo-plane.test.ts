@@ -331,6 +331,61 @@ describe('the demo HTTP surface — invariant 8', () => {
     expect(JSON.parse(response.body)).toMatchObject({ error: expect.stringMatching(/credential/i) });
   });
 
+  /**
+   * THE QUERY STRING IS A FIELD TOO, AND IT WAS NOT BEING SCANNED.
+   *
+   * Found by `/check` on 2026-08-13 (V40). The refusal above read `request.body` and nothing
+   * else, while `infra/lambda/demo.ts` parses **every** query parameter and hands it to the
+   * handler — so on the deployed API a credential on the query string was ignored and the
+   * request honoured with a 200. `05` §5 says "in any field, under any name, on any path", and
+   * the rule's whole point is that the field must never *appear to work*.
+   *
+   * Nothing leaked: the parameter was dropped, not stored or logged. What failed was
+   * "rejected rather than honoured", which is the half of the rule that exists precisely
+   * because silently ignoring a credential looks, to whoever pasted it, like acceptance.
+   *
+   * These cases carry no session id on purpose. The refusal happens before routing, so a
+   * `400` here proves the scan ran rather than that some later handler objected — an
+   * unscanned request would fall through to the route's own "a session id is required",
+   * which is also a 400 and would have made a weaker assertion pass.
+   */
+  it.each([
+    // The same fixture string the body cases above use, and reused rather than varied on
+    // purpose: it is already declared in `scripts/gate-mechanical.sh`'s placeholder inventory,
+    // so this adds no new credential-shaped literal to the history that check scans. Writing a
+    // fresh one here is what the hook blocked on the first attempt at this commit.
+    { method: 'GET', route: '/demo/state', query: { dsn: 'postgresql://user:pw@host/db' } },
+    { method: 'GET', route: '/demo/state', query: { note: 'sslmode=verify-full' } },
+    { method: 'POST', route: '/demo/run', query: { api_key: 'sk-live-whatever' } },
+    { method: 'GET', route: '/demo/sql-log', query: { aws_role_arn: 'arn:aws:iam::1:role/x' } },
+  ])('rejects a credential on the query string: %o', async ({ method, route, query }) => {
+    const response = await handleDemoRequest({ method, path: route, query });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body) as { error: string; field?: string };
+    expect(body).toMatchObject({ error: expect.stringMatching(/credential/i) });
+    // Named, so the SPA can say which field was refused rather than which request.
+    expect(body.field).toMatch(/^query\./);
+  });
+
+  /**
+   * The non-vacuity guard for the four above. `session` is the one query parameter this
+   * surface legitimately takes, it is a public ephemeral identifier the server minted, and
+   * `CREDENTIAL_KEY` deliberately omits it. A scan that refused it would take the demo down.
+   */
+  it('still accepts the one query parameter it is supposed to take', async () => {
+    const response = await handleDemoRequest({
+      method: 'GET',
+      path: '/demo/state',
+      query: { session: '00000000-0000-4000-8000-000000000000' },
+    });
+
+    // 404 because that session does not exist — the point is that it reached the route at
+    // all instead of being refused as a credential.
+    expect(response.statusCode).toBe(404);
+    expect(response.body).not.toMatch(/credential/i);
+  });
+
   it('answers an unknown route without leaking what else exists', async () => {
     const response = await handleDemoRequest({ method: 'GET', path: '/demo/../etc/passwd' });
     expect(response.statusCode).toBe(404);

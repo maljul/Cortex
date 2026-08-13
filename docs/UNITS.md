@@ -829,18 +829,46 @@ the statements when they are written into code:
 a **small orders dashboard that renders in a browser**, and the demo shows **both final apps
 live in iframes** next to the journey and the meter. Reasoning in `docs/DECISIONS.md`.
 
-The corpus is new and demo-owned: **`bench/demo-app/`**, roughly six files. `bench/fixtures/`
-and `bench/tasks.json` are untouched, so `08` §4's passed gate is unaffected.
+The corpus is new and demo-owned: **`bench/demo-app/`**, roughly **fourteen files across seven
+modules** (`lib`, `inventory`, `orders`, `shipping`, `notify`, `payments`, `web`) — deliberately
+layered, so "which file does this ticket touch" has a non-obvious answer and the interlocks
+above have room to cross a boundary. `bench/fixtures/` and `bench/tasks.json` are untouched, so
+`08` §4's passed gate is unaffected.
 
 **The domain stays orders, and that is not aesthetic.** V38 measured 253 pairwise Titan
 distances to pick these eleven tickets. Changing the domain voids every one of them. An orders
 dashboard keeps each statement usable as written, so only the patch bodies are new work.
 
-**The ticket → visible feature map is the design.** C1 → a pager on the list; C2 → a status
-timeline in order detail; C3 → the form refusing an oversell; P6a/P6b → one confirmation
-banner, which the naive lane renders **twice** from two files; I3 → prices as `£12.34` rather
-than `12.340000000000002`. C1, C2 and C3 all edit the **same file** as three non-conflicting
-features, which is the structure already built and tested against `orders/repository.ts`.
+**The ticket → visible feature map is the design, and it is now an interlock map**
+(Julian, 2026-08-13: "they are fixing fairly complex on purpose", and the defects must live in
+different parts of the code). Design §3.1 is the full version. Each defect is engineered so a
+worktree-isolated agent fixes it **correctly in its own branch**, the branch passes, the merge
+is **clean**, and the app is still broken — because the contradiction is *across* modules,
+which is exactly what file-level isolation cannot see:
+
+| # | Interlock | Modules it spans | Naive pane shows |
+| --- | --- | --- | --- |
+| 1 | **I3 → R3** money representation | `lib/money` → `shipping/quote` → `web` | shipping line **100× off**, totals disagree |
+| 2 | **P2 → C3** stale cache defeats the guard | `inventory/repository` → `orders/create` | the oversell guard is present and **lets one through** |
+| 3 | **C1 · C2 · C3** three features, one file | `orders/{list,status,create}` → `orders/repository` | pager, timeline or oversell refusal **silently missing** |
+| 4 | **P6a ‖ P6b** same work, two modules | `notify/email` ‖ `notify/templates` | confirmation banner renders **twice** |
+| 5 | **A1 → T11** abandonment recall | `payments/provider` → the spared agent | an agent burns the same dead end twice |
+
+Interlock 1 rides the existing recall pair — R3 is only correct if it knows what I3 decided,
+and nothing carries that across in the naive lane. **Interlock 2 is the sharpest**: P2 and C3
+are different tickets in different modules and *neither agent is wrong* — the cache is correct,
+the guard is correct, and together they oversell. Interlock 4 is the isolation proof in one
+line: two files, no conflict, clean merge, duplicated work.
+
+**None of this touches a task statement.** V38's 253 measurements are what make the pairs fire;
+rewording any statement or moving the domain off orders voids all of them. What changed is the
+patch bodies and which files they touch, which is free.
+
+**The naive lane is labelled as worktree isolation**, because a 30-day sweep (2026-08-13) found
+that is uniformly what the field ships — MindFlock, Shikigami, Rabbitty, PraisonAI's "git
+worktree workspace isolation primitive", makaio-framework's worktree pollution guards. Every one
+frames its win as *not clobbering*; not one arbitrates intent. Beating the mechanism a judge
+already believes in is what makes this a result rather than a strawman.
 
 **The patch machinery transfers unchanged** — `src/demo/patches.ts`, `bench/demo-workload.ts`'s
 shape and `test/patches.test.ts` are all corpus-agnostic.
@@ -935,18 +963,21 @@ paths that throw.
 **Carry in:** this account's Lambda concurrency is 10, unraisable and indivisible (V22, V26).
 Design §5.2 fixes one visitor's run at **2** invocations with the agents as async tasks inside
 the runner; ten agents as ten Lambdas would consume the whole account for one visitor.
-**Carry in, found by `/check` on 2026-08-13 (V40) and deliberately not fixed then — Julian's
-call, because it was a third job that session was not given.** The demo API's credential
-refusal scans the request **body only**: `src/demo/api.ts:127` passes `request.body` to
+**~~Carry in~~ — FIXED the same day (V45), after the two authorised jobs closed and Julian
+asked for it.** Kept here as the record of what it was. The demo API's credential refusal
+scanned the request **body only**: `src/demo/api.ts:127` passes `request.body` to
 `findCredentialField` and never `request.query`, while `infra/lambda/demo.ts:104-110` parses
 every query parameter and hands it in. So `GET /demo/state?session=<valid>&dsn=…` returns
 **200** on the deployed API — the field is ignored and the request honoured. `05` §5 says "on
 any path", and `api.ts:40-44`'s own docstring states the rule this misses: *"ignoring it is not
 enough, because the rule exists so that the field never appears to work."* To be exact: **no
 credential field is declared on any surface**, so invariant 8 as CLAUDE.md words it survives —
-what fails is "rejected rather than honoured" on the query string. The fix is two lines plus a
-query case in `test/demo-plane.test.ts:323`, which today tests four body cases and no query
-case. This unit is where `POST /demo/run` and the query surface get touched, so it belongs here.
+what fails is "rejected rather than honoured" on the query string. The fix was two lines plus five
+cases in `test/demo-plane.test.ts` — four refusals and one non-vacuity guard proving `session`
+still gets through. **Not deployed:** `src/demo/api.ts` is bundled into `DemoFn`, so the hosted
+API keeps the gap until `node infra/bundle.mjs && npx cdk deploy`. It joins `ChangefeedFn`'s
+pending status-filter change from V39 — **two un-deployed source changes now, and one deploy
+clears both.**
 
 ### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ⬜
 **Done when:** "every rendered number has a test that fails if it is set from a literal."

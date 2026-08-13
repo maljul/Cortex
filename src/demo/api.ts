@@ -124,7 +124,26 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
     return { statusCode: 204, headers: JSON_HEADERS, body: '' };
   }
 
-  const offending = findCredentialField(request.body ?? null);
+  // **Both the body and the query string, and the query half was missing until 2026-08-13.**
+  //
+  // `/check` found it blind (V40): this scanned `request.body` alone, while
+  // `infra/lambda/demo.ts` parses every query parameter and passes it in — so on the deployed
+  // API a credential on the query string was ignored and the request honoured with a 200.
+  // Nothing leaked, because the parameter was dropped rather than stored. What failed is the
+  // half of `05` §5 that matters most here: **"rejected rather than honoured"**, on a rule that
+  // reads "in any field, under any name, on any path". A dropped credential looks, to whoever
+  // pasted it, exactly like an accepted one — which is the docstring above this file's
+  // `CREDENTIAL_KEY`, and it was true of this handler while it said so.
+  //
+  // Query first, because it is the half that was unguarded and a test that passes for the
+  // wrong reason is easier to write against the second branch.
+  //
+  // **The path is deliberately not scanned.** A path names a route, not a field; the router
+  // already answers anything it does not recognise with a 404, so a credential there reaches
+  // no handler and is echoed nowhere.
+  const offending =
+    findCredentialField(request.query ?? null, ['query']) ?? findCredentialField(request.body ?? null);
+
   if (offending) {
     return json(400, {
       error:
