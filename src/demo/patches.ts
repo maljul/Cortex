@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 export interface Patch {
-  /** Path relative to the fixture corpus root, e.g. `src/orders/repository.ts`. */
+  /** Path relative to the corpus root, e.g. `orders/repository.js`. */
   file: string;
   /** Exact text to find. Must appear exactly once. */
   find: string;
@@ -62,8 +62,9 @@ export const BENCH_CORPUS = 'bench/fixtures';
 
 /**
  * The demo's own corpus — the small orders dashboard the agents build on screen, added
- * 2026-08-13 so a lost write is a missing *feature* rather than a missing hunk. Separate from
- * the benchmark's on purpose: see `bench/demo-app/README.md`.
+ * 2026-08-13 so a lost write is a missing *feature* rather than a missing hunk. Fourteen files
+ * across seven modules, layered so design §3.1's interlocks have a boundary to cross. Separate
+ * from the benchmark's on purpose: see `bench/demo-app/README.md`.
  */
 export const DEMO_APP_CORPUS = 'bench/demo-app';
 

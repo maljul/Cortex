@@ -1,0 +1,93 @@
+:root {
+  color-scheme: light dark;
+  --ink: #14171a;
+  --paper: #fbfbfa;
+  --line: #d8d6d1;
+  --muted: #6b6f76;
+  --bad: #a3211b;
+  --good: #1d6b3f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #eceae6;
+    --paper: #16181b;
+    --line: #33373d;
+    --muted: #9aa0a8;
+    --bad: #e8756c;
+    --good: #6cc48f;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.app { padding: 16px; display: grid; gap: 14px; }
+header h1 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+.muted { color: var(--muted); margin: 2px 0 0; font-size: 12px; }
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--paper) 92%, var(--ink) 8%);
+}
+
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; }
+h2 + h2 { margin-top: 14px; }
+h3 { margin: 0 0 8px; font-size: 15px; }
+
+table.orders { width: 100%; border-collapse: collapse; }
+table.orders th {
+  text-align: left; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--line); padding: 4px 6px;
+}
+table.orders td { padding: 5px 6px; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+table.orders tbody tr:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); cursor: pointer; }
+td.id { font-variant-numeric: tabular-nums; font-weight: 600; }
+td.amount { text-align: right; font-variant-numeric: tabular-nums; }
+
+.status { font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); }
+.status.shipped { color: var(--good); }
+
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+
+button {
+  font: inherit; font-size: 12px; padding: 4px 9px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--paper); color: var(--ink); cursor: pointer;
+}
+button:hover { border-color: var(--muted); }
+
+dl.totals { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 8px 0; }
+dl.totals dt { color: var(--muted); font-size: 12px; }
+dl.totals dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+ul.stock { list-style: none; padding: 0; margin: 0; display: grid; gap: 3px; font-size: 13px; }
+ul.stock li.negative { color: var(--bad); font-weight: 600; }
+
+.banner {
+  margin: 6px 0; padding: 6px 9px; font-size: 12px;
+  border-left: 3px solid var(--good);
+  background: color-mix(in srgb, var(--good) 10%, transparent);
+}
+
+.empty { color: var(--muted); font-size: 13px; font-style: italic; }
+.ok { color: var(--good); font-size: 13px; }
+.refused { color: var(--bad); font-size: 13px; font-weight: 600; }
+
+/* The pager C1 adds. The stylesheet carries rules for the whole design, the way a real
+   one does — the *feature* is in `orders/list.js`, and that is where its absence is true. */
+.pager { display: flex; gap: 4px; align-items: center; margin-top: 8px; font-size: 12px; }
+.pager .current { font-weight: 700; }
+
+ol.timeline { margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
+ol.timeline li { margin: 2px 0; }
+ol.timeline time { color: var(--muted); }

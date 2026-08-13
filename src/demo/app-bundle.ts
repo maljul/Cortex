@@ -19,8 +19,30 @@
  * and a bundler that refused to render broken output would quietly delete the evidence.
  */
 
-/** Load order. `app.js` last, because it calls into all of them. */
-const SCRIPT_ORDER = ['money.js', 'orders.js', 'templates.js', 'notify.js', 'app.js'] as const;
+/**
+ * Load order, and it is a **dependency order rather than a directory listing**.
+ *
+ * Seven modules, no `import` anywhere, so the only thing that makes `orders/repository.js`
+ * able to call `consumeStock` is that `inventory/repository.js` was parsed first. The layering
+ * is deliberate — design §3.1 wants "which file does this ticket touch" to have a non-obvious
+ * answer — and this list is what makes a layered corpus loadable without a build step.
+ *
+ * `web/app.js` is last because it calls into all of them.
+ */
+const SCRIPT_ORDER = [
+  'lib/money.js',
+  'orders/data.js',
+  'inventory/repository.js',
+  'orders/repository.js',
+  'shipping/quote.js',
+  'payments/provider.js',
+  'notify/templates.js',
+  'notify/email.js',
+  'orders/list.js',
+  'orders/status.js',
+  'orders/create.js',
+  'web/app.js',
+] as const;
 
 export interface AppTree {
   [file: string]: string;
@@ -45,8 +67,8 @@ function inlineScript(source: string): string {
  * `notify.js` still has a renderable app, and that difference is the point.
  */
 export function assembleApp(tree: AppTree): string {
-  const styles = tree['styles.css'] ?? '';
-  const body = tree['index.html'] ?? '';
+  const styles = tree['web/styles.css'] ?? '';
+  const body = tree['web/index.html'] ?? '';
   const scripts = SCRIPT_ORDER.filter((name) => typeof tree[name] === 'string')
     .map((name) => `<script>\n${inlineScript(tree[name]!)}\n</script>`)
     .join('\n');
@@ -69,4 +91,4 @@ export function assembleApp(tree: AppTree): string {
 }
 
 /** The files the demo app is made of, in the order they load. */
-export const APP_FILES: readonly string[] = ['index.html', 'styles.css', ...SCRIPT_ORDER];
+export const APP_FILES: readonly string[] = ['web/index.html', 'web/styles.css', ...SCRIPT_ORDER];

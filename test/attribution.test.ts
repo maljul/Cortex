@@ -33,7 +33,8 @@ import {
   type FeatureAttribution,
   type WorkStep,
 } from '../src/demo/attribution.js';
-import { applyPatch, loadFixtureTree, type FileTree } from '../src/demo/patches.js';
+import { APP_FILES } from '../src/demo/app-bundle.js';
+import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, type FileTree } from '../src/demo/patches.js';
 
 const CONTENDERS = ['C1', 'C2', 'C3'] as const;
 
@@ -43,7 +44,7 @@ const FEATURES: Feature[] = CONTENDERS.flatMap((id) =>
 );
 
 function baseline(): FileTree {
-  return loadFixtureTree([CONTENDED_FILE]);
+  return loadFixtureTree(APP_FILES, DEMO_APP_CORPUS);
 }
 
 /** Arbitration: each agent reads the current tree, so all three changes land. */
@@ -56,17 +57,19 @@ function cortexTree(): FileTree {
 }
 
 /**
- * Last-write-wins: every agent reads the *same* snapshot and writes its own back, so the
- * final tree carries only the last agent's change. `06` §2 defines the arm this way and
- * `test/patches.test.ts` pins that exactly one of the three survives.
+ * Last-write-wins, per file: every agent reads the *same* snapshot and saves back the files it
+ * edited, so the file all three share carries only the last agent's change while the files
+ * only one of them touched all survive. `06` §2 defines the arm's shared state this way and
+ * `test/patches.test.ts` pins both halves — exactly one of the three features in the shared
+ * file, and the view half of each lost ticket still present.
  */
 function naiveTree(): FileTree {
   const shared = baseline();
-  let saved = shared;
+  const saved: FileTree = { ...shared };
   for (const id of CONTENDERS) {
-    let mine = shared;
+    let mine: FileTree = shared;
     for (const patch of patchesFor(id)) mine = applyPatch(mine, patch);
-    saved = mine;
+    for (const patch of patchesFor(id)) saved[patch.file] = mine[patch.file]!;
   }
   return saved;
 }
@@ -105,15 +108,26 @@ describe('every feature is accounted for in both apps', () => {
   /**
    * The non-vacuity guard, and it has to come first. The assertion this file exists for is
    * "every loss is attributable"; over an empty set of losses that is true and worthless.
-   * So the shape of the two trees is pinned here: three features in one app, one in the
-   * other, which is `test/patches.test.ts`'s result restated as features rather than hunks.
+   * So the shape of the two trees is pinned here.
+   *
+   * Since the corpus became seven layered modules, each of C1, C2 and C3 patches the file all
+   * three share **and** a view file nobody else touches — seven hunks across five files. Under
+   * per-file last-write-wins the four view hunks all survive and only the shared file loses,
+   * so the naive app keeps five of seven and the two it lost are both changes to
+   * `orders/repository.js`. That is `test/patches.test.ts`'s result restated as features, and
+   * it is the shape the page renders: not "two features vanished" but "two features have their
+   * chrome and not their behaviour".
    */
-  it('finds three features in the CORTEX app and one in the naive app', () => {
+  it('finds seven hunks in the CORTEX app and five in the naive app', () => {
     const all = records();
 
-    expect(all.filter((r) => r.inCortex)).toHaveLength(3);
-    expect(all.filter((r) => r.inNaive)).toHaveLength(1);
-    expect(all.filter((r) => r.inCortex && !r.inNaive)).toHaveLength(2);
+    expect(all.filter((r) => r.inCortex)).toHaveLength(7);
+    expect(all.filter((r) => r.inNaive)).toHaveLength(5);
+
+    const lost = all.filter((r) => r.inCortex && !r.inNaive);
+    expect(lost).toHaveLength(2);
+    // Both losses are in the shared file, which is the only place a loss can happen.
+    for (const record of lost) expect(record.file).toBe(CONTENDED_FILE);
   });
 });
 
