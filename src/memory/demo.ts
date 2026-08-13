@@ -225,6 +225,23 @@ export interface DemoState {
    * CORTEX session because that arm never writes it. See `DEMO_SHARED_STATE_SQL`.
    */
   sharedState: { entries: { agent: string; statement: string; note: string }[] } | null;
+  /**
+   * **THE ARTIFACT — design §8, and it is the run's actual output rather than a picture of one.**
+   *
+   * "The artifact is the running app, not a diff." Each agent applies its ticket's committed patch
+   * to its arm's copy of `bench/demo-app/`, so when the run ends this is the tree that lane
+   * finished with — the naive one missing changes its agents reported as done, the cortex one
+   * carrying the informed variants. The page loads each into its own sandboxed iframe and both
+   * orders dashboards run side by side. Nothing is screenshotted and nothing is pre-rendered.
+   *
+   * **Served here rather than from a sixth route**, which is design §8's own instruction, and it
+   * costs nothing to do so: the tree already lives in this scope's `demo_shared_state` cell, read
+   * by the query above, so this is a projection of a row that was being fetched anyway.
+   *
+   * `null` before any agent has saved — a scope that has run nothing has no app, and an empty
+   * object would claim it produced one.
+   */
+  files: Record<string, string> | null;
   rows: { used: number; cap: number; remaining: number };
   /**
    * What the interface must be able to say about itself, per `05` §5: "The current mode,
@@ -399,12 +416,16 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
       const findings = await client.query(DEMO_FINDINGS_SQL, [sessionId]);
       const ledger = await client.query(DEMO_LEDGER_SQL, [sessionId]);
       const shared = await client.query<{
-        demo_shared_state: { completed?: Record<string, SharedEntryRow> } | null;
+        demo_shared_state: {
+          completed?: Record<string, SharedEntryRow>;
+          files?: Record<string, string>;
+        } | null;
       }>(DEMO_SHARED_STATE_SQL, [sessionId]);
       const counted = await client.query<{ used: string }>(DEMO_ROW_COUNT_SQL, [sessionId]);
 
       const used = Number(counted.rows[0]?.used ?? 0);
       const completed = shared.rows[0]?.demo_shared_state?.completed;
+      const files = shared.rows[0]?.demo_shared_state?.files;
 
       return {
         session: { sessionId: session.id, expiresAt: session.demo_expires_at },
@@ -448,6 +469,7 @@ export async function demoState(sessionId: string): Promise<DemoState | null> {
               })),
             }
           : null,
+        files: files ?? null,
         rows: {
           used,
           cap: DEMO_SESSION_ROW_CAP,

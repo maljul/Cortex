@@ -5409,3 +5409,99 @@ Left as a decision in `docs/UNITS.md` under U23 rather than settled by implement
 a meter rendering `conflicting_edits: 0` beside a pane that is visibly missing two of three
 features would understate the arm by its own headline number, and `07` §1 makes every rendered
 figure a claim.
+
+---
+
+## V52 — U23: two collision figures, and both of them were wrong once
+
+**2026-08-13.** The done-when is "every rendered number has a test that fails if it is set from a
+literal". Closed, and the unit's most useful moments were three defects it found in its own
+measurements — one in the guard that was supposed to catch exactly this, and two in the metric.
+
+### The guard did not do what its own comment said
+
+`test/workload.test.ts`'s `METER_FIELDS` carried this: *"Adding a field to `ArmMeter` and not to
+this list fails the coverage assertion below."* It did not. The assertion checked every **listed**
+field appears in the source — the opposite direction — so a new meter figure could be added,
+rendered, and set from a literal with every check in the file still passing. **The numbers a guard
+like that is least able to protect are the new ones, which are also the ones most likely to be
+fabricated.**
+
+Found by adding two fields. The list is now read out of `ArmMeter`'s own declaration, and the
+moment the fields went in it failed:
+
+```
+× checks every field `ArmMeter` actually declares
+AssertionError: expected Set{ 'duplicateWorkAvoided', …(12) } to deeply equal Set{ …(10) }
+```
+
+### `conflicting_edits`, and why there are two figures rather than one
+
+Measured before any code was written: all **13** of the cut's patch hunks anchor against the
+committed corpus, so line ranges are derived from the text the agent read rather than declared.
+Under `06` §3's rule the run scores **1** — the dedupe pair, two agents doing identical work at
+identical lines — and **interlock 3 scores 0**, because C1, C2 and C3 edit disjoint regions of
+`orders/repository.js`.
+
+The naive lane loses one of those three anyway, to `shared-state.ts`'s per-file write-back. The
+loss is **file-granular** where §3's metric is **line-granular**. Julian's call was to publish both
+under separate names rather than bend §3's rule, which the demo shows on the same page as the
+benchmark that uses it.
+
+### Both windows were wrong, and `npm run gate:workload` caught both
+
+**First: the window started when the agent picked up the ticket.** The gate failed on a check
+written minutes earlier:
+
+```
+FAIL  the cortex lane had no two agents in one file at once  — 1
+```
+
+A cortex agent holds its claim across read, patch and save, so it cannot share a file. What
+overlapped was the time a **blocked** agent spent waiting and retrying — holding nothing, having
+read nothing. A window that counts waiting counts the mechanism working as though it had failed.
+The window is now **read → save**, which is the only interval in which two agents can both believe
+they hold the current file.
+
+**Second: the window ended at the patch rather than at the save.** With that, both lanes reported
+0 collisions — while attribution reported a hunk lost, which cannot both be true: a lost write
+*requires* someone to have read before someone else's write landed. The file is not the agent's
+until the write completes, so the window now ends after `saveFiles`. The figures immediately became
+the ones the interlock predicts:
+
+```
+  conflicting edits         0          0
+  file collisions           0          3
+  lost  C1   orders/repository.js     reported done by agent-1 (intent 209361dc)
+  PASS  the cortex lane had no two agents in one file at once  — 0
+  PASS  the collision figures were computed over located hunks, not over nothing
+        — cortex 9 hunks placed, naive 12
+```
+
+**Three agent pairs on one file in the naive lane, none in the cortex lane** — interlock 3 as a
+number, where `06` §3's own metric reports 0 for both and tells a visitor nothing.
+
+### A zero that cannot be told apart from an unmeasured zero
+
+`ArmResult` now carries the spans the two figures are computed over, for the same reason it carries
+`steps`, and the gate asserts the list is non-empty. `06` §6's line — `—` means this arm has no
+such thing, `TBD` means nobody measured it, a bare `0` is the failure — applies hardest to a
+*count*, because a count over an empty list renders identically to a count over real work. The gate
+now prints `cortex 9 hunks placed, naive 12` beside the zeros.
+
+### The artifact, served without a sixth route
+
+Design §8: "The artifact is the running app, not a diff... Served through `GET /demo/state` rather
+than a sixth route." Done, and it cost nothing: both arms' finished trees already live in each
+scope's own `demo_shared_state` cell, which `demoState` was already fetching. `files` is `null`
+before any agent has saved and the tree afterwards — a scope that has run nothing has no app, and
+an empty object would claim it produced one. Confirmed live: `cortex 14 files, naive 14`.
+
+Proved on the deployed stack, `npm run gate:async`:
+
+```
+  cortex  43 events   recall✓ dedupe✓ collision✗ consolidate✓   conflicting 0 · collisions 0
+  naive   44 events   recall✗ dedupe✗ collision✗ consolidate✗   conflicting 0 · collisions 3
+  wall clock: response 647ms, whole run 9216ms
+GATE PASSED
+```

@@ -1168,3 +1168,42 @@ contributes nothing else to how a run ends.
 The reason is testability and nothing else: a terminal event that only exists in AWS code is a
 terminal event nobody has watched fire. `test/run-stream.test.ts` forces it with a 60ms budget
 against a run that never settles, and removing the race hangs that test to vitest's own ceiling.
+
+---
+
+## U23 — two collision figures, published under separate names
+
+**2026-08-13.** `06` §3 defines `conflicting_edits` as file regions written by two or more agents
+in overlapping time windows, and `bench/metrics.ts` has computed it line-granularly since U13. The
+demo could finally compute it too, because U21's committed patches gave it real line ranges.
+
+Measured first, before any of it was built: the workload scores **1** under §3's rule, and that one
+is the dedupe pair — two agents doing identical work at identical lines. **Interlock 3, the beat
+where three agents share `orders/repository.js` and the naive lane silently drops a feature, scores
+0**, because the three edit disjoint regions.
+
+Three ways out were put to Julian: report §3's rule alone with the caveat on the page; add a second
+named figure; or replace it with the overwrite count the readback already measures. **The call was
+the second.** Bending §3's rule to catch the file case would have made the demo's
+`conflicting_edits` mean something different from the published benchmark's while wearing its name,
+and both appear on the same page. Replacing it would have dropped a `06` §3 metric the project can
+now produce for the first time.
+
+So `conflictingEdits` is `06` §3's, counted in effect-pairs exactly as the benchmark counts it, and
+`fileCollisions` sits beside it counting agent-pairs per file — the unit a lost write actually
+costs. Every line overlap is also a file collision, so the pair can never read as contradictory,
+and `test/conflicts.test.ts` asserts that relationship rather than leaving it to the reader.
+
+## U23 — a collision window is read-to-save, not ticket-to-save
+
+**2026-08-13.** Two wrong answers preceded this one and the gate caught both, which is the argument
+for having written the check before the metric.
+
+Measuring from the moment an agent picked up its ticket reported a collision **in the cortex lane**,
+where arbitration makes one impossible. The overlap was a *blocked* agent waiting and retrying —
+holding nothing, having read nothing. Measuring only to the patch then reported zero collisions
+beside a lost hunk, which cannot both be true.
+
+The window is the interval in which two agents can both believe they hold the current file: from
+the read to the completion of the save. Anything wider counts the mechanism working as failure;
+anything narrower misses the round trip in which the loss actually happens.

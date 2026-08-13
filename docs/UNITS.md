@@ -1145,7 +1145,7 @@ still gets through. **Deployed 2026-08-13 (V46)** together with `ChangefeedFn`'s
 status-filter change from V39, and each proved on the deployed stack: the same `curl` returns
 404 before and `400 {"field":"query.dsn"}` after.
 
-### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ⬜
+### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ✅ 2026-08-13
 **Done when:** "every rendered number has a test that fails if it is set from a literal."
 *(design §11, verbatim)*
 **Specs:** `06` §3, `07` §1, `07` §2
@@ -1188,6 +1188,49 @@ as figures the driver had timed. Design §6 is explicit that the guard —
 does**, not after.
 **Carry forward unchanged:** `—` means this arm has no such thing to measure, `TBD` means
 nobody measured it, and a bare `0` for either is the failure. Nothing unmeasurable is rendered.
+
+**Closed by `npm run gate:workload` (20/20) and `npm run gate:async` (13/13), V52.**
+`src/demo/conflicts.ts` is the metric, `test/conflicts.test.ts` (12) its unit tests, and both
+figures reach the page through the stream's terminal summary and the meter.
+
+**Two figures, on Julian's call, because the measurement said one was not enough.** `06` §3's
+`conflicting_edits` is line-granular and is computed exactly as `bench/metrics.ts` computes it, so
+the demo's number and the published benchmark's mean the same thing on the same page. Beside it,
+**`fileCollisions`** — agent pairs that wrote one file in overlapping windows, whatever their
+lines — because that is what this lane's per-file write-back actually loses to. Measured on a live
+run: **naive 3, cortex 0**, where §3's rule reports **0 for both**. Interlock 3 is three agents
+editing disjoint regions of `orders/repository.js`, so the metric `06` §3 defines cannot see the
+naive lane's most visible failure. Reasoning in `docs/DECISIONS.md`, deviation in
+`docs/SPEC-DELTA.md`.
+
+**The done-when's own guard was broken, and that is the unit's sharpest finding.**
+`test/workload.test.ts` claimed in a comment that adding an `ArmMeter` field without listing it
+would fail — and nothing checked it, because the assertion ran in the opposite direction. A new
+meter figure could be added, rendered and set from a literal with the whole file still green. **The
+figures such a guard is least able to protect are the new ones.** The list is now derived from
+`ArmMeter`'s own declaration and failed the moment the two new fields went in.
+
+**Both versions of the collision window were wrong and `npm run gate:workload` caught both.**
+Measuring from ticket pickup reported **1 collision in the cortex lane**, which arbitration makes
+impossible — what overlapped was a *blocked* agent waiting, holding nothing and having read
+nothing. Measuring to the patch rather than to the save then reported **0 for both lanes beside a
+lost hunk**, which cannot both be true: a lost write requires someone to have read before another's
+write landed. The window is **read → save**, inclusive of the save.
+
+**A count over an empty list renders exactly like a count over real work**, so `ArmResult` carries
+the spans the figures are computed over and the gate asserts they are non-empty — `cortex 9 hunks
+placed, naive 12` prints beside the zeros. That is `06` §6's rule applied to a count rather than to
+a rate.
+
+**The artifact needed no new storage and no sixth route.** Design §8's running apps are served
+through `GET /demo/state` as `files`, projected from the `demo_shared_state` cell `demoState` was
+already fetching. `null` before any agent has saved, the tree afterwards — an empty object would
+claim the scope produced an app. Live: `cortex 14 files, naive 14`.
+
+**What U25 inherits:** both figures and both trees are on the wire and on the state route; nothing
+renders them yet. The naive lane's `fileCollisions` is the number that makes its broken pane read
+as evidence rather than as bad luck, and `conflicting_edits` must be labelled as the benchmark's
+metric or a reader will take its 0 as a contradiction.
 
 ### U24 — LIVE: the run counter, the capability link, the metered cap ⬜
 **Done when:** "one metered LIVE run exists and the cap is derived from it, not estimated."

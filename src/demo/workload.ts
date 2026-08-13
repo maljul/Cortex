@@ -82,6 +82,7 @@ import { recall, type Finding } from '../memory/recall.js';
 import { loadFiles, loadSharedState, saveFiles, saveSharedState } from '../memory/shared-state.js';
 import { DEMO_TASKS, factOf, taskById, type DemoTask } from '../../bench/demo-workload.js';
 import { APP_FILES } from './app-bundle.js';
+import { conflictingEdits, fileCollisions, spanOf, type WorkSpan } from './conflicts.js';
 import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, PatchError, type FileTree } from './patches.js';
 import type { WorkStep } from './attribution.js';
 
@@ -180,6 +181,19 @@ export interface ArmMeter {
    * that stood down before spending anything.
    */
   deadEndsWalked: number;
+  /**
+   * `06` §3's metric, line-granular: hunk pairs by two different agents whose line ranges and
+   * time windows both overlap, in one file. Counted the way `bench/metrics.ts` counts it, so the
+   * demo's figure and the published benchmark's mean the same thing on the same page.
+   */
+  conflictingEdits: number;
+  /**
+   * Agent pairs that wrote one file in overlapping windows, whatever their lines — which is what
+   * this lane's per-file write-back actually loses to, and what `conflictingEdits` misses.
+   * Measured (V51): interlock 3's three agents edit disjoint regions of one file, so §3's rule
+   * scores it 0 while the naive lane loses two of the three changes.
+   */
+  fileCollisions: number;
   /** Live Titan calls. The only spend this runner can measure, and it is measured. */
   embeddingCalls: number;
   claimP50Ms: number | null;
@@ -197,6 +211,13 @@ export interface ArmResult {
   sessionId: string;
   /** What each agent reported per ticket — the input `src/demo/attribution.ts` requires. */
   steps: WorkStep[];
+  /**
+   * Where every applied hunk landed and when its agent held it. The provenance for
+   * `conflictingEdits` and `fileCollisions`, carried for the same reason `steps` is: a **0** that
+   * cannot be told apart from "nothing was measured" is the failure `06` §6 draws its line
+   * against, and these two figures are the ones most able to look measured while being empty.
+   */
+  spans: WorkSpan[];
   events: FleetEvent[];
   /** The tree this lane finished with, read back from the cluster rather than accumulated. */
   tree: FileTree;
@@ -265,6 +286,14 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    * arm's own favour would be worse; this one was wrong against it, and it was still wrong.
    */
   const reportedDone: { taskId: string; files: string[]; informed: boolean }[] = [];
+
+  /**
+   * Where each applied hunk landed and when its ticket was open, for `06` §3's `conflicting_edits`
+   * and for the file-level figure beside it. Recorded as the work happens because both are
+   * questions about *overlap*, and a run that only kept its final tree could not answer either:
+   * the tree is what survived, and a collision is two agents who both thought they had written it.
+   */
+  const spans: WorkSpan[] = [];
 
   /**
    * Observed, never scripted. `collision` is the one with two honest endings: a loser that
@@ -347,7 +376,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    *
    * The cortex lane cannot reach it: its second agent is deduped before it reads anything.
    */
-  async function applyAndSave(task: DemoTask, informed: boolean): Promise<string[] | null> {
+  async function applyAndSave(task: DemoTask, agent: string, informed: boolean): Promise<string[] | null> {
     const patches = appliedPatches(task, informed);
     if (patches.length === 0) return [];
 
@@ -355,6 +384,18 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     // operation. In the cortex lane a claim is held across all three; in the naive lane nothing
     // is, which is why its snapshot goes stale while it works.
     const before = await loadFiles(options.sessionId, scope);
+    /**
+     * **The window a collision is measured against: read to save, and nothing wider.**
+     *
+     * This is where a stale snapshot forms and it is the only interval in which two agents can
+     * both believe they are writing the current file. The first version of this measured from the
+     * moment the agent picked the ticket up, and `npm run gate:workload` caught it the same hour:
+     * the cortex lane reported **1** collision, which it cannot have — a cortex agent holds the
+     * claim across all three steps, so the only thing overlapping was the time a *blocked* agent
+     * spent waiting and retrying, holding nothing and having read nothing. A window that counts
+     * waiting counts the mechanism working as though it had failed.
+     */
+    const readAt = Date.now() - started;
     let mine: FileTree = before;
     try {
       for (const patch of patches) mine = applyPatch(mine, patch);
@@ -367,6 +408,27 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     const saved: FileTree = {};
     for (const file of touched) saved[file] = mine[file]!;
     await saveFiles(options.sessionId, saved, scope);
+
+    // `06` §3's `conflicting_edits` needs where, not just what — and it is located against the
+    // text **this agent read**, before its own patches moved anything. A range measured after the
+    // edit would describe a file no other agent ever saw.
+    //
+    // **Recorded after the save, and the window ends there rather than at the patch.** The file is
+    // not this agent's until the write lands, so an agent that read in between read a stale copy
+    // and must count as overlapping. Ending the window at patch time under-counts by exactly the
+    // duration of the write, which is the round trip where the loss actually happens.
+    for (const patch of patches) {
+      const located = spanOf(before[patch.file] ?? '', patch.find);
+      if (!located) continue;
+      spans.push({
+        taskId: task.id,
+        agent,
+        file: patch.file,
+        ...located,
+        startedMs: readAt,
+        endedMs: Date.now() - started,
+      });
+    }
 
     return touched;
   }
@@ -446,7 +508,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     emit(agent, task.id, 'reading', { files: [...new Set(task.patches.map((p) => p.file))] });
 
     const informed = known.informing !== null && task.informedPatches !== undefined;
-    const applied = await applyAndSave(task, informed);
+    const applied = await applyAndSave(task, agent, informed);
     // Unreachable in this lane — a second agent on the same file is deduped before it reads —
     // and asserted rather than assumed, because "cannot happen" in a comment is how it happens.
     if (applied === null) throw new Error(`${task.id}: arbitration let two agents patch one file`);
@@ -535,7 +597,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     intentIds.set(task.id, decision.intentId);
     emit(agent, task.id, 'reading', { files: [...new Set(task.patches.map((p) => p.file))] });
 
-    const applied = await applyAndSave(task, false);
+    const applied = await applyAndSave(task, agent, false);
     if (applied === null) {
       // It read, it worked, and by the time it wrote, the change was already there. Its budget is
       // spent and it delivered nothing — the sharpest form of the duplicate work this lane does,
@@ -709,6 +771,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     arm: options.arm,
     sessionId: options.sessionId,
     steps,
+    spans,
     events,
     tree,
     beats,
@@ -726,6 +789,8 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
       deadEndsWalked: steps.filter(
         (step) => step.reported === 'abandoned' && step.intentId !== null,
       ).length,
+      conflictingEdits: conflictingEdits(spans),
+      fileCollisions: fileCollisions(spans),
       embeddingCalls: tally.calls,
       claimP50Ms: median(claimLatenciesMs(options.recorder?.statements ?? [])),
       serializationRetries: getRetryCount() - retriesBefore,

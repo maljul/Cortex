@@ -215,6 +215,28 @@ What does not belong in a unit list, and so lives here:
   **Two of the gate's 17 checks are race-dependent: a run can honestly come back 15/17** (V51).
   When the naive lane's dedupe catches the racing P6 pair, interlock 4 does not happen and its
   absent hunk reads as an unattributable loss. Re-run before calling a red gate a regression.
+- **`06` §3's `conflicting_edits` exists for the first time, and it cannot see this lane's own
+  loss mode — so a second figure sits beside it (U23, V52, 2026-08-13).** `src/demo/conflicts.ts`.
+  §3's metric is **line-granular** and computed exactly as `bench/metrics.ts` computes it, so the
+  demo's number and the published benchmark's mean the same thing on one page. Beside it,
+  **`fileCollisions`** — agent pairs writing one file in overlapping windows, whatever their lines
+  — because `shared-state.ts` writes back **per file**. Live: **naive 3, cortex 0**, where §3's own
+  rule reports **0 for both**, since interlock 3's three agents edit *disjoint regions* of
+  `orders/repository.js`. Julian's call was to publish both under separate names rather than bend
+  §3, whose meaning the committed benchmark owns. **A collision window is read→save inclusive of
+  the save**: ticket-to-save reported a collision in the *cortex* lane (a blocked agent waiting is
+  not a collision) and read-to-patch reported zero beside a lost hunk (a lost write requires
+  someone to have read before another's write landed). `npm run gate:workload` caught both.
+  **`ArmResult` carries the spans the figures are computed over** and the gate asserts they are
+  non-empty, because a count over an empty list renders exactly like a count over real work —
+  `06` §6's rule applied to a count rather than a rate.
+  **The guard the done-when rests on was itself broken:** `test/workload.test.ts` claimed adding an
+  `ArmMeter` field without listing it would fail, and nothing checked it — the assertion ran the
+  other way, so any *new* meter figure could be rendered from a literal with the file green. The
+  list is now derived from `ArmMeter`'s declaration.
+  **Design §8's artifacts need no sixth route and no new storage:** `GET /demo/state` returns
+  `files`, projected from the `demo_shared_state` cell it already read. `null` before any agent
+  saves; live it is 14 files per arm.
 - **The run is asynchronous and streamed, and the design's reason for it was measured false
   (U22, V51, 2026-08-13).** `npm run gate:async` is the proof, 13/13 against the deployed stack:
   `POST /demo/run` answers **482ms** against a **30,000ms** gateway ceiling and the whole run —
@@ -323,8 +345,8 @@ What does not belong in a unit list, and so lives here:
   `USING (true) WITH CHECK (true)`, so the same rows are reachable either way, and invariant 7
   already blocks the agent-reachable path. It buys that the published table is true, and a test
   holds it there.
-  **Suite 410/410 across 33 files, 597.41s against the
-  real cluster (2026-08-13, V51)** — 170 after U15 (down from 174 because 13 blanket demo
+  **Suite 423/423 across 34 files, 629.83s against the
+  real cluster (2026-08-13, V52)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
@@ -332,7 +354,8 @@ What does not belong in a unit list, and so lives here:
   `test/patches.test.ts` and `test/app-bundle.test.ts` to 316, `test/attribution.test.ts` to 323,
   `test/gate-mechanical.test.ts` to 327, `test/git-hook.test.ts` to 333, and V45's five
   query-string cases in `test/demo-plane.test.ts` to 338. U22's `test/run-stream.test.ts` (8) and
-  five live route cases in `test/demo-plane.test.ts` took 397 to 410.
+  five live route cases in `test/demo-plane.test.ts` took 397 to 410, and U23's
+  `test/conflicts.test.ts` (12) plus the artifact case took it to 423.
   **~600s is a cluster health check as much as a suite result** (589s, 608s and 633s on three rested
   runs the same day; that spread is noise, a multiple is not). The same suite on the same tree
   took 2504s and then hung outright on the fourth back-to-back run of one day (V43). A duration
@@ -482,8 +505,8 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
 `npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
-`npm run gate:workload` (U21's done-when; 17/17, but **two checks are race-dependent and 15/17 is
-an honest run** — V51 — two scopes, both arms, four beats, ~60s of live cluster time *from here*
+`npm run gate:workload` (U21's and U23's done-when; 20/20, but **two checks are race-dependent and
+18/20 is an honest run** — V51 — two scopes, both arms, four beats, ~60s of live cluster time *from here*
 and 6–9s deployed, and it needs a **running changefeed** or beat 4 honestly reports nothing known) ·
 `npm run gate:async` (U22's done-when; hosted, 13/13 — needs the deployed stack and a running
 changefeed; times `POST /demo/run` against the gateway ceiling and reads the whole run off the

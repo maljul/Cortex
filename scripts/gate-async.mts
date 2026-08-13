@@ -251,7 +251,11 @@ async function main(): Promise<void> {
       const beats = Object.entries(arm.beats)
         .map(([name, fired]) => `${name}${fired ? '✓' : '✗'}`)
         .join(' ');
-      console.log(`    ${arm.arm.padEnd(6)} ${String(arm.events).padStart(3)} events   ${beats}`);
+      const m = arm.meter as Record<string, unknown>;
+      console.log(
+        `    ${arm.arm.padEnd(6)} ${String(arm.events).padStart(3)} events   ${beats}` +
+          `   conflicting ${m['conflictingEdits']} · collisions ${m['fileCollisions']}`,
+      );
     }
   }
   console.log(`\n  wall clock: response ${responseMs}ms, whole run ${runMs}ms`);

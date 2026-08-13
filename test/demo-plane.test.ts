@@ -26,6 +26,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 
 import { handleDemoRequest, useEmbedder, useRunStarter } from '../src/demo/api.js';
 import { Embedder } from '../src/embed/titan.js';
+import { saveFiles } from '../src/memory/shared-state.js';
 import { closePool, getPool } from '../src/db/pool.js';
 import { withRetry } from '../src/db/retry.js';
 import {
@@ -483,6 +484,45 @@ describe('the fleet run is asynchronous, and the beats route is untouched — U2
       },
     };
   }
+
+  /**
+   * U23 — DESIGN §8'S ARTIFACT, SERVED WITHOUT A SIXTH ROUTE.
+   *
+   * "The artifact is the running app, not a diff... Served through `GET /demo/state` rather than a
+   * sixth route, so `05` §5's route list does not grow." The tree already lives in the scope's own
+   * `demo_shared_state` cell, so this is a projection of a row `demoState` was fetching anyway.
+   *
+   * The distinction that matters is `null` versus `{}`: a scope that has run nothing has no app,
+   * and an empty object would claim it produced one. That is `06` §6's rule — `—` means this arm
+   * has no such thing, a bare `0` (or here, an empty tree) is the failure — applied to an artifact
+   * rather than to a number.
+   */
+  it('serves each arm’s finished tree, and says null rather than empty when there is none', async () => {
+    const session = await pair();
+    try {
+      const before = await demoState(session.scopes.cortex);
+      expect(before?.files).toBeNull();
+
+      await saveFiles(
+        session.scopes.cortex,
+        { 'web/index.html': '<main>orders</main>', 'lib/money.js': 'const P = 100;' },
+        { plane: 'demo', demoSession: session.scopes.cortex },
+      );
+
+      const after = await demoState(session.scopes.cortex);
+      expect(after?.files).toEqual({
+        'web/index.html': '<main>orders</main>',
+        'lib/money.js': 'const P = 100;',
+      });
+
+      // Per scope, which is what makes the two iframes two different apps rather than one shown
+      // twice. The naive scope has run nothing, so it still has no app.
+      const other = await demoState(session.scopes.naive);
+      expect(other?.files).toBeNull();
+    } finally {
+      await session.purge();
+    }
+  });
 
   it('creates two live scopes, one per arm, without changing what the deployed page reads', async () => {
     const session = await pair();

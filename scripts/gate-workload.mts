@@ -52,6 +52,8 @@ function meterRows(result: ArmResult): string[] {
     `findings recalled        ${m.findingsRecalled}`,
     `agents spared            ${m.agentsSpared}`,
     `dead ends walked         ${m.deadEndsWalked}`,
+    `conflicting edits        ${m.conflictingEdits}`,
+    `file collisions          ${m.fileCollisions}`,
     `live embedding calls     ${m.embeddingCalls}`,
     `claim p50 (ms)           ${m.claimP50Ms ?? '—'}`,
     `serialization retries    ${m.serializationRetries}`,
@@ -219,6 +221,40 @@ async function main(): Promise<void> {
     (cortexState?.rows.used ?? 0) < DEMO_SESSION_ROW_CAP &&
       (naiveState?.rows.used ?? 0) < DEMO_SESSION_ROW_CAP);
   check('both apps assemble', assembleApp(cortex.tree).length > 0 && assembleApp(naive.tree).length > 0);
+
+  /**
+   * U23. `06` §3's metric is line-granular and this workload's collisions are mostly not — C1, C2
+   * and C3 edit disjoint regions of one file (V51) — so the two figures are checked against each
+   * other rather than against a target. What must hold is the relationship that makes publishing
+   * both honest: every line overlap is also a file collision, so the second can never be smaller.
+   */
+  check('file collisions are never fewer than conflicting edits',
+    naive.meter.fileCollisions >= naive.meter.conflictingEdits &&
+      cortex.meter.fileCollisions >= cortex.meter.conflictingEdits,
+    `naive ${naive.meter.fileCollisions}/${naive.meter.conflictingEdits}, ` +
+      `cortex ${cortex.meter.fileCollisions}/${cortex.meter.conflictingEdits}`);
+
+  /**
+   * Arbitration is what a file collision is: two agents holding one file at once. The cortex lane
+   * claims the files the work touches, so it should have none — and if it ever does, invariant 1
+   * is not doing what this whole project claims it does.
+   */
+  check('the cortex lane had no two agents in one file at once',
+    cortex.meter.fileCollisions === 0, `${cortex.meter.fileCollisions}`);
+
+  /**
+   * The non-vacuity guard for the two figures above, and it is the reason they are trustworthy at
+   * zero. A collision count of 0 computed over an empty span list is indistinguishable on screen
+   * from a lane that genuinely never collided, and it is exactly the shape U16b's fabrication took
+   * — a number that looked measured and was not.
+   */
+  check('the collision figures were computed over located hunks, not over nothing',
+    cortex.spans.length > 0 && naive.spans.length > 0,
+    `cortex ${cortex.spans.length} hunks placed, naive ${naive.spans.length}`);
+
+  check('both arms produced an app the state route can serve',
+    Object.keys(cortex.tree).length > 0 && Object.keys(naive.tree).length > 0,
+    `cortex ${Object.keys(cortex.tree).length} files, naive ${Object.keys(naive.tree).length}`);
 
   // The interlocks, read off the finished trees. Each one is asserted by executed behaviour in
   // `test/demo-workload.test.ts`; here the question is only whether *this run* produced them.

@@ -1003,3 +1003,31 @@ so the isolation between the arms is row-level security rather than the incident
 use different tables". Done — and `sessionId` is now *the cortex scope* rather than a third `repos`
 row, so every existing caller reads the field it always read and nothing it does changes. The
 response gains `scopes: {cortex, naive}` and loses nothing.
+
+---
+
+## `06` §3 — `conflicting_edits` cannot see the demo's own loss mode
+
+**2026-08-13, U23, V52.** §3 defines `conflicting_edits` as "file regions written by two or more
+agents in overlapping time windows" and the benchmark computes it on overlapping **line ranges**.
+The demo now computes it the same way, on real patch anchors — and on this workload it reports
+**0 for both arms**, while the naive lane loses a change three agents contended for.
+
+The reason is not a defect in either: `src/memory/shared-state.ts` writes back **per file**, so the
+loss is file-granular, and interlock 3's three agents edit **disjoint regions** of one file. §3's
+metric is measuring something real that this lane does not do.
+
+The demo therefore publishes a second, separately named figure — agent pairs per file in
+overlapping windows, **naive 3 / cortex 0** on a live run — and does **not** redefine
+`conflicting_edits`, because the same page carries the benchmark that uses §3's meaning.
+`bench/metrics.ts` and `bench/results/` are untouched.
+
+---
+
+## `05` §5 — `GET /demo/state` carries the finished trees
+
+**2026-08-13, U23.** §5 lists what the state route reports; design §8 adds the artifacts to it
+explicitly, "rather than a sixth route, so `05` §5's route list does not grow". The response now
+carries `files` — the arm's finished working tree — projected from the scope's own
+`demo_shared_state` cell, which the route was already reading. No new storage, no new query, no new
+route. `null` before any agent has saved, because a scope that has run nothing has no app.

@@ -58,6 +58,8 @@ const METER_FIELDS = [
   'findingsRecalled',
   'agentsSpared',
   'deadEndsWalked',
+  'conflictingEdits',
+  'fileCollisions',
   'embeddingCalls',
   'claimP50Ms',
   'serializationRetries',
@@ -71,6 +73,30 @@ describe('every meter figure is measured, not asserted — `07` §1', () => {
     expect(code).toContain('export async function runArm');
     expect(code).toContain('duplicatesAmong');
     for (const field of METER_FIELDS) expect(code).toContain(field);
+  });
+
+  /**
+   * **THE LIST ABOVE CLAIMED THIS AND NOTHING CHECKED IT, UNTIL U23.**
+   *
+   * `METER_FIELDS`' own comment said "adding a field to `ArmMeter` and not to this list fails the
+   * coverage assertion below". It did not: the assertion above checks every *listed* field appears
+   * in the source, which is the opposite direction. A new meter figure could be added, rendered,
+   * and set from a literal, and every check in this file would have gone on passing — which is
+   * exactly U23's done-when ("every rendered number has a test that fails if it is set from a
+   * literal") failing silently on the numbers most likely to be fabricated: the new ones.
+   *
+   * Found while adding two. The field list is now read out of `ArmMeter` itself, so the direction
+   * the comment always claimed is the direction that is enforced.
+   */
+  it('checks every field `ArmMeter` actually declares', () => {
+    const block = /export interface ArmMeter \{([\s\S]*?)\n\}/.exec(code);
+    expect(block).not.toBeNull();
+
+    const declared = [...block![1]!.matchAll(/^\s*(\w+)\s*[?]?:/gm)].map(([, name]) => name!);
+
+    // Non-vacuity: a regex that matched nothing would make the comparison trivially true.
+    expect(declared.length).toBeGreaterThan(5);
+    expect(new Set(declared)).toEqual(new Set(METER_FIELDS));
   });
 
   it('never sets a meter figure from a numeric literal', () => {
