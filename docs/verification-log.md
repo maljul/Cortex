@@ -4665,3 +4665,92 @@ days from ship, for rigour the timestamps already supply.
 
 Nothing pending. `src/demo/api.ts` and `infra/lambda/changefeed.ts` are both live, and the two
 "not deployed" notes in `CLAUDE.md` and `docs/UNITS.md` are cleared rather than left to rot.
+
+---
+
+## V47 — What actually breaks if the write plane stops being an admin: measured, not reasoned
+
+**2026-08-13.** `/check` row 5(b) (V40) found `CORTEX_DSN` connecting as `julian` while
+`spec/04` §3 and `src/db/pool.ts:7` both claim `cortex_writer`. Before deciding anything, the
+blast radius was mapped: four independent sweeps of `test/`, `src/`, `scripts/` and the design
+options, then **one adversarial refuter per claimed breakage**. 35 claimed, **14 survived**.
+
+### The load-bearing negative result: nothing in the application breaks
+
+- **`src/` — zero breakages.** Every statement reachable through `getPool('write')` is
+  SELECT/INSERT/UPDATE/DELETE on the seven tables. A grep of `src/` and `bench/` for
+  `CREATE|DROP|ALTER|GRANT|REVOKE|TRUNCATE|SHOW|CANCEL|SET CLUSTER` returns **nothing**.
+- **`test/` — 5 claimed, 0 survived.**
+- **The deployment is untouched.** `infra/cdk` wires only `CORTEX_DEMO_DSN` and the reader
+  secret; no Lambda reads `CORTEX_DSN`. Nothing here can reach the live page.
+
+### The RLS question, which is the one that could have hidden a disaster
+
+Today `julian` is an admin and **bypasses row-level security entirely**. Under `cortex_writer`,
+`FORCE ROW LEVEL SECURITY` would engage on the write plane for the first time — so a missing
+policy would not error, it would silently return fewer rows, and every readback assertion in the
+suite would keep passing against a smaller truth.
+
+Checked table by table. **Seven RLS-enabled tables, seven `writer_all` policies**, all
+`FOR ALL TO cortex_writer USING (true) WITH CHECK (true)`: `repos` :279, `agents` :281,
+`claims` :283, `intents` :285, `findings` :287, `action_ledger` :289, and — a hundred lines
+below the others, under the cost-control heading, which is why it is the one to miss —
+`live_run_budget` :395-397. No eighth table, no gap.
+
+One latent dependency worth writing down: `is_current_demo_scope()` has EXECUTE granted only to
+`cortex_demo` (:334). No writer policy calls it, so nothing breaks today — **but anyone who
+later narrows `writer_all` to a real predicate must add a GRANT EXECUTE or every writer
+statement fails.**
+
+### Two refutations were doc-based, and were re-checked against the cluster
+
+The test-suite claims turned on `test/retry.test.ts`, which does `CREATE TABLE retry_probe` /
+`DROP TABLE retry_probe` on the write plane. The refuter argued that CockroachDB hands `CREATE`
+on the public schema to `public` by default. That is reasoning from documentation, and this
+project's own rule is that a catalogue listing is not an entitlement. So both halves were
+measured:
+
+```
+  retry_probe exists on the cluster right now: no
+  sql.auth.public_schema_create_privilege.enabled = true
+```
+
+The setting is on, so `cortex_writer` can create the probe table, owns it, and can drop it —
+the refutation holds, now on measurement rather than on a default. Had it been `false` the file
+would have broken either at `CREATE` (42501) or at the next `INSERT` (42P01), and the branch
+argument would have been wrong in a way no reading of the docs would have caught.
+
+### What genuinely needs an admin, after refutation
+
+Only two things, and both **should** need one:
+
+1. **`sql/001_init.sql` via `npm run sql`** — `SET CLUSTER SETTING`, `CREATE TABLE`,
+   `ALTER TABLE`, `GRANT`, `CREATE POLICY`, `CREATE FUNCTION`. The migration.
+2. **`scripts/changefeed.mts`** — `CREATE CHANGEFEED`, `CANCEL JOB`, `SHOW CHANGEFEED JOBS`.
+
+Plus `scripts/check-db.mts:81`'s `SET CLUSTER SETTING`, already inside a `try/catch`, and the
+false comment at `src/db/pool.ts:7`.
+
+### What the switch would actually buy: nothing against the threat §3 names
+
+Because `writer_all` is `USING (true) WITH CHECK (true)`, `cortex_writer` reaches **every**
+repository's memory exactly as the admin does. The only capabilities removed are DDL, DROP,
+cluster settings and changefeed control — and invariant 7 already forbids an agent-reachable
+path from accepting SQL or a table name, with `test/mcp.test.ts:255` asserting the boundary
+rejects `{table: 'claims', sql: 'DROP TABLE claims'}`.
+
+So the switch removes a class of capability **no agent-reachable path can reach**. Against a
+prompt-injected agent — §3's own stated threat — the gain is zero. The gain is non-zero only
+against an operator typo in a `psql` session.
+
+### The prerequisite that makes this Julian's call and not a code change
+
+**There is no `CORTEX_WRITER_DSN` and there never has been.** V9 exercised `cortex_writer` with
+`SET ROLE` from an already-authenticated admin session (`docs/verification-log.md:900-906`),
+which proves the **grants** and proves **nothing about the login path**: the role may have no
+password set, and the Cloud IP allowlist has never been tested for it. Producing that DSN is a
+CockroachDB Cloud Console action.
+
+**Decision pending.** The code change is small — one line in `src/db/pool.ts`, two scripts kept
+on the admin credential, the missing `currentUser` assertion, and no change to `test/`, `src/`
+or the deployment. What it is gated on is a credential nobody has logged in with.
