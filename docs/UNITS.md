@@ -999,10 +999,9 @@ enough, because the rule exists so that the field never appears to work."* To be
 credential field is declared on any surface**, so invariant 8 as CLAUDE.md words it survives —
 what fails is "rejected rather than honoured" on the query string. The fix was two lines plus five
 cases in `test/demo-plane.test.ts` — four refusals and one non-vacuity guard proving `session`
-still gets through. **Not deployed:** `src/demo/api.ts` is bundled into `DemoFn`, so the hosted
-API keeps the gap until `node infra/bundle.mjs && npx cdk deploy`. It joins `ChangefeedFn`'s
-pending status-filter change from V39 — **two un-deployed source changes now, and one deploy
-clears both.**
+still gets through. **Deployed 2026-08-13 (V46)** together with `ChangefeedFn`'s pending
+status-filter change from V39, and each proved on the deployed stack: the same `curl` returns
+404 before and `400 {"field":"query.dsn"}` after.
 
 ### U23 — Measurement completeness: `conflicting_edits`, artifacts, both-arm meters ⬜
 **Done when:** "every rendered number has a test that fails if it is set from a literal."

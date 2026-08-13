@@ -144,8 +144,10 @@ What does not belong in a unit list, and so lives here:
   can find". `retrievalKeyFromClosedIntent` is the seam. **Scoped to abandonment** — V28's 0.3801
   for the seed exists *because* the note is embedded, and beat 1 fires on it.
   **The changefeed sink's second copy of the status rule was deleted, not updated** — it would
-  have vetoed this silently while the unit test passed. **Not deployed:** `ChangefeedFn` still
-  carries the old filter until `node infra/bundle.mjs && npx cdk deploy`.
+  have vetoed this silently while the unit test passed. **Deployed and proved live 2026-08-13
+  (V46).** `npm run gate:consolidate` is now 8/8 and its checks 5-8 abandon a second intent on a
+  different file: before this the gate closed only as `done` and would have passed identically
+  either side of the deploy, which is not evidence.
 - **The mechanical gate's `credentials` row blesses declared strings, not a shape (V42,
   2026-08-13).** It had read FAIL on every `--report` run since 2026-08-11 on three of this
   repo's own placeholders, and **rewriting them into the blessed shape cannot fix it**:
@@ -190,8 +192,8 @@ What does not belong in a unit list, and so lives here:
   failed was `05` §5's **"rejected rather than honoured"**, which exists because a silently
   dropped credential looks exactly like an accepted one. **The path is deliberately still not
   scanned**: a path names a route, not a field, and the router 404s anything it does not know.
-  **Two un-deployed source changes now** — this and `ChangefeedFn`'s status filter from V39 —
-  and one `node infra/bundle.mjs && npx cdk deploy` clears both.
+  **Deployed and proved live 2026-08-13 (V46):** the same `curl` returns 404 before and
+  `400 {"field":"query.dsn"}` after, with a plain `?session=` still routing normally.
 - **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
   Bedrock yields a deterministic local vector, the intent is marked
   (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is
@@ -410,7 +412,7 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
-`npm run gate:consolidate` (hosted) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
+`npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
 `npm run changefeed status|create|cancel` ·
 `bash scripts/gate-mechanical.sh --report` (`/check` row 4; also runs as the commit hook) ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +

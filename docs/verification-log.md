@@ -4578,3 +4578,90 @@ EXIT=0
 333 → 338: four refusals and one non-vacuity guard. **The three rested runs of this day came in
 at 589s, 608s and 633s** — a 7% spread across the whole set, which is what to expect. V43's bad
 run was 4.2x, and that is the shape worth reacting to rather than any percentage.
+
+---
+
+## V46 — Both pending changes deployed, and each proved on the deployed stack rather than assumed
+
+**2026-08-13, Julian's instruction.** Two source changes had been sitting un-deployed:
+`src/demo/api.ts`'s query-string credential scan (V45) and `infra/lambda/changefeed.ts`'s
+`done`-and-`abandoned` filter (V39). One deploy cleared both.
+
+### Pre-flight
+
+`node infra/bundle.mjs` rebuilt all four functions, then **the artefacts were checked rather
+than trusted** — a rebuilt bundle and a bundle containing the change are not the same claim:
+
+```
+-- DemoFn: does it scan request.query? --
+1
+   FOUND in demo bundle
+-- ChangefeedFn: does it consolidate abandoned intents? --
+   (no match for the old status === 'done' filter)
+2
+   'abandoned' present in changefeed bundle
+```
+
+`npx cdk diff` then showed **exactly two resources changing and nothing else** — no IAM, no
+gateway, no secrets, no DynamoDB:
+
+```
+[~] AWS::Lambda::Function DemoFn      └─ [~] Code └─ [~] .S3Key
+[~] AWS::Lambda::Function ChangefeedFn └─ [~] Code └─ [~] .S3Key
+✨  Number of stacks with differences: 1
+```
+
+Deployment time 20.43s, total 42.86s. Four resources updated, `UPDATE_COMPLETE`.
+
+### The demo fix, proved by the same request before and after
+
+Against the live API, identical `curl` either side of the deploy:
+
+```
+BEFORE   HTTP 404
+         {"error":"That session has expired or never existed. ..."}
+
+AFTER    HTTP 400
+         {"error":"This demo never accepts a credential. ...","field":"query.dsn"}
+```
+
+**404 is the gap**: the credential was ignored and the request routed anyway. 400 with
+`field: query.dsn` is the fix, and it names where it found it. Two controls alongside: a plain
+`?session=` still routes normally (404 for the ordinary reason, so the scan has not eaten the
+one legitimate parameter), and the body path still refuses with `field: dsn` (no regression).
+
+### The changefeed fix could not be proved by the existing gate, so the gate was extended
+
+`npm run gate:consolidate` closed its intent with `result: 'done'` and nothing else.
+`CLAUDE.md` had already called this out: it *"would still pass today because it exercises a
+`done` intent, so it is not evidence either way"*. **A deploy nobody can distinguish from the
+absence of a deploy is not a verified one**, so the gate now abandons a second intent on a
+different file, with a vector far from the first so dedupe cannot fire and leave the check
+passing on an empty premise:
+
+```
+PASS  5. second intent granted                       granted
+PASS  6. intent closed as abandoned                  8ddc1416-e6b3-4ed2-9ba7-861efa733472
+PASS  7. an ABANDONED intent also consolidated (V39, live) 501ms
+PASS  8. it names the abandoned intent               8ddc1416-e6b3-4ed2-9ba7-861efa733472
+
+abandoned fact: the provider has no sandbox for refunds — gate 2026-08-13T11:01:26.360Z
+  retrieval key would be: add refund support to the payments provider — abandoned
+
+GATE PASSED
+```
+
+8/8. Check 7 is the one that carries the deploy: on the old filter the sink returns `null` for
+an abandoned row, no finding is written, and nothing ever arrives on the socket.
+
+**Why that check could not have passed before, stated as evidence rather than as confidence.**
+The previously-deployed bundle was built **2026-08-12 20:53**; V39's change was committed
+**2026-08-13 00:19:57** — the running function predated the change by 3h27m and cannot have
+contained it. A production A/B (redeploy the old bundle, watch check 7 fail, redeploy) would be
+a stronger demonstration and was **not** done: it is two extra deploys onto a live demo four
+days from ship, for rigour the timestamps already supply.
+
+### Deployment state after this
+
+Nothing pending. `src/demo/api.ts` and `infra/lambda/changefeed.ts` are both live, and the two
+"not deployed" notes in `CLAUDE.md` and `docs/UNITS.md` are cleared rather than left to rot.
