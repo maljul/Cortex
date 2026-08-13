@@ -4565,3 +4565,16 @@ reader could take it the other way.
 `src/demo/api.ts` is bundled into `DemoFn`, so **the hosted API still has the gap** until
 `node infra/bundle.mjs && npx cdk deploy`. It joins `infra/lambda/changefeed.ts`'s pending
 status-filter change from V39: **two un-deployed source changes, one deploy clears both.**
+
+### Suite, after the query-string fix
+
+```
+ Test Files  29 passed (29)
+      Tests  338 passed (338)
+   Duration  632.54s
+EXIT=0
+```
+
+333 → 338: four refusals and one non-vacuity guard. **The three rested runs of this day came in
+at 589s, 608s and 633s** — a 7% spread across the whole set, which is what to expect. V43's bad
+run was 4.2x, and that is the shape worth reacting to rather than any percentage.
