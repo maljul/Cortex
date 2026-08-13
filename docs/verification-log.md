@@ -4158,3 +4158,121 @@ deleted one.
 
 The alternative was to leave the row red on a fake DSN of my own making, which is the defect
 this entry exists to fix.
+
+### The commit hook did not fire in this session, and the script is not why
+
+Both of those commits should have been impossible. `.claude/settings.json` attaches
+`scripts/gate-mechanical.sh` as a `PreToolUse` hook on `Bash`, hook mode scans the staged diff,
+and the staged diff of each carried the offending line. Neither was blocked.
+
+**The script is correct in both modes.** Verified by staging a deliberately real-looking
+credential in a scratch file and feeding the hook a commit payload on stdin:
+
+```
+=== staged; feeding the hook a git-commit payload ===
+BLOCKED: the mechanical rows of /check do not pass, so this commit did not run.
+Scope: staged diff.
+
+  credentials            FAIL +<the staged line, quoted back verbatim>
+HOOK EXIT=2 (2 = would block)
+```
+
+Exit 2, correct message, correct scope, and the offending line quoted back — elided here for the
+reason the next paragraph is about. (The first attempt at this probe reported a false clean
+because the fixture wrote the string across two lines and the pattern is line-oriented — worth
+knowing before anyone re-runs it. The scratch file was staged, unstaged and deleted, and never
+committed.)
+
+**Elided, because pasting it is how this went wrong four times in one session.** The literal in
+the transcript above went into the log, the log went into a commit, and the row went red again —
+the same loop as the test probe, from a different file. `scripts/gate-mechanical.sh` names it:
+*"Write about these patterns without spelling them out."* **The rule for this log is now: never
+paste a `--report` FAIL line or a hook BLOCKED message verbatim.** Describe the hit and quote the
+verdict. The evidence a reader needs is the exit code and the row, not the string.
+
+So the failure is that the hook **did not run**, not that it ran and passed. That matters more
+than the two commits it let through: the script's header states its whole design as *"Two entry
+points, one implementation, so the gate and the commit block can never disagree about what
+passing means"* — and today they disagreed, because one of them was not consulted. A hook that
+silently does not fire is indistinguishable from a hook that passes, which is the same shape as
+the always-red row this entry began with.
+
+**Not diagnosed further from inside the session**, which cannot observe whether the harness
+loaded the project's hooks. Worth checking `/hooks` before relying on the commit block again;
+until then `bash scripts/gate-mechanical.sh --report` is the one that is known to run.
+
+---
+
+## V43 — The cluster stopped serving under sustained test load, four days before ship
+
+**2026-08-13, found by accident and it is the most important thing in this session.**
+
+### What happened
+
+Three full `npm test` runs, one scenario file re-run twice, and a handful of probes, inside
+about ninety minutes. The suite's duration went:
+
+```
+run 1   590.92s    315/316   (one timeout, diagnosed and fixed)
+run 2   607.25s    326/327   (one legitimate failure, a gate test racing an amend)
+run 3  2504.05s    324/327   (three failures + "Connection terminated unexpectedly")
+run 4      killed  — individual tests hanging, not failing:
+            × executes real statements against the real cluster          995221ms
+            × runs the same statements as CORTEX ...                    1040016ms
+            × loses a write when two agents write back a stale snapshot 1059394ms
+            × cannot INSERT into action_ledger                           768818ms
+```
+
+`cannot INSERT into action_ledger` is a privilege-plane assertion that ordinarily completes in
+milliseconds. **These are not failures, they are hangs.** Then the cheapest probe there is —
+`npm run db:check`, one connection and one `SELECT version()` — did not return within 60s:
+
+```
+>>> db:check did not return within 60s
+```
+
+Earlier in the same session, twice: `connected in 965ms`, `connected in 1164ms`.
+
+### What it is not
+
+Not the code. Between run 2 and run 3 the only changes were a doc edit and one test line that
+assembles a string instead of writing it out. The two files added this session cost roughly ten
+seconds between them, and the one timeout that was raised is a budget, not work. Run 2 and run 3
+were effectively the same tree and differ by a factor of four in wall clock.
+
+### The hypothesis, stated as a hypothesis
+
+**CockroachDB Basic tier meters in Request Units with a burst budget, and sustained load spends
+it.** `agent-hack-30704` is Basic tier. Three full suites against the real cluster, each running
+hundreds of statements including deliberate serialization conflicts and vector searches, is a
+lot of RUs in ninety minutes. Throttling would look exactly like this: gradual slowdown, then
+statements that never return.
+
+**Not confirmed.** Confirming it means reading the cluster's RU consumption in the Cloud console
+or via the Cloud API, and that has not been done. It is the first thing to check.
+
+### Why this is a submission risk and not a nuisance
+
+`08` §4's gate, the hosted demo, `npm run gate:*`, and the recording all run against this one
+cluster. If sustained load can throttle it into not answering, then **a judging session, or a
+recording take, or a pre-ship verification sweep, can do to it exactly what this session did.**
+`04` §5's ladder has rungs for a throttled Bedrock and for an exhausted LIVE budget; it has no
+rung for the database being the thing that stops answering, and `04` §5 invariant 1 admits no
+error page on any path a visitor can reach.
+
+### What was done about it
+
+Stopped. No further statement was issued after the probe above. **No conclusion about the
+suite's health should be drawn from runs 3 and 4** — they measure the cluster, not the code.
+
+### What is owed
+
+- **A clean full-suite number.** The last trustworthy observation is run 2: **326/327 in
+  607.25s**, whose single failure was `test/gate-mechanical.test.ts` legitimately catching a
+  string that an amend later removed. The tree has not changed in any way that affects the
+  cluster since. `CLAUDE.md` deliberately still carries the older `300/300` rather than a number
+  nobody watched pass — a stale number that is visibly stale is safer than a fresh one that is
+  guessed.
+- **The RU reading**, before anything else is run.
+- **A decision about load between now and 2026-08-17**: how many full-suite runs the cluster can
+  take, and whether the recording session should avoid running one at all.

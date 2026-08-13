@@ -159,7 +159,15 @@ What does not belong in a unit list, and so lives here:
   unconditional PASS** (`grep -vF ''` excuses everything), so the script refuses to run on one.
   `test/gate-mechanical.test.ts` runs `--report` for real and fails if a shape is ever re-added.
   Adding a placeholder is meant to be a decision — a new one turns the row red until it is
-  written down.
+  written down. **The check proved itself on its own author within the hour**, catching a
+  credential-shaped literal in the very test that asserts such literals are caught; the old
+  shape would have excused it silently. Write about these patterns without spelling them out —
+  that has now cost three commits.
+  **The `PreToolUse` commit hook did not fire in this session and the script is not why**
+  (V42): hook mode blocks correctly when invoked directly with a payload, exit 2. A hook that
+  silently does not run is indistinguishable from one that passes. Check `/hooks` before relying
+  on the commit block; `bash scripts/gate-mechanical.sh --report` is the entry point known to
+  run.
 - **A missing feature is attributed by code, not by prose (V41, 2026-08-13).** U21's third
   silent break was written down in `docs/UNITS.md` and checked by nothing.
   `src/demo/attribution.ts` returns one record per feature and `unattributableLosses` refuses
