@@ -4357,3 +4357,106 @@ self-inflicted load, not the code.
 - ~~The RU reading.~~ **Done, same day: 2.81M / 60M.** Budget is not a constraint; see above.
 - **A decision about load between now and 2026-08-17** — settled by the reading: one suite run
   at a time, rested. Not a quota to husband, a rate not to exceed.
+
+---
+
+## V44 — The commit block moves to git, and the split it preserves is now executable
+
+**2026-08-13, Julian's call.** V42 recorded that the Claude Code `PreToolUse` hook did not fire
+and that four commits carrying a credential-shaped string landed because of it. The manual
+remedy — run `bash scripts/gate-mechanical.sh --report` before each commit — worked for the rest
+of that session and depends entirely on an agent remembering, which is the thing that failed
+four times in one morning.
+
+### Why git rather than fixing the harness hook
+
+The configuration was already correct and was checked before concluding anything: the script is
+executable with a valid shebang, runs correctly when invoked exactly as `.claude/settings.json`
+invokes it, that file is valid JSON, and `.claude/settings.local.json` carries only permissions
+and shadows nothing. Nothing on disk explains it, and a session cannot observe whether the
+harness loaded its own hooks. So the fix is a route that does not depend on the harness:
+`.githooks/pre-commit`, which git runs itself for every commit made in this repository.
+
+### The `CLAUDECODE` guard is the design, not a convenience
+
+`scripts/gate-mechanical.sh` already stated the intended asymmetry — *"the agent cannot decline,
+the human is not blocked"* — and until now that sentence was true only by accident of which
+tool the hook was attached to. `CLAUDECODE` is set in an agent's shell and absent from Julian's,
+so two lines make it explicit:
+
+```sh
+[ -n "${CLAUDECODE:-}" ] || exit 0
+```
+
+**Not an escape hatch, and the direction is what proves it.** Nothing an agent can set turns the
+gate off — setting `CLAUDECODE` can only switch it *on*. The dangerous direction does not exist.
+
+`--no-verify` bypasses this, as it bypasses every pre-commit hook, and that is deliberately not
+engineered around: it is the same category as "staging less, amending later, or narrowing a
+check", which the gate names as the moves it exists to catch. This is a guard against
+forgetting, not against a determined bypass, and `/check`'s `--report` still sees everything.
+
+### One implementation, so the two routes cannot disagree
+
+The hook feeds the script a synthetic commit payload on stdin rather than reimplementing
+anything, so a git commit reaches the same code path the Claude Code hook would. That was the
+script's stated design goal from the beginning and it now has a second caller rather than a
+second implementation.
+
+### Proven by attempting the commit, not by reading the hook
+
+Staged a credential-shaped line and ran a real `git commit`:
+
+```
+BLOCKED: the mechanical rows of /check do not pass, so this commit did not run.
+Scope: staged diff.
+
+  credentials            FAIL +<the staged line, quoted back>
+
+Fix the failing row and commit again. Do not work around this by staging
+less, amending later, or narrowing a check — those are the moves it exists
+to catch.
+```
+
+`git log --oneline -1` was unchanged afterwards: **nothing landed.** Worth noting how that was
+confirmed — the pipeline's own `exit=0` is `head`'s status, not git's, the same trap that made
+a failing `npm test` look green earlier in this session. The evidence is that HEAD did not move.
+
+### Two mutations, both directions
+
+`test/git-hook.test.ts`, 6 tests. The guard is the entire safety argument, so it was mutated
+both ways:
+
+```
+MUTATION 1 — remove the guard (Julian would be blocked)
+     × lets the same commit through when CLAUDECODE is unset
+     × short-circuits on CLAUDECODE before it reaches the gate
+      Tests  2 failed | 4 passed (6)
+
+MUTATION 2 — invert the guard (the agent would not be blocked)
+     × blocks an agent commit that stages a credential
+     × lets the same commit through when CLAUDECODE is unset
+      Tests  2 failed | 4 passed (6)
+```
+
+A behavioural test catches each direction, not only the structural one.
+
+**One of these tests was wrong when first written and the mutation is not what caught it.** The
+structural check compared the position of `CLAUDECODE` against `gate-mechanical.sh` in the file
+and failed on a correct hook, because the header prose names both. Comments are stripped first
+now, the way `test/scenario.test.ts` already does for its source scan — a file that explains
+itself defeats a naive text search.
+
+### Installation is one command, and it is asserted rather than assumed
+
+`.git/hooks/` is not version controlled, so the hook lives in a tracked directory and a clone
+must run:
+
+```
+git config core.hooksPath .githooks
+```
+
+`test/git-hook.test.ts` asserts that config and **fails with that command as its message** when
+it is unset, rather than skipping — the same refusal `test/privilege-planes.test.ts` makes for
+an unset DSN, and for the same reason. An unwired guard that reports green is indistinguishable
+from a guard that works, which is the whole of V42.

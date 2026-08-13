@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# The commit block, on a route that does not depend on the harness.
+#
+# `.claude/settings.json` already registers `scripts/gate-mechanical.sh` as a Claude Code
+# `PreToolUse` hook. On 2026-08-13 that hook did not fire (V42) and four commits carrying a
+# credential-shaped string landed; each was caught afterwards by `--report`, which is the wrong
+# end of the process. The script was not at fault — invoked directly with a commit payload it
+# blocks correctly, exit 2 — and neither was the configuration, which was executable, valid and
+# unshadowed. The harness simply did not run it.
+#
+# **A hook that silently does not run looks exactly like a hook that passed.** That is the same
+# shape as the always-red `credentials` row this episode began with, and it is why the guard
+# lives here as well: git runs `pre-commit` itself, for every commit made in this repository,
+# whatever issued it.
+#
+# ── WHY THE CLAUDECODE GUARD, AND WHY IT IS NOT A LOOPHOLE ────────────────────────────────────
+#
+# `scripts/gate-mechanical.sh` states the split this preserves, in its own header:
+#
+#     "The hook governs commits made through Claude Code only; a human committing from their
+#      own terminal is unaffected. That is the intended split: the agent cannot decline, the
+#      human is not blocked."
+#
+# `CLAUDECODE` is set in an agent's shell and absent from Julian's, so the two lines below are
+# that sentence made executable. The asymmetry is deliberate: an agent needs a gate it cannot
+# reason its way past, and a human needs to be able to commit a work in progress at 2am without
+# arguing with a script.
+#
+# It is **not** an escape hatch, because nothing an agent can set turns it off — setting
+# `CLAUDECODE` can only ever switch the gate *on*. The dangerous direction does not exist.
+#
+# ── INSTALLATION ─────────────────────────────────────────────────────────────────────────────
+#
+# `.git/hooks/` is not version controlled, so this lives in a tracked directory and a clone
+# runs one command:
+#
+#     git config core.hooksPath .githooks
+#
+# `test/git-hook.test.ts` asserts that config rather than skipping when it is absent, for the
+# same reason `test/privilege-planes.test.ts` refuses to skip an unset DSN — an unwired guard
+# that reports green is indistinguishable from one that works.
+#
+# ── NOTE ON `--no-verify` ────────────────────────────────────────────────────────────────────
+#
+# `git commit --no-verify` bypasses this, as it bypasses every pre-commit hook. That is not a
+# defect to be engineered around: it is the same category as "staging less, amending later, or
+# narrowing a check", which `scripts/gate-mechanical.sh` names as the moves it exists to catch.
+# The gate is a guard against forgetting, not against a determined bypass, and `--report` in
+# `/check` remains the audit that sees everything regardless.
+
+set -uo pipefail
+
+# The human is not blocked. Nothing below runs, and no gate is consulted, for an ordinary
+# terminal commit.
+[ -n "${CLAUDECODE:-}" ] || exit 0
+
+ROOT=$(git rev-parse --show-toplevel) || exit 0
+
+# Hook mode reads the tool call on stdin and does nothing unless the payload names a commit —
+# see the dispatch at the top of the script. Feeding it a synthetic payload is how a git hook
+# reaches the same code path the Claude Code hook would, so there is one implementation and the
+# two routes cannot disagree about what passing means.
+#
+# `exec`, so the script's own exit status is the hook's: 2 blocks, and git treats any non-zero
+# as a refusal. Its block message goes to stderr and reaches the terminal unchanged.
+exec "$ROOT/scripts/gate-mechanical.sh" <<'PAYLOAD'
+{"tool_name":"Bash","tool_input":{"command":"git commit"}}
+PAYLOAD

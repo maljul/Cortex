@@ -347,6 +347,12 @@ only checking did.
   `PreToolUse` hook did not fire in the 2026-08-13 session (V42) and the script is not why: hook
   mode blocks correctly when invoked directly. A hook that silently does not run looks exactly
   like a hook that passed, so do not rely on being stopped.
+  **Since V44 there is a second, harness-independent route** — `.githooks/pre-commit`, which git
+  runs itself and which blocks an agent's commit while never blocking Julian's (`CLAUDECODE` is
+  set in one shell and not the other, which is `scripts/gate-mechanical.sh`'s own stated split
+  made executable). It needs **one command per clone**, and `test/git-hook.test.ts` fails with
+  that command as its message if it is missing: `git config core.hooksPath .githooks`. Still run
+  `--report` yourself — the hook is a guard against forgetting, not a reason to stop looking.
 - **Verify against the real cluster.** A mock, an in-memory DB, or a local
   single-node stand-in does not count and fails `/check`.
 
