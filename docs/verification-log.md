@@ -4321,12 +4321,21 @@ self-inflicted load, not the code.
 
 ### What is owed
 
-- **A clean full-suite number.** The last trustworthy observation is run 2: **326/327 in
-  607.25s**, whose single failure was `test/gate-mechanical.test.ts` legitimately catching a
-  string that an amend later removed. The tree has not changed in any way that affects the
-  cluster since. `CLAUDE.md` deliberately still carries the older `300/300` rather than a number
-  nobody watched pass — a stale number that is visibly stale is safer than a fresh one that is
-  guessed.
+- ~~A clean full-suite number.~~ **Obtained, on a rested cluster, one run:**
+
+  ```
+   Test Files  28 passed (28)
+        Tests  327 passed (327)
+     Duration  589.27s
+  EXIT=0
+  ```
+
+  Zero failures and no unhandled errors. **589.27s against the 590.92s baseline measured before
+  any of this session's changes** — so the two new test files cost nothing measurable, and the
+  health of a rested cluster is indistinguishable from where the day started. That is the
+  strongest evidence that runs 3 and 4 measured saturation rather than anything in the tree, and
+  it is why `CLAUDE.md` now carries 327/327 rather than the guess it could have carried an hour
+  earlier.
 - **The RU reading**, from the Cloud Console, since the API does not expose it and a 60M ceiling
   exists on a cluster whose period began 2026-07-31.
 - **A decision about load between now and 2026-08-17**: the suite is not free, and four runs in
