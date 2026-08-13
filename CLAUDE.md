@@ -358,6 +358,8 @@ only checking did.
   `PreToolUse` hook did not fire in the 2026-08-13 session (V42) and the script is not why: hook
   mode blocks correctly when invoked directly. A hook that silently does not run looks exactly
   like a hook that passed, so do not rely on being stopped.
+  **The `PreToolUse` hook was later seen firing again the same day (V42, V45) — so it is
+  intermittent, not dead, which is worse to rely on than either.**
   **Since V44 there is a second, harness-independent route** — `.githooks/pre-commit`, which git
   runs itself and which blocks an agent's commit while never blocking Julian's (`CLAUDECODE` is
   set in one shell and not the other, which is `scripts/gate-mechanical.sh`'s own stated split

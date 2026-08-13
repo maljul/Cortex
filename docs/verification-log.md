@@ -4198,8 +4198,28 @@ silently does not fire is indistinguishable from a hook that passes, which is th
 the always-red row this entry began with.
 
 **Not diagnosed further from inside the session**, which cannot observe whether the harness
-loaded the project's hooks. Worth checking `/hooks` before relying on the commit block again;
-until then `bash scripts/gate-mechanical.sh --report` is the one that is known to run.
+loaded the project's hooks. `bash scripts/gate-mechanical.sh --report` is the one that was known
+to run, and V44 added `.githooks/pre-commit` as a route that does not depend on the harness at
+all.
+
+**Later the same day the `PreToolUse` hook started firing, and both layers are now live.**
+During V45's commit the first attempt was refused by git's `pre-commit`:
+
+```
+BLOCKED: the mechanical rows of /check do not pass, so this commit did not run.
+Scope: staged diff.
+```
+
+and the second by the harness, before bash ran at all:
+
+```
+PreToolUse:Bash hook error: ["$CLAUDE_PROJECT_DIR/scripts/gate-mechanical.sh"]: BLOCKED: ...
+```
+
+Why it began working is not established and is not worth guessing at; what is established is
+that **the earlier failure was real and intermittent rather than a misreading**, which is the
+worst kind to rely on. The git hook stays: an intermittent guard is one you cannot plan around,
+and V44's route runs whether or not the harness feels like it.
 
 ---
 

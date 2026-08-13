@@ -687,6 +687,70 @@ omission is understood as known rather than overlooked.
 
 ## Departures recorded while building, not errors in the spec
 
+### `06` §2's naive arm has no dedupe and no arbitration; the demo's is worktree isolation *(2026-08-13, U21)*
+
+§2 defines NAIVE as a JSON file with last-write-wins, a separate local vector store, **no
+arbitration**, and **no dedupe**. The demo's naive lane now runs *the same dedupe search and the
+same claim as the cortex lane, in separate transactions*, and is labelled on the page as **git
+worktree isolation**.
+
+**Why the change.** §2's own fairness clause — "the naive arm must be a fair representation of
+what people actually do today… do not strawman it with something nobody uses" — is the reason,
+not an exception to it. A 30-day sweep of Hacker News and GitHub (2026-08-13) found the field's
+answer to parallel agents is uniformly worktree isolation: MindFlock and Shikigami both pitch
+"each agent in its own Git worktree", Rabbitty ships the same for Mac, PraisonAI merged a "git
+worktree workspace isolation primitive" so concurrent agents "can edit the same repository
+without clobbering each other's changes", and makaio-framework added worktree pollution guards.
+Every one frames the win as *not clobbering*. Not one arbitrates intent. An arm with no dedupe
+at all is weaker than what a judge already runs, and beating it proves nothing.
+
+Splitting the two transactions is `01` §3's falsification test made executable: the dedupe
+passes against a snapshot that was true a moment ago, then a lease is taken for work already
+finished. Same embeddings, same statements, same data; only the transaction boundary differs.
+
+**What it costs.** The demo's naive arm and the **benchmark's** naive arm are now different
+things, so their numbers are not directly comparable. `bench/` is untouched and `08` §4's passed
+gate stands. The page must say so where both sets of numbers appear.
+
+**The silent break this creates** is recorded in `docs/UNITS.md` U21 and is the sharpest in the
+unit: if a refactor ever wraps both statements in one `withRetry`, the naive lane silently
+becomes the cortex lane, every row stays valid, every test still passes, and the demo shows no
+difference. The guard is a test asserting the naive lane emits **two** `BEGIN` blocks where the
+cortex lane emits one.
+
+Closes when §2 distinguishes "no coordination" from "isolation without shared memory" — they are
+different arms and the second is the one worth measuring against.
+
+### `06` §4's corpus is `bench/fixtures/`; the demo's is `bench/demo-app/` *(2026-08-13, U21)*
+
+§4 names one fixture repository of "roughly 40 source files" with a seeded list of 30 tasks, and
+`08` §4's passed gate freezes `bench/tasks.json` at those 30 with committed results. The demo
+therefore cannot add its eleventh ticket there, and its agents cannot patch a corpus whose
+benchmark numbers are already published.
+
+So the demo owns a second corpus: `bench/demo-app/`, roughly fourteen files across seven modules,
+rendering an orders dashboard, with its own ticket file that references benchmark ids and adds
+one. The **statements are unchanged** — V38 measured 253 pairwise Titan distances to select them
+and any rewording voids that — so only the patch bodies and their file targets are new.
+
+Not an error in §4: the benchmark corpus is doing its job, and the constraint is `08` §4's gate
+working as intended. Closes when §4 acknowledges the demo's corpus as a second, smaller fixture
+with its own purpose.
+
+### `07` §2's centre panel is arriving rows; the hero is two running applications *(2026-08-13, U21)*
+
+§2 fixes three panels — fleet left, memory centre, meter right — with the centre being "live rows
+arriving from the changefeed, grouped by tier". The rebuilt page keeps all of it and demotes it:
+the hero is **two sandboxed iframes running each arm's final orders dashboard side by side**, and
+the rows, the swimlanes and the meter sit beneath.
+
+The reason is §1's own ninety-second test. A judge who sees a shipping line 100× off next to one
+that is correct has understood the thesis before reading a word; rows with primary keys prove it
+afterwards, to the sceptic who wants proof. Ordering the page the other way puts the evidence
+before the claim.
+
+Closes when §2's layout is rewritten around the result rather than the mechanism.
+
 ### `04` §2 routes flow D through EventBridge; the changefeed sink does it inline *(2026-08-11, U16)*
 
 §2's component map puts `EventBridge ──► Lambda: consolidate` between the changefeed
