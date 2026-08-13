@@ -325,6 +325,16 @@ only checking did.
 - **A catalogue listing is not an entitlement, and an EXPLAIN plan is not a
   guarantee.** Invoke it, or write TBD.
 - **Never write a placeholder number.** Write TBD.
+- **Never paste a credential-shaped string into a file — including into a doc, a comment, a
+  test fixture, or a pasted `--report` FAIL line.** Describe it; quote the verdict and the exit
+  code, not the string. This was broken **four times in one session** on 2026-08-13 (V42, V43),
+  each time by copying the gate's own output into the log or a test, each time discovered only
+  after the commit. `scripts/gate-mechanical.sh` predicted it in its own comment before any of
+  them. The check catches it every time — that is not the problem.
+- **Run `bash scripts/gate-mechanical.sh --report` yourself before every commit.** The
+  `PreToolUse` hook did not fire in the 2026-08-13 session (V42) and the script is not why: hook
+  mode blocks correctly when invoked directly. A hook that silently does not run looks exactly
+  like a hook that passed, so do not rely on being stopped.
 - **Verify against the real cluster.** A mock, an in-memory DB, or a local
   single-node stand-in does not count and fails `/check`.
 
