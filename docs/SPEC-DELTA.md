@@ -811,63 +811,45 @@ rather than against literals is why this was a one-line change and not a rewrite
 
 ---
 
-### `04` §3's write plane is `cortex_writer`; `CORTEX_DSN` connects as `julian` *(2026-08-13, V40)*
+### `04` §3's write plane was not `cortex_writer` *(2026-08-13, found V40 — **CLOSED same day, V48**)*
 
 Found by `/check` row 5, run blind. `spec/04-ARCHITECTURE.md:75` gives the Write plane the
 principal `cortex_writer` with `SELECT`/`INSERT`/`UPDATE`/`DELETE` on the six tables "and
-nothing else", and `src/db/pool.ts:7` restates that as fact:
+nothing else", and `src/db/pool.ts` restated that as fact. It was false: the write plane read
+`CORTEX_DSN`, which connects as `julian`, a cluster admin. There was no `CORTEX_WRITER_DSN` at
+all.
 
-```
- * - `write` — `cortex_writer`, via `CORTEX_DSN`. The CLI and the MCP tools.
-```
-
-`npm run db:check` reports otherwise:
-
-```
-DSN shape
-  host     agent-hack-30704.j77.aws-us-east-1.cockroachlabs.cloud:26257
-  user     julian
-```
-
-`.env` carries `CORTEX_DSN`, `CORTEX_READER_DSN` and `CORTEX_DEMO_DSN` — there is no
-`CORTEX_WRITER_DSN`. The role `cortex_writer` genuinely exists on the cluster, is granted by
-`sql/001_init.sql:197`, and V9 verified it is refused `DROP`. What is not true is that
-`CORTEX_DSN` names it.
-
-**The spec is not wrong; the environment does not match it.** Recorded here rather than in
-`docs/DECISIONS.md` because §3's table is the thing a reader would take on trust.
-
-**What makes it a finding rather than a note:** `test/privilege-planes.test.ts` asserts the
-principal for the reader (`:124`) and for the demo plane (`:284`), and for `CORTEX_DSN` it opens
-a client it calls `admin` (`:238`, `:270`, `:395`, `:485`) and asserts nothing about who it is.
-So CLAUDE.md's *"writer writes and cannot `DROP`… `test/privilege-planes.test.ts` is the guard
-rather than the log"* holds for two planes of three. The missing assertion is exactly the one
-that would have caught this — and its absence is the shape of V9, where the narrow question was
+**The reason it survived is the interesting part.** `test/privilege-planes.test.ts` asserted the
+principal for the reader (`:124`) and the demo plane (`:284`) and, for the write plane, opened a
+client it *called* `admin` and asserted nothing about who it was. The missing assertion was
+exactly the one that would have caught it — the same shape as V9, where the narrow question was
 answered truthfully while the account held everything through a membership nobody asked about.
 
-**Not settled by attempting a `DROP`**, which is what this project's rule would normally demand.
-That attempt as `CORTEX_DSN` against the live cluster four days before ship is not a risk a
-report-only gate should take. V9 already did it against `cortex_writer` and recorded the refusal;
-what was open is whether `CORTEX_DSN` still names that principal, and it does not.
+**CLOSED on 2026-08-13.** Julian created the credential; `src/db/pool.ts` reads
+`CORTEX_WRITER_DSN` for the write plane, and §3 is now true. What made it a decision rather than
+a formality:
 
-**The missing assertion now exists (2026-08-13).** `test/privilege-planes.test.ts` opens with a
-`describe` for the write plane pinning `currentUser` to what it actually is, plus a second
-assertion that it is neither the reader nor the demo principal — the two confusions that would be
-catastrophic rather than merely over-privileged. Mutating the pin to `04` §3's published value
-fails it with the instruction to move this file, the pin and `src/db/pool.ts` together.
-`src/db/pool.ts` no longer claims `cortex_writer`; it states the deviation and points here.
+- **The blast radius was measured first (V47)** — 35 candidate breakages, 14 surviving
+  adversarial refutation, all administrative. Nothing in `src/`, nothing in `test/`, nothing
+  deployed.
+- **The credential was proved to log in**, which V9 never did: it reached the role with
+  `SET ROLE` from an already-authenticated admin session, proving the grants and nothing about
+  authentication. `LOGIN OK`, `current_user cortex_writer`, `database defaultdb`.
+- **§3's "nothing else" was invoked rather than quoted.** `DROP TABLE`, `ALTER TABLE ... ADD
+  COLUMN` and `CREATE INDEX` each refused with **42501**, with `findings` at 852 rows before and
+  after and the table intact.
+- **`CORTEX_DSN` stays, and stays admin, deliberately.** Migrations (`scripts/sql.mts`) and
+  changefeed control (`scripts/changefeed.mts`) genuinely need DDL and job control, and they are
+  the only two things that do. Keeping them on their own variable is what lets the write plane be
+  least-privileged rather than nominally so.
+- **`test/retry.test.ts` was the one real risk** — it does `CREATE TABLE` / `DROP TABLE` on the
+  write plane. A refuter argued CockroachDB grants `CREATE` on the public schema by default; that
+  is reasoning from documentation, so it was measured:
+  `sql.auth.public_schema_create_privilege.enabled = true`. `cortex_writer` creates its probe
+  table, owns it, drops it. 9/9.
 
-**The cost of the deviation is measured, not assumed (V47).** 35 candidate breakages swept, 14
-surviving adversarial refutation, every one administrative — `sql/001_init.sql`'s DDL and
-`scripts/changefeed.mts`'s job control. **Nothing in `src/`, nothing in `test/` and nothing
-deployed depends on the extra privilege.** Because every `writer_all` policy is
-`USING (true) WITH CHECK (true)`, `cortex_writer` would reach exactly the same rows: the gap is
-DDL and changefeed control, not data access. Invariant 7 already forbids an agent-reachable path
-from accepting SQL or a table name (`test/mcp.test.ts:255`), so against §3's own threat — a
-prompt-injected agent — closing this buys nothing.
-
-**What blocks closing it is a credential, not code.** There is no `CORTEX_WRITER_DSN` and never
-has been; V9 reached that role with `SET ROLE` from an already-authenticated admin session, which
-proves the grants and nothing about the login path. Producing one is a Cloud Console action. The
-code change is then one line in `src/db/pool.ts`, two scripts left on the admin credential, and
-this pin.
+**What it actually buys, stated honestly.** Against §3's own threat — a prompt-injected agent —
+nothing: every `writer_all` policy is `USING (true) WITH CHECK (true)`, so `cortex_writer`
+reaches exactly the same rows, and invariant 7 already forbids an agent-reachable path from
+accepting SQL or a table name (`test/mcp.test.ts:255`). What it buys is that the architecture's
+published table stops being false, and a test now holds it that way.

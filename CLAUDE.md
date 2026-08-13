@@ -240,30 +240,28 @@ What does not belong in a unit list, and so lives here:
   attempting `DROP TABLE claims`, stopped only by the grant. `is_local = true` also ends
   the scope at `COMMIT`, so a pooled connection cannot carry one visitor's scope into the
   next request.
-- Privilege planes: **verified by attempting writes, V9, resolved 2026-08-09; under
-  test since V15 — for two of the three planes.** Reader reads and cannot write;
-  `cortex_demo` reaches its own live demo scope and nothing else. Do not re-check this
-  with `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer
-  hid the admin membership. Attempt the write. `test/privilege-planes.test.ts` is the
-  guard rather than the log, and since U15 its demo half is `03` §8 test 9 rather than
-  the weaker "no privilege at all".
-  **The write plane is the exception, and `/check` found it blind on 2026-08-13 (V40).**
-  `src/db/pool.ts:7` says `CORTEX_DSN` is `cortex_writer`; `npm run db:check` says it connects
-  as **`julian`**, and there is no `CORTEX_WRITER_DSN` in `.env`. The role exists and V9 proved
-  it is refused `DROP` — what is unproven is that this variable names it. The file asserts the
-  principal for the reader (`:124`) and the demo plane (`:284`) and for `CORTEX_DSN` opens a
-  client it calls `admin` (`:238`), asserting nothing; that missing assertion is the one that
-  would have caught this, **and it now exists**: the file opens with a write-plane `describe`
-  pinning `currentUser` to what it actually is, plus "neither the reader nor the demo
-  principal", so the three planes can no longer drift unnoticed. Deviation in
-  `docs/SPEC-DELTA.md`.
-  **The cost is measured (V47): nothing.** 35 candidate breakages, 14 surviving refutation, all
-  administrative (`sql/001_init.sql`, `scripts/changefeed.mts`). `src/`, `test/` and the
-  deployment are unaffected, and because every `writer_all` policy is `USING (true) WITH CHECK
-  (true)` the switch would remove DDL and changefeed control but **no data access at all** — so
-  against `04` §3's own threat, a prompt-injected agent, it buys nothing. **What blocks it is a
-  credential:** no `CORTEX_WRITER_DSN` exists and that role has never been logged into (V9 used
-  `SET ROLE`). A Console action and Julian's call — fully scoped, not urgent. **Suite 338/338 across 29 files, 632.54s against the
+- Privilege planes: **all three verified by attempting the statement, and all three under test.**
+  Reader reads and cannot write; **writer writes and cannot `DROP`, `ALTER` or `CREATE INDEX`**;
+  `cortex_demo` reaches its own live demo scope and nothing else. Do not re-check this with
+  `SHOW GRANTS` or `SHOW POLICIES` — that is the narrow question whose true answer hid the admin
+  membership. Attempt the write. `test/privilege-planes.test.ts` is the guard rather than the
+  log, and since U15 its demo half is `03` §8 test 9 rather than the weaker "no privilege at all".
+  **The write plane was the exception until 2026-08-13 and is not any more (V40 → V48).**
+  `src/db/pool.ts` claimed `cortex_writer` for months while reading `CORTEX_DSN`, which is
+  `julian`, a cluster admin — and it survived because this file asserted the *reader's* and the
+  *demo's* principal and, for the write plane, opened a client it merely called `admin`.
+  `/check` found it blind. The plane now reads **`CORTEX_WRITER_DSN`**; the credential was proved
+  to log in (V9 only ever used `SET ROLE`, which proves grants and not authentication) and proved
+  to be refused all three DDL forms with **42501**, with `findings` at 852 rows before and after.
+  **`CORTEX_DSN` stays and stays admin, deliberately:** `scripts/sql.mts` and
+  `scripts/changefeed.mts` need DDL and job control and are the only two that do (V47 measured
+  it — 35 candidate breakages, 14 surviving refutation, all administrative). One variable doing
+  both jobs is how this went wrong.
+  **What it buys, honestly: nothing against `04` §3's own threat** — every `writer_all` policy is
+  `USING (true) WITH CHECK (true)`, so the same rows are reachable either way, and invariant 7
+  already blocks the agent-reachable path. It buys that the published table is true, and a test
+  holds it there.
+  **Suite 338/338 across 29 files, 632.54s against the
   real cluster (2026-08-13, V45)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill

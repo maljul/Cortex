@@ -7,6 +7,15 @@
  * Reports the SHAPE of the DSN — host, port, database, sslmode, whether a password
  * is present — and never the DSN or the password itself, so the output is safe to
  * paste into an issue or a chat.
+ *
+ * **CORTEX_DSN is deliberately the one checked, and since 2026-08-13 it is no longer the
+ * plane the application runs on.** This script's job is the operator's: it verifies the
+ * credential that applies migrations (`npm run sql`) and manages changefeeds, which is the
+ * one that needs `SET CLUSTER SETTING` below and the only one whose refusal stops the schema
+ * before it creates a table. The application's write plane is `CORTEX_WRITER_DSN`
+ * (`src/db/pool.ts`, V48), and it is checked at the end rather than instead — a green
+ * connectivity check against a credential the app never opens would be the same shape of
+ * false comfort that let `04` §3's write-plane claim survive for months.
  */
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -84,6 +93,36 @@ try {
     const e = error as { code?: string; message?: string };
     console.log(`\nvector index setting: REFUSED (${e.code}) ${e.message}`);
     console.log('  This is V1 failing. See spec/04-ARCHITECTURE.md section 8 for the fallback.');
+  }
+
+  // The plane the application actually opens. Checked here rather than in place of the
+  // admin above, because the two answer different questions and a clone needs both: this
+  // one is what every `getPool()` in `src/` borrows from, and it is least-privileged on
+  // purpose, so "the operator can connect" says nothing about whether the app can.
+  const writerDsn = process.env.CORTEX_WRITER_DSN;
+  if (writerDsn === undefined || writerDsn.trim() === '') {
+    console.log('\nwrite plane: CORTEX_WRITER_DSN is not set — src/db/pool.ts cannot open it.');
+    console.log('  Add it to .env: same host as above, user cortex_writer.');
+  } else {
+    const writer = new Client({ connectionString: writerDsn, connectionTimeoutMillis: 10_000 });
+    try {
+      await writer.connect();
+      const { rows: who } = await writer.query('SELECT current_user AS "user"');
+      const user = (who[0] as { user: string }).user;
+      console.log(`\nwrite plane: connected as ${user}`);
+      // Not a warning about privilege — a warning about identity. `04` §3 names this plane
+      // `cortex_writer`; anything else is the deviation V40 found, and it should be visible
+      // here rather than only in the test suite.
+      if (user !== 'cortex_writer') {
+        console.log(`  note: \`04\` §3 names this plane cortex_writer, not ${user}.`);
+      }
+    } catch (error) {
+      const e = error as { code?: string; message?: string };
+      console.log(`\nwrite plane: CONNECTION FAILED (${e.code ?? 'no code'}) ${e.message ?? ''}`);
+      console.log('  The operator credential works and the application one does not.');
+    } finally {
+      await writer.end().catch(() => {});
+    }
   }
 
   console.log('\nOK. Next: npm run sql -- sql/000_verify.sql --only 1-5');

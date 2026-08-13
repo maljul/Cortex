@@ -4754,3 +4754,130 @@ CockroachDB Cloud Console action.
 **Decision pending.** The code change is small — one line in `src/db/pool.ts`, two scripts kept
 on the admin credential, the missing `currentUser` assertion, and no change to `test/`, `src/`
 or the deployment. What it is gated on is a credential nobody has logged in with.
+
+---
+
+## V48 — `04` §3's write plane becomes true: `cortex_writer`, proved to log in and proved to be refused DDL
+
+**2026-08-13, Julian created the credential.** `/check` found the write plane connecting as
+`julian` while `spec/04` §3 and `src/db/pool.ts` both said `cortex_writer` (V40). V47 measured
+what a switch would cost. This closes it.
+
+### The two things V9 never established
+
+V9 exercised `cortex_writer` with `SET ROLE` from an already-authenticated admin session. That
+proves the **grants** and nothing about the **login path** — the role might have had no password
+and the Cloud IP allowlist had never been tested for it. Both now measured:
+
+```
+  LOGIN OK in 1746ms
+  current_user    cortex_writer
+  database        defaultdb
+```
+
+Then §3's "on the six tables, nothing else", invoked rather than quoted:
+
+```
+  findings row count BEFORE: 852
+
+  -- can it read the seven tables? --
+    OK   repos / agents / claims / intents / findings / action_ledger / live_run_budget
+
+  -- can it write? (rolled back) --
+    INSERT INTO repos: ALLOWED (correct)
+
+  -- is it refused DDL? --
+    REFUSED 42501  <- DROP TABLE findings
+    REFUSED 42501  <- ALTER TABLE findings ADD COLUMN probe_col INT8
+    REFUSED 42501  <- CREATE INDEX probe_idx ON findings (repo_id)
+
+  findings row count AFTER : 852 (unchanged)
+  findings table still exists: yes
+```
+
+Every DDL attempt ran inside a transaction that was rolled back, and the before/after row count
+and the table's continued existence are the proof that the probe cost nothing. The three DDL
+forms are deliberately not just `DROP`: an `ALTER` or a `CREATE INDEX` would each be enough to
+falsify "nothing else" on their own.
+
+### The change
+
+`src/db/pool.ts`'s `DSN_VARIABLE.write` moves from `CORTEX_DSN` to `CORTEX_WRITER_DSN`. That is
+the entire code change, exactly as V47 predicted.
+
+**`CORTEX_DSN` stays and stays admin, deliberately.** `scripts/sql.mts` (migrations: DDL, GRANT,
+CREATE POLICY, SET CLUSTER SETTING) and `scripts/changefeed.mts` (CREATE CHANGEFEED, CANCEL JOB,
+SHOW CHANGEFEED JOBS) genuinely need those privileges, and V47's refutation pass established they
+are the only two that do. Keeping them on their own variable is what lets the write plane be
+least-privileged rather than nominally so — one variable doing both jobs is how this went wrong.
+
+### The assertion that should have existed all along
+
+`test/privilege-planes.test.ts` gains a write-plane `describe`: the principal is `cortex_writer`
+and is neither the reader nor the demo principal; all three DDL forms are refused with 42501; and
+the four verbs still work on all seven tables. **31 passed (31).**
+
+The last of those is not ceremony — a switch that quietly broke the write path would otherwise
+show up as a hundred confusing failures elsewhere rather than as one clear refusal here.
+
+### `test/retry.test.ts` was the real risk, and it was measured rather than argued
+
+It issues `CREATE TABLE retry_probe` and `DROP TABLE retry_probe` on the write plane. A refuter
+in V47 argued that CockroachDB grants `CREATE` on the public schema to `public` by default —
+which is reasoning from documentation, and this project's rule is that a catalogue listing is not
+an entitlement. So it was measured:
+
+```
+  retry_probe exists on the cluster right now: no
+  sql.auth.public_schema_create_privilege.enabled = true
+```
+
+The setting is on, so `cortex_writer` creates the probe table, owns it, and can drop it. **9/9.**
+Had it been `false` the file would have broken at `CREATE` (42501) or at the next `INSERT`
+(42P01), and no amount of doc-reading would have caught it.
+
+### What this buys, stated plainly
+
+Against §3's own threat — a prompt-injected agent — **nothing**. Every `writer_all` policy is
+`USING (true) WITH CHECK (true)`, so `cortex_writer` reaches exactly the same rows as the admin
+did; the capabilities removed are DDL and changefeed control, which invariant 7 already forbids
+any agent-reachable path from reaching (`test/mcp.test.ts:255`).
+
+What it buys is that **the architecture's published table stops being false**, and a test now
+holds it that way. That is a Production Readiness argument rather than a security one, and it is
+a real one: the gap existed for months precisely because nothing asserted it.
+
+### The sweep after the switch, and one thing deliberately left stale
+
+Three small consequences of the write plane moving, done the same day:
+
+- **`npm run db:check` now checks both planes.** It still opens `CORTEX_DSN` first — that is
+  the operator credential, it is the one `SET CLUSTER SETTING` needs, and its refusal is what
+  stops a migration before it creates a table. But it then connects the write plane and prints
+  `write plane: connected as cortex_writer`, warning if the principal is not what `04` §3 names.
+  A green connectivity check against a credential the application never opens is the same shape
+  of false comfort that let §3's claim survive for months.
+
+  ```
+  connected in 1056ms
+    user     julian
+  vector index setting: allowed
+  write plane: connected as cortex_writer
+  ```
+
+- **`scripts/check-db.mts`'s header** said it answers "can we reach the cluster named by
+  CORTEX_DSN". It now says which plane that is and which one it is not.
+
+- **`bench/results/.../summary.md`'s reproduction recipe is knowingly left stale**, and this is
+  the one worth recording. Its "Prerequisite" line names only `CORTEX_DSN`, and a reproducer now
+  needs two variables: `CORTEX_DSN` to apply the schema once, `CORTEX_WRITER_DSN` to run the
+  CORTEX arm. The **generator** (`scripts/bench-results.mts`) is corrected so the next
+  publication is right. The **committed artefact is not regenerated**, because
+  `npm run bench:results` re-runs each arm three times and would republish `08` §4's frozen
+  table with new numbers. That is a deliberate republication decision, not a side effect of a
+  prose fix. The mismatch is one sentence and it is recorded here rather than fixed quietly.
+
+- **`.env.example` still has no `CORTEX_WRITER_DSN` placeholder.** Not done: this session's
+  permissions deny that path. It needs one line, and adding it will turn the `credentials` row
+  red until the new placeholder string is declared in `scripts/gate-mechanical.sh`'s inventory —
+  which is the mechanism working, and now a familiar dance.

@@ -123,46 +123,67 @@ function dsn(name: string): string {
  * THE WRITE PLANE, WHICH WENT UNASSERTED UNTIL `/check` FOUND IT BLIND (V40).
  *
  * Both other planes have opened with `currentUser` since V15. This one did not, and that is
- * precisely why `src/db/pool.ts` was able to claim for months that `CORTEX_DSN` is
- * `cortex_writer` while it connects as `julian`, a cluster admin. `04` §3's table says
- * `cortex_writer` — "`SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, nothing else" —
- * and the deviation is recorded in `docs/SPEC-DELTA.md`.
+ * precisely why `src/db/pool.ts` was able to claim for months that the write plane is
+ * `cortex_writer` while it read `CORTEX_DSN`, which connects as `julian`, a cluster admin.
  *
- * **This pins the interim truth on purpose, the way the `cortex_demo` half of this file used
- * to.** That half asserted "no privilege at all" and said in as many words that it was written
- * to fail loudly once `04` §3's `[OPEN]` was decided — which is exactly what happened (V24).
- * Same contract here: assert what is, not what the spec wishes, so that moving the plane to
- * `cortex_writer` turns this red and forces the record to move with it. A test asserting the
- * spec's value would simply be red today and teach everyone to ignore it.
+ * **`04` §3's claim is now true, and measured rather than restored on trust (V48).** The plane
+ * reads `CORTEX_WRITER_DSN`; that credential was proved to *log in* — which V9 never did, having
+ * reached the role with `SET ROLE` from an already-authenticated admin session — and proved to
+ * be refused `DROP`, `ALTER` and `CREATE INDEX` with 42501 apiece, which is §3's "nothing else"
+ * invoked rather than quoted.
  *
- * **The blast radius is measured (V47) and the change is small**, so this is a decision rather
- * than a defect: 35 candidate breakages, 14 surviving refutation, all of them administrative
- * (`sql/001_init.sql` and `scripts/changefeed.mts`). Nothing in `src/`, nothing in `test/` and
- * nothing deployed depends on the extra privilege. What blocks it is that no
- * `CORTEX_WRITER_DSN` exists and that role has never been logged into — V9 exercised it with
- * `SET ROLE` from an admin session, which proves the grants and nothing about the login path.
+ * The assertions below are the guard the absence of which caused all of it. `04` §3's threat is
+ * a prompt-injected agent, and invariant 7 already blocks that path — so what this actually
+ * buys is that the architecture's own table stops being false, and stays that way.
  */
-const WRITE_PLANE_PRINCIPAL = 'julian';
+const WRITE_PLANE_PRINCIPAL = 'cortex_writer';
 
-describe('the write plane is not the principal `04` §3 names', () => {
-  it(`connects as ${WRITE_PLANE_PRINCIPAL}, the recorded deviation from §3`, async () => {
+describe(`the write plane is ${WRITE_PLANE_PRINCIPAL} (\`04\` §3)`, () => {
+  it('connects as cortex_writer and not as someone else', async () => {
     expect(
-      await currentUser(dsn('CORTEX_DSN')),
-      'the write plane changed principal. If this is the move to cortex_writer, update this ' +
-        'pin, docs/SPEC-DELTA.md and the comment in src/db/pool.ts together — the point of ' +
-        'this assertion is that the three cannot drift apart again.',
+      await currentUser(dsn('CORTEX_WRITER_DSN')),
+      'the write plane changed principal. It read CORTEX_DSN (an admin) until 2026-08-13 and ' +
+        'nothing noticed for months, which is why this assertion exists.',
     ).toBe(WRITE_PLANE_PRINCIPAL);
   });
 
   /**
-   * The two confusions that would be catastrophic rather than merely over-privileged, and
-   * they are asserted separately because the equality above would pass if someone repointed
-   * every variable at one credential.
+   * The two confusions that would be catastrophic rather than merely wrong, asserted
+   * separately because the equality above would still pass if every variable were repointed
+   * at one credential.
    */
   it('is neither the reader nor the demo principal', async () => {
-    const who = await currentUser(dsn('CORTEX_DSN'));
+    const who = await currentUser(dsn('CORTEX_WRITER_DSN'));
     expect(who).not.toBe('cortex_reader');
     expect(who).not.toBe('cortex_demo');
+  });
+
+  /**
+   * §3 says "on the six tables, nothing else". That sentence was quoted for months and
+   * invoked once, by V9, against a role nothing was actually using. Now it guards the role
+   * the application really runs as.
+   */
+  it.each([
+    'DROP TABLE findings',
+    'ALTER TABLE findings ADD COLUMN probe_col INT8',
+    'CREATE INDEX probe_idx ON findings (repo_id)',
+  ])('cannot %s', async (sql) => {
+    const result = await attempt(dsn('CORTEX_WRITER_DSN'), sql, true);
+    expect(result.allowed, `${sql} was ALLOWED`).toBe(false);
+    expect(result.code).toBe(INSUFFICIENT_PRIVILEGE);
+  });
+
+  it('can still do the four verbs the six tables need', async () => {
+    for (const table of TABLES) {
+      const read = await attempt(dsn('CORTEX_WRITER_DSN'), `SELECT count(*) FROM ${table}`, false);
+      expect(read.allowed, `cannot SELECT ${table}`).toBe(true);
+    }
+    const write = await attempt(
+      dsn('CORTEX_WRITER_DSN'),
+      "INSERT INTO repos (slug) VALUES ('writer-plane-probe/should-not-persist')",
+      true,
+    );
+    expect(write.allowed, 'the write plane cannot write').toBe(true);
   });
 });
 
