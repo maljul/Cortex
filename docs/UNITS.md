@@ -893,6 +893,31 @@ claimed it is a false accusation that passes every null check.
 **Still to build: the panel that renders these rows** (U21/U25). The guard exists and is waiting
 for it; the requirement can no longer be lost by nobody implementing it.
 
+**And the interlock map narrows what this covers to one interlock of five — read this before
+building the panel.** `attributeFeatures` marks a loss as `inCortex && !inNaive`, i.e. the patch
+text present in one tree and absent from the other. The 2026-08-13 interlock decision makes the
+naive lane **worktree isolation with clean merges**, so for four of the five interlocks *every
+patch is present in both trees* and this module correctly reports **nothing**:
+
+| # | Interlock | Naive symptom | Covered here |
+| --- | --- | --- | --- |
+| 3 | C1·C2·C3, one file | one feature silently missing | **yes** — a loss, fully attributed |
+| 1 | I3 → R3, money representation | shipping line 100x off | no — both patches present |
+| 2 | P2 → C3, stale cache | guard present, oversell happens | no — both patches present |
+| 4 | P6a ‖ P6b, duplicated work | banner renders **twice** | no — a surplus, not an absence |
+| 5 | A1 → T11, abandonment recall | an agent burns the same dead end | no — no file difference at all |
+
+This is not a defect in the module; it is the module's scope, and interlock 3 is the case it was
+built and mutation-tested against. What it means is that **A7's "attributable on screen" needs a
+second axis** the design decision implies and no code yet has: not *"which feature is missing"*
+but *"which two correct changes compose into a wrong behaviour, and who made each"*. Interlock 2
+is the one Julian named as the keeper and it is the one this is blindest to — nothing missing,
+nothing conflicting, composed result wrong.
+
+**Whoever builds the panel must not present this module's output as complete attribution.** A
+page showing zero unattributed losses across a run whose whole point is four clean-merge
+interlocks would be truthfully reporting the wrong question.
+
 **Fallback if the corpus is not ready:** the existing TypeScript fixtures still work and the
 demo shows diffs instead of running apps. Nothing built is lost.
 

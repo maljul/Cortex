@@ -176,6 +176,12 @@ What does not belong in a unit list, and so lives here:
   arm** — `{ taskId, agent, intentId, reported }` — and `reported` must distinguish `done`,
   because attributing a loss to a deduped agent is a false accusation that passes every null
   check. **The panel that renders these rows is not built**; the guard is waiting for U21/U25.
+  **Scope, after the same-day interlock decision: this covers interlock 3 of five.** The naive
+  lane is now worktree isolation with clean merges, so four of the five interlocks leave every
+  patch present in both trees and `inCortex && !inNaive` is correctly false for all of them.
+  Attribution for those needs a second axis — *which two correct changes compose wrongly* — and
+  no code has it. Do not present this module's output as complete attribution; details and the
+  table are in `docs/UNITS.md` under U21.
 - **The demo API refuses a credential on the query string as well as in the body (V45,
   2026-08-13).** `handleDemoRequest` scanned `request.body` alone while `infra/lambda/demo.ts`
   parses every query parameter and passes it in, so a credential-shaped query parameter was
