@@ -136,6 +136,82 @@ async function main(): Promise<void> {
     console.log(`confidence ${String(finding['confidence'])}  corroborations ${String(finding['corroborations'])}`);
   }
 
+  /**
+   * THE ABANDONED HALF, AND IT EXISTS BECAUSE DEPLOYING V39 PROVED NOTHING WITHOUT IT.
+   *
+   * `03` §4.4 said consolidation fires on rows transitioning to `done`, and V39 widened
+   * `CONSOLIDATES` to `done` **and** `abandoned` — the fleet's most expensive knowledge was
+   * being written down and reached by nobody. That change went to `ChangefeedFn` on
+   * 2026-08-13, and everything above would have passed identically before and after it,
+   * because everything above closes as `done`. `CLAUDE.md` said so in as many words: the gate
+   * "would still pass today because it exercises a `done` intent, so it is not evidence either
+   * way". A deploy nobody can distinguish from the absence of a deploy is not a verified one.
+   *
+   * So: abandon an intent and require the finding to come back over the same socket.
+   */
+  const ABANDON_NOTES = `the provider has no sandbox for refunds — gate ${new Date().toISOString()}`;
+  const ABANDON_STATEMENT = 'add refund support to the payments provider';
+
+  const abandoned = await propose({
+    repoId: session.sessionId,
+    agentId: 'gate-agent-2',
+    statement: ABANDON_STATEMENT,
+    // A different file, so this is not contending with the claim above and a `blocked`
+    // result cannot be mistaken for the mechanism failing.
+    resourceKeys: ['file:src/payments/provider.ts'],
+    // Far from the first intent's vector: dedupe must not fire, or nothing is abandoned and
+    // the check below would pass on an empty premise.
+    embedding: unitVector(9137),
+    plane: 'demo',
+    demoSession: session.sessionId,
+  });
+  check('5. second intent granted', abandoned.decision === 'granted', abandoned.decision);
+
+  if (abandoned.decision === 'granted') {
+    await close({
+      repoId: session.sessionId,
+      intentId: abandoned.intentId,
+      result: 'abandoned',
+      idempotencyKey: `gate-consolidate-abandon-${abandoned.intentId}`,
+      notes: ABANDON_NOTES,
+      plane: 'demo',
+      demoSession: session.sessionId,
+    });
+    check('6. intent closed as abandoned', true, abandoned.intentId);
+
+    const abandonStart = Date.now();
+    let abandonFinding: Record<string, unknown> | undefined;
+    while (Date.now() - abandonStart < ARRIVAL_TIMEOUT_MS) {
+      abandonFinding =
+        seen.find((m) => m.topic === 'findings' && m.after?.['fact'] === ABANDON_NOTES)?.after ??
+        undefined;
+      if (abandonFinding) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    // The one that would have been false before the deploy. On the old filter the sink
+    // returns null for an abandoned row, no finding is ever written, and nothing arrives.
+    check(
+      '7. an ABANDONED intent also consolidated (V39, live)',
+      abandonFinding !== undefined,
+      abandonFinding ? `${Date.now() - abandonStart}ms` : `nothing in ${ARRIVAL_TIMEOUT_MS}ms`,
+    );
+
+    if (abandonFinding) {
+      check(
+        '8. it names the abandoned intent',
+        abandonFinding['source_intent_id'] === abandoned.intentId,
+        String(abandonFinding['source_intent_id']),
+      );
+      // What is stored is the obstacle; what it is *found by* is the work. V39 measured the
+      // gap at 0.6725-0.7246 against 0.4698-0.4899 — embed the reason and the memory is
+      // unreachable by the task it exists to warn. This asserts the stored half; the
+      // embedded half is `test/consolidate.test.ts`'s, which can see the vector.
+      console.log(`\nabandoned fact: ${String(abandonFinding['fact'])}`);
+      console.log(`  retrieval key would be: ${ABANDON_STATEMENT} — abandoned`);
+    }
+  }
+
   socket.close();
 
   const admin = new Client({
