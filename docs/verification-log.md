@@ -5376,3 +5376,36 @@ on disk and untouched, so `08` §4's passed gate is unaffected. The 975 orphan f
 sitting in `findings_semantic`, which V5 showed is scanned rather than prefix-isolated.
 
 The sweep should have been asked about before it ran, not after.
+
+### U23's verify-first, measured while U22 was still warm
+
+`06` §3's `conflicting_edits` is the one metric the demo has never been able to produce, and U23's
+entry says to establish that it is computable before building on it. It is:
+
+```
+anchored 13/13 patch hunks against the committed corpus
+
+  OVERLAP wave 1  P2a(agent-2) 14-16 × P2b(agent-3) 14-16  in inventory/repository.js
+
+same-file same-wave different-agent line overlaps: 1
+same-file same-wave different-agent pairs (any lines): 4
+  P2a×P2b inventory/repository.js
+  C1×C2 orders/repository.js
+  C1×C3 orders/repository.js
+  C2×C3 orders/repository.js
+```
+
+Every hunk anchors, so a line range is real rather than invented, and `bench/metrics.ts` already
+owns the rule — different agents, overlapping time windows, overlapping line ranges, same file,
+over work that landed.
+
+**The number it produces is 1, and it comes from the dedupe pair.** Interlock 3 — three features in
+one file, the beat the naive lane most visibly fails — scores **0**, because C1, C2 and C3 edit
+disjoint regions. The naive lane still loses two of the three, but it loses them to
+`demo_shared_state`'s whole-cell last-write-wins, which is **file-granular where `06` §3's metric is
+line-granular**. The two measure different things and both are correct.
+
+Left as a decision in `docs/UNITS.md` under U23 rather than settled by implementing one reading:
+a meter rendering `conflicting_edits: 0` beside a pane that is visibly missing two of three
+features would understate the arm by its own headline number, and `07` §1 makes every rendered
+figure a claim.

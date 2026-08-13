@@ -1152,6 +1152,35 @@ status-filter change from V39, and each proved on the deployed stack: the same `
 **Verify live first:** that `conflicting_edits` is genuinely computable — it needs real line
 ranges from real patches, and it is the one `06` §3 metric the demo has never been able to
 produce.
+
+**DONE, 2026-08-13 (V51's tail), and it answers yes with a decision attached.** All **13** patch
+hunks anchor against the committed corpus, so a line range per hunk is real and derivable — the
+`find` anchor's offset in the file the agent read, converted to lines. `bench/metrics.ts` already
+owns the rule and it should not be rewritten: two **different** agents, work windows **overlapping
+in time**, **overlapping line ranges** in the **same file**, counted over work that landed.
+
+**What the measurement found, and it is the thing to decide before building:**
+
+| same wave, same file, different agents | line ranges |
+| --- | --- |
+| `P2a × P2b` — `inventory/repository.js` | **overlap**, 14-16 × 14-16 |
+| `C1 × C2` — `orders/repository.js` | disjoint |
+| `C1 × C3` — `orders/repository.js` | disjoint |
+| `C2 × C3` — `orders/repository.js` | disjoint |
+
+So under `06` §3's rule the run scores **1**, and it comes from the dedupe pair — the two agents
+doing *the same work*, which is the one case where overlapping lines are expected. **Interlock 3,
+the whole "three features, one file" beat, scores 0**: C1, C2 and C3 edit different regions, and
+the naive lane loses two of the three anyway, because its loss mechanism is `demo_shared_state`'s
+whole-cell last-write-wins — **file-granular, not line-granular**.
+
+That is not a defect in either the metric or the interlock; they measure different things. But a
+meter that renders `conflicting_edits: 0` beside a naive pane visibly missing two of three features
+would understate the arm by its own headline number, and `07` §1 makes every rendered figure a
+claim. **Three ways out and this is Julian's call, not the unit's:** report §3's rule as-is and say
+on the page what it does and does not catch; add a second, named figure for file-level collisions
+(what this demo's lane actually loses to); or count the ledger's own overwrite events, which are
+already measured. Do not pick one by implementing it.
 **Silent break:** U16b's fabrication returning somewhere new. `meter.duplicateWorkDone += 1`
 and `meter.lostWrites += 1` were once unconditional and rendered in the same table and style
 as figures the driver had timed. Design §6 is explicit that the guard —
