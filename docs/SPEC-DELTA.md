@@ -853,3 +853,90 @@ nothing: every `writer_all` policy is `USING (true) WITH CHECK (true)`, so `cort
 reaches exactly the same rows, and invariant 7 already forbids an agent-reachable path from
 accepting SQL or a table name (`test/mcp.test.ts:255`). What it buys is that the architecture's
 published table stops being false, and a test now holds it that way.
+
+---
+
+## `06` §2 — the demo's naive lane and the benchmark's naive arm are not the same arm
+
+**Created by design §4.2, extended by U21 (2026-08-13).** Design §4.2 already flagged that the
+hosted demo's naive lane diverges from `06` §2's NAIVE definition and required the deviation to be
+published. This is that entry, with what U21 actually built.
+
+`06` §2 defines NAIVE as: shared state a JSON file with last-write-wins, semantic memory a
+separate local vector store, **arbitration none, dedupe none, consolidation none**. The demo's lane
+is deliberately *stronger* than that on two axes and differently shaped on a third:
+
+| | `06` §2 NAIVE | the demo's naive lane |
+| --- | --- | --- |
+| dedupe | none | **real** — the same statement as `propose()`, in its own transaction |
+| arbitration | none | **a real all-or-nothing lease**, on the ticket rather than the files |
+| shared state | JSON file, last-write-wins | a JSONB cell, last-write-wins **per file** |
+| semantic memory | a local vector store it recalls from | the `intents` it dedupes against; **no recall step** |
+| consolidation | none | its intents close, so findings *are* written — and never read |
+
+**Why it is stronger.** `01` §3 names the stack people actually run as "a vector store plus a lock
+service", and `06` §2 requires the arm to be fair rather than a strawman. A demo lane with neither
+would be the weaker proof and the first thing a database-company judge would push on.
+
+**Why the lock is on the ticket.** Julian's call, 2026-08-13, reasoning in `docs/DECISIONS.md`: a
+lock service in that stack locks jobs, not files, and that is precisely what cannot see two
+different tickets colliding in one file.
+
+**Why its findings go unread.** The changefeed sink consolidates any closed intent in any live demo
+scope, and the naive lane closes its intents (V50 explains what happened when it did not). So the
+rows exist. No step in that lane reads them, which is the actual difference the project is about.
+
+**The consequence that must not be lost:** the demo's numbers and the benchmark's committed numbers
+are **not directly comparable**, and the page must say so wherever both appear. The benchmark
+harness and `bench/results/` are untouched — re-running the benchmark to match would invalidate the
+`08` §4 gate four days before ship.
+
+---
+
+## `07` §2 — the memory panel's contrast is weaker than the section assumes
+
+**2026-08-13, U21.** §2 describes the centre panel as `03` §2's four tiers populating, with the
+naive toggle showing them empty — "same scenario, visibly different outcome". Since the naive lane
+closes its intents (above), **both** scopes now have rows in all four tiers, so an empty-versus-full
+panel is no longer the contrast.
+
+Nothing about the result changed; what changed is where it is legible. The naive lane still
+duplicates work, still loses writes and still burns a dead end twice — and the place that shows is
+the **journey**, where its agents visibly never ask what is known, and the **attribution table**,
+which names the agent that reported a missing feature done. Recorded here rather than fixed in the
+panel, because the panel is U25's and design decision 13 makes it the cut line.
+
+---
+
+## `03` §4.4 — a fact is reachable only if it names the work, not the change
+
+**2026-08-13, V49.** §4.4 says consolidation embeds a closed intent's outcome so a later agent can
+recall it, and treats reachability as a property of the mechanism. It is not: it is a property of
+the sentence. Measured twice, on two unrelated pairs:
+
+- V39, abandonment: a note naming the **obstacle** sits 0.6725–0.7246 from the task it exists to
+  warn; the bare restatement naming the **work** sits 0.4698–0.4899 and is retrieved by all of them.
+- V49, the stale-cache interlock: the fallback naming the **change** sits **0.8459** from the task
+  the change endangers; three ordinary phrasings measure 0.8459, 0.7183 and 0.6544; a note naming
+  the **affected work** sits **0.3633**. Recall reaches 0.60.
+
+So an outcome written down in the obvious way is, quite often, memory nobody can find. `03` §4.4
+does not say this and a reader of §4.4 alone would not expect it. `npm run measure:statements` now
+carries an `INTERLOCK REACHABILITY` section that measures it rather than assuming it.
+
+---
+
+## `07` §4 — the mode line keeps its current wording; the runner makes no model call
+
+**2026-08-13, U21.** Design §3 says each agent's decision step is a model call whose prompt shape
+differs from the benchmark's, and that the cassette library must be re-recorded for it. **It is not
+built**, and the deviation is deliberate rather than deferred by omission.
+
+What replaced it is stronger for the one decision that matters — which variant of a patch an
+informed agent applies. That choice is made by comparing what `recall()` returned against what
+consolidation actually wrote, exactly (`factOf`). No cached model output sits in the causal path:
+if the changefeed has not delivered, the agent is uninformed and the page says so.
+
+The consequence is that `07` §4's mode line keeps the honest wording `src/memory/demo.ts` already
+ships — live database, live embeddings, **no** model reasoning — rather than gaining "reasoning is
+cached". Re-recording cassettes is not required for U21 and is U24's if LIVE reasoning lands.

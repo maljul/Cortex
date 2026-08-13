@@ -25,12 +25,13 @@
     "gate:stream": "tsx scripts/gate-stream.mts",
     "gate:consolidate": "tsx scripts/gate-consolidate.mts",
     "gate:degrade": "tsx scripts/gate-degrade.mts",
+    "gate:workload": "tsx scripts/gate-workload.mts",
     "measure:statements": "tsx scripts/measure-statements.mts",
     "sweep:recall": "tsx scripts/sweep-recall.mts"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

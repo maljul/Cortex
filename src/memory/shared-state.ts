@@ -56,9 +56,60 @@ export const SHARED_STATE_SELECT_SQL = `
    WHERE id = $1
 `;
 
+/**
+ * Writes the `completed` map, whole, and leaves the working tree alone.
+ *
+ * **The `jsonb_build_object` is not a softening of last-write-wins.** The whole `completed` map
+ * is still replaced by whatever snapshot the caller is holding, so an entry another agent added
+ * meanwhile is still reverted — that is the mechanism and it is unchanged. What the merge
+ * protects is the *other* key in this cell: since U21 the same column also holds the file tree
+ * (`SHARED_FILES_MERGE_SQL`), and a plain `SET demo_shared_state = $2` erased all fourteen files
+ * the moment any agent recorded its completion. Found by running it, not by reading it.
+ */
 export const SHARED_STATE_UPDATE_SQL = `
   UPDATE repos
-     SET demo_shared_state = $2
+     SET demo_shared_state = COALESCE(demo_shared_state, '{}'::JSONB)
+           || jsonb_build_object('completed', $2::JSONB)
+   WHERE id = $1
+`;
+
+/**
+ * THE WORKING TREE BOTH LANES EDIT — added for U21, and deliberately the *same* storage for
+ * both arms.
+ *
+ * Since 2026-08-13 the agents build a small orders dashboard rather than patching library
+ * files, so "what did this fleet produce" is a tree of files. Both lanes keep that tree in the
+ * same JSONB cell, read it the same way and write it back the same way. **The storage must not
+ * be the difference between the arms** — if the cortex lane got a nicer place to put its files,
+ * every result would be about that instead of about coordination. What differs is only whether
+ * anything stops two agents holding the same file at once.
+ *
+ * **Write-back is per file, and that is the decision worth stating.** An agent saves the files
+ * it edited, not the whole tree it happened to read, so two agents on different files both
+ * survive — a clean merge, exactly as an isolated workspace would give — and only a shared file
+ * loses. Design §8 describes precisely that outcome ("its final tree is missing changes agents
+ * reported as done — and the changes that do survive contradict each other as well"), and it is
+ * what makes four of design §3.1's five interlocks cross-module compositions rather than
+ * absences.
+ *
+ * Be exact about what this is **stricter** than: `git merge` of three disjoint hunks in one file
+ * is clean and would keep all three. So the lost write here is a whole-file save result, not a
+ * three-way-merge result, and the page must claim the former. The other four interlocks survive
+ * any merge strategy at all, which is why they are the ones that carry the argument.
+ */
+export const SHARED_FILES_MERGE_SQL = `
+  UPDATE repos
+     SET demo_shared_state = COALESCE(demo_shared_state, '{}'::JSONB)
+           || jsonb_build_object(
+                'files',
+                COALESCE(demo_shared_state->'files', '{}'::JSONB) || $2::JSONB
+              )
+   WHERE id = $1
+`;
+
+export const SHARED_FILES_SELECT_SQL = `
+  SELECT demo_shared_state->'files' AS files
+    FROM repos
    WHERE id = $1
 `;
 
@@ -93,7 +144,10 @@ export async function loadSharedState(
       SHARED_STATE_SELECT_SQL,
       [repoId],
     );
-    return rows[0]?.demo_shared_state ?? { completed: {} };
+    // `completed` is defaulted separately from the cell, because the cell can now exist while
+    // holding only the file tree — a scope whose agents have saved files and recorded nothing.
+    const cell = rows[0]?.demo_shared_state;
+    return { completed: cell?.completed ?? {} };
   }, retryOptions(options));
 }
 
@@ -115,7 +169,42 @@ export async function saveSharedState(
   options: SharedStateOptions = {},
 ): Promise<number> {
   return withRetry(async (client) => {
-    const result = await client.query(SHARED_STATE_UPDATE_SQL, [repoId, JSON.stringify(state)]);
+    const result = await client.query(SHARED_STATE_UPDATE_SQL, [
+      repoId,
+      JSON.stringify(state.completed),
+    ]);
+    return result.rowCount ?? 0;
+  }, retryOptions(options));
+}
+
+/** The tree as it stands now. See `SHARED_FILES_MERGE_SQL`. */
+export async function loadFiles(
+  repoId: string,
+  options: SharedStateOptions = {},
+): Promise<Record<string, string>> {
+  return withRetry(async (client) => {
+    const { rows } = await client.query<{ files: Record<string, string> | null }>(
+      SHARED_FILES_SELECT_SQL,
+      [repoId],
+    );
+    return rows[0]?.files ?? {};
+  }, retryOptions(options));
+}
+
+/**
+ * Saves the files this agent edited, merging them over whatever is there.
+ *
+ * Returns the number of rows changed, so a caller can tell an acknowledged save from one the
+ * policy refused — a zero means the scope was not live, which is a real outcome the demo
+ * reports rather than assumes away.
+ */
+export async function saveFiles(
+  repoId: string,
+  files: Record<string, string>,
+  options: SharedStateOptions = {},
+): Promise<number> {
+  return withRetry(async (client) => {
+    const result = await client.query(SHARED_FILES_MERGE_SQL, [repoId, JSON.stringify(files)]);
     return result.rowCount ?? 0;
   }, retryOptions(options));
 }

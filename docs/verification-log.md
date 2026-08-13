@@ -4989,3 +4989,161 @@ the closest eight.
 **Re-run this after any rewording.** The `INTERLOCK REACHABILITY` section is not a one-off: it
 is the check that a decision can still cross the boundary it was designed to cross, and a
 reworded closure note is exactly as dangerous as a reworded statement.
+
+---
+
+## V50 — U21's gate: eleven tickets, two arms, four beats, and two silent breaks the run found
+
+**2026-08-13.** `npm run gate:workload` (new) is U21's done-when made executable: "ten tasks run
+to completion in both arms against the real cluster, all four beats observed." It creates two
+demo scopes, runs the whole cut through both lanes, prints the journey, the meters, the
+attribution and the row budgets, and then decides sixteen checks.
+
+```
+GATE
+  PASS  every ticket reached a terminal outcome in CORTEX  — 11/11
+  PASS  every ticket reached a terminal outcome in NAIVE  — 11/11
+  PASS  beat 1 — recall returned a finding
+  PASS  beat 2 — a proposal was deduped
+  PASS  beat 3 — two agents wanted one file  — 2 blocked and told the holder
+  PASS  beat 4 — a finding this run produced came back on recall
+  PASS  the naive lane lost work the cortex lane kept  — 2 hunks
+  PASS  every loss is attributable
+  PASS  the naive lane did duplicate work the cortex lane avoided  — 1 vs 0
+  PASS  an agent was spared by what the fleet already knew
+  PASS  the naive lane walked a dead end the cortex lane did not  — 2 vs 1
+  PASS  both scopes stayed inside the row cap
+  PASS  both apps assemble
+  PASS  interlock 1 — naive priced shipping in pounds, cortex in minor units
+  PASS  interlock 2 — cortex read the record, naive read the cache  — naive used the cache
+  PASS  interlock 4 — naive implemented the confirmation twice
+  PASS  interlock 5 — the spared agent is named, with what spared it
+
+PASS — all checks
+Bedrock embedding calls: 11, cache hits: 17
+```
+
+```
+METER
+  metric                    CORTEX     NAIVE
+  duplicate work avoided    2          1
+  duplicate work done       0          1
+  writes lost               0          2
+  blocked and re-planned    2          0
+  findings recalled         4          0
+  agents spared             1          0
+  dead ends walked          1          2
+  live embedding calls      17         11
+  claim p50 (ms)            153        154
+  serialization retries     33         1
+  wasted tokens             TBD        TBD
+
+  wall clock: cortex 42033ms, naive 19235ms
+
+ATTRIBUTION
+  lost  C1   orders/repository.js     reported done by agent-1 (intent de027291)
+  lost  C2   orders/repository.js     reported done by agent-2 (intent b0aff31e)
+  extra P6a  notify/email.js — naive did work cortex did not
+
+ROW BUDGET (per scope, cap 200)
+  cortex  24 used, 176 left
+  naive   29 used, 171 left
+
+TRANSACTIONS  cortex 91, naive 71  (statements: 474 / 336)
+```
+
+**This is the fourth run and the numbers above are the fourth run's.** The three before it are not
+kept beside it — one published table, as `08` §4's results directory is — but each found something
+and each finding is below. Suite **397/397 across 32 files in 588.97s**, dead centre of the healthy
+band (589/608/633 on three rested runs, V43).
+
+**`writes lost` read 2 for *both* arms on the first two runs, and that was a defect in the
+number rather than in the run.** The readback compared the tree against each task's **uninformed**
+patch text — so an agent that correctly applied an *informed* variant, having been handed another
+agent's decision by recall, was counted as having lost its write. The cortex lane read `writes lost
+2` having lost nothing. The variant an agent applied is now carried through to the readback
+(`appliedPatches`, used by both the write and the check, so the two cannot diverge), and the row
+reads **0 against 2** — which is the contrast the demo is about.
+
+A number wrong in the arm's own favour would have been worse. This one was wrong *against* it and
+it was still wrong, and no test caught it: the meter guard forbids literals and increments, and
+this was neither.
+
+**Row budgets settle design §12 item 3.** A full eleven-ticket run costs **24 rows** in the
+cortex scope and **32** in the naive one against `DEMO_SESSION_ROW_CAP = 200`. The naive scope
+costs more because its lane writes an intent for every ticket including the ones the cortex lane
+deduplicates before a row exists. There is roughly eight times the headroom needed; the cap does
+not move.
+
+### Two silent breaks, both found by running it and neither by any test that existed
+
+**One. Sequencing a dedupe pair lets the *naive* lane deduplicate it too.** The first run put the
+"a" and "b" halves of each pair in consecutive waves, on U16b's settled precedent that dedupe is a
+temporal relationship and racing it deletes the beat. The result:
+
+```
+  duplicate work avoided    2          3
+  duplicate work done       0          0
+  FAIL  interlock 4 — naive implemented the confirmation twice
+```
+
+The naive lane deduplicated **more** than the cortex lane. Its dedupe search is the same statement
+against the same rows, and against an intent that committed a second ago it works perfectly well —
+so P6b came back deduped at 0.0610 and P2b at 0.2058. U16b's precedent does not transfer, because
+U16b's naive arm had no dedupe at all and sequencing therefore cost it nothing. Design §4.2 says
+exactly where the two-transaction split fails: "the dedupe passes against a snapshot that was true
+a moment ago", and that window only exists under **concurrency**. The pairs now race.
+
+**Two. An intent that never closes stays a dedupe candidate for ever.** The naive lane was built
+not to `close()`, so that nothing of its would consolidate — `06` §2 gives that arm "Consolidation:
+none". The consequence was invisible in code and obvious in the run: A1's intent stayed
+`in_flight`, `findDuplicate`'s candidate set is `status IN ('in_flight','done')`, and the eleventh
+ticket was **deduplicated against a task that had been given up on**, at 0.3686. Its agent stood
+down believing somebody was working on it. Interlock 5 was gone, and V38 had cleared T11 for dedupe
+safety relying on precisely the exclusion that never applied.
+
+So the naive lane closes its intents like anything else, and the findings the changefeed then
+writes into its scope are simply never read by it. That is a **sharper** claim than withholding the
+tier: the rows are in the same database, one query away, and the entire difference in outcome is
+whether arbitration and recall are in the agent's path. Reasoning in `docs/DECISIONS.md`; the panel
+consequence is U25's.
+
+### What the run proves that no unit test can
+
+Both silent breaks passed every test in the repository at the time, and both deleted an interlock
+while leaving every row valid. Design §12 item 8 predicted the class exactly — "an interlock that
+merges cleanly and then works anyway is a dead beat, and only running it can tell you which" — and
+it was right about the mechanism and wrong about the direction: neither interlock died because the
+merge was clean. They died because the *naive lane did better than expected*.
+
+Both are now assertions about `ASSIGNMENT` in `test/workload.test.ts`, so neither can come back
+quietly: a dedupe pair split across waves fails, and an informing task that does not close before
+the task it informs fails.
+
+### Two more the later runs found, and one of them was a crash
+
+**Three. The stale anchor is a real outcome, not an exception.** The fourth run threw:
+`PatchError: anchor not found in inventory/repository.js`. Both halves of the P2 pair patch that
+file, and in the naive lane the second one read the tree *after* the first had saved — so its
+anchor was gone. **A thrown error behind the run button is what `04` §5 invariant 1 forbids**, and
+this path is reachable on any run where the pair's halves finish far enough apart.
+
+It is also the sharpest thing the naive lane does. The agent read, worked, and discovered at write
+time that the change was already there: everything spent, nothing delivered. It is now reported as
+`contended` with that sentence, counted as work done because it was, and the intent is closed. The
+cortex lane cannot reach it — its second agent is deduped before it reads anything — and the runner
+asserts that rather than assuming it, because "cannot happen" in a comment is how it happens.
+
+**Four. Beat 3 has two honest endings and the run picks one.** The third run reported no block at
+all: `blocked and re-planned 0`, `serialization retries 15`. Nothing was wrong. Three agents
+propose for one file; a loser whose transaction *commits* finds the key held and is told who holds
+it, which is invariant 3 and the evidence the demo wants — while a loser whose transaction
+*conflicts* takes a 40001, `withRetry` backs it off, and by the time it returns the holder has
+closed and released, so it is granted with no block ever recorded. Which one happens depends on
+whether CockroachDB aborts before or after the claim insert.
+
+So the beat is "they contended", satisfied either way, and the stronger claim is **reported rather
+than asserted**: the gate prints `2 blocked and told the holder` when that is what happened and
+`no block: the losers hit N SERIALIZABLE retries and were granted after the holder released` when
+it is not. A page that needed a named holder every time would be depicting a determinism the
+system does not have — design §9's motion rule 3, arriving as a gate design question.

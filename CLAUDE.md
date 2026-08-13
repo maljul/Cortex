@@ -177,13 +177,50 @@ What does not belong in a unit list, and so lives here:
   or an intent id the run's own steps contain. **The runner owes it a `WorkStep` per task per
   arm** — `{ taskId, agent, intentId, reported }` — and `reported` must distinguish `done`,
   because attributing a loss to a deduped agent is a false accusation that passes every null
-  check. **The panel that renders these rows is not built**; the guard is waiting for U21/U25.
-  **Scope, after the same-day interlock decision: this covers interlock 3 of five.** The naive
-  lane is now worktree isolation with clean merges, so four of the five interlocks leave every
-  patch present in both trees and `inCortex && !inNaive` is correctly false for all of them.
+  check. **The runner supplies that since U21; the panel that renders the rows is U25's.**
+  **Scope: this covers interlock 3 of five.** Four of the five interlocks leave every patch
+  present in both trees — they are cross-module compositions, not absences — so
+  `inCortex && !inNaive` is correctly false for all of them.
   Attribution for those needs a second axis — *which two correct changes compose wrongly* — and
   no code has it. Do not present this module's output as complete attribution; details and the
   table are in `docs/UNITS.md` under U21.
+- **The workload runner is built and the demo is a real ten-task two-arm run (U21, V50,
+  2026-08-13).** `npm run gate:workload` is the proof: **17/17**, eleven tickets to completion in
+  both arms against the real cluster, all four beats *observed* rather than scripted, and four of
+  the five interlocks producing their defect. `src/demo/workload.ts` is the runner;
+  `src/memory/naive-lane.ts` is the conventional stack it is compared against;
+  `bench/demo-app/` is the corpus — **fourteen files across seven modules**, plain scripts in a
+  dependency load order with no imports, no network and **no input element**, so a tree assembles
+  into an `iframe` document and invariant 8 has nothing to argue about.
+  **The naive lane's lock locks the ticket, not the file** — Julian's call; a job lock is what
+  that stack takes and is exactly what cannot see two tickets colliding in one file. It runs the
+  **same** dedupe statement and the **same** claim statement as `propose()` (both now exported
+  from `src/memory/propose.ts`, one literal each) in **two** transactions where `propose()` uses
+  one. `test/naive-lane.test.ts` counts the `BEGIN`s and fails if they ever become one.
+  **Two silent breaks were found by running it and by nothing else**, both now assertions about
+  `ASSIGNMENT`: a *sequenced* dedupe pair is deduplicated by the naive lane too (its search works
+  fine against an intent that committed a second ago — U16b's "beat 2 is a sequence" precedent
+  does not transfer, because U16b's naive arm had no dedupe), and an intent that **never closes**
+  stays a dedupe candidate for ever, which had the naive lane dedupe the eleventh ticket at
+  0.3686 against a task that was *given up on*. The naive lane now closes; the findings the sink
+  writes into its scope are never read, because that stack has no step that consults an outcome.
+  **There is no `meter.field += 1` in the runner**: every figure is a filter over `steps`/`events`,
+  a subtraction over a readback, or a distance the cluster computed, and `test/workload.test.ts`
+  forbids an increment in any form — stricter than the rule it inherits.
+  **A full run costs 24 rows in the cortex scope and 32 in the naive one** against
+  `DEMO_SESSION_ROW_CAP = 200`, so the cap does not move.
+  **The runner makes no model call**, deliberately: which patch variant an informed agent applies
+  is decided by comparing what `recall()` returned against what consolidation wrote, exactly. So
+  `07` §4's mode line keeps its wording and cassettes are not re-recorded — `docs/SPEC-DELTA.md`.
+- **A fact is reachable only if it names the work, not the change (V49, and V39 found it first).**
+  Measured twice on unrelated pairs. An abandonment note naming the *obstacle* sits 0.6725–0.7246
+  from the task it warns; the restatement naming the *work* sits 0.4698. A closure note naming a
+  *change* ("a cache was added") sits **0.8459** from the task the change endangers; naming the
+  **affected work** sits **0.3633**. Recall reaches 0.60, so the obvious phrasing is memory nobody
+  can find. `npm run measure:statements` carries an `INTERLOCK REACHABILITY` section that measures
+  this and a `FACT SEPARATION` section — two of a run's facts closer than `CONSOLIDATION_DISTANCE`
+  collapse into one finding carrying two corroborations for two events. **Re-run it after
+  rewording a closure note, not just a statement.**
 - **The demo API refuses a credential on the query string as well as in the body (V45,
   2026-08-13).** `handleDemoRequest` scanned `request.body` alone while `infra/lambda/demo.ts`
   parses every query parameter and passes it in, so a credential-shaped query parameter was
@@ -261,8 +298,8 @@ What does not belong in a unit list, and so lives here:
   `USING (true) WITH CHECK (true)`, so the same rows are reachable either way, and invariant 7
   already blocks the agent-reachable path. It buys that the published table is true, and a test
   holds it there.
-  **Suite 338/338 across 29 files, 632.54s against the
-  real cluster (2026-08-13, V45)** — 170 after U15 (down from 174 because 13 blanket demo
+  **Suite 397/397 across 32 files, 588.97s against the
+  real cluster (2026-08-13, V50)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
@@ -419,6 +456,8 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
 `npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
+`npm run gate:workload` (U21's done-when; 17/17 — two scopes, both arms, four beats, ~60s of live
+cluster time, and it needs a **running changefeed** or beat 4 honestly reports nothing known) ·
 `npm run changefeed status|create|cancel` ·
 `bash scripts/gate-mechanical.sh --report` (`/check` row 4; also runs as the commit hook) ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +

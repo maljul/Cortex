@@ -802,14 +802,44 @@ security and `cortex_demo`'s confinement, the privilege planes, the published be
 its committed results directory, `bench/cassettes/` as the reproducibility claim, and
 invariant 8.
 
-### U21 — Workload runner: curated cut, five agents, fair naive lane, two scopes ⬜
+### U21 — Workload runner: curated cut, five agents, fair naive lane, two scopes ✅ 2026-08-13
 **Done when:** "ten tasks run to completion in both arms against the real cluster, all four
 beats observed." *(design §11, verbatim)*
 **Specs:** `06` §2, `06` §4, `03` §4.2 — plus design §3 and §4, which are the shape.
+
+**Closed by `npm run gate:workload`, 16/16, V50.** Eleven tickets, two scopes, both arms,
+all four beats observed rather than scripted — and four of the five interlocks produced their
+defect on the run. `src/demo/workload.ts` is the runner, `src/memory/naive-lane.ts` the
+conventional stack it is compared against, `bench/demo-app/` the fourteen-file corpus,
+`bench/demo-workload.ts` the cut with its patches. Tests: `test/workload.test.ts` (10),
+`test/naive-lane.test.ts` (5), `test/demo-workload.test.ts` (17), plus `test/patches.test.ts`
+and `test/app-bundle.test.ts` rewritten for the new corpus.
+
 **Verify live first:** (a) the Titan distance between **every pair** of statements in the
 curated cut — **DONE, V38**; (b) the row count of a ten-task cortex run against
-`DEMO_SESSION_ROW_CAP`, which is 200 and now applies per scope, so the ceiling is found
-deliberately rather than in front of a judge — **still to do, and it needs the runner.**
+`DEMO_SESSION_ROW_CAP` — **DONE, V50: 24 rows in the cortex scope and 32 in the naive one
+against a cap of 200.** Roughly eight times the headroom needed; the cap does not move. (c)
+**Added and it changed the design: whether recall can carry a decision across a module boundary
+at all — V49.** Interlock 1 reaches on the mechanism's own fallback (0.4323); interlock 2 did
+not reach in any ordinary phrasing (0.8459, 0.7183, 0.6544) and would have merged cleanly and
+silently not happened. The repair is V39's finding a second time — a note naming the work it
+endangers reaches at 0.3633 where a note naming the change does not. **No threshold moved.**
+
+**Two silent breaks the run found and no test could have** (V50), both now assertions about
+`ASSIGNMENT` in `test/workload.test.ts`:
+- **A sequenced dedupe pair is deduplicated by the naive lane too** — its search is the same
+  statement against the same rows and works fine against an intent that committed a second ago.
+  U16b's "beat 2 is a sequence" precedent does not transfer, because U16b's naive arm had no
+  dedupe. The window design §4.2 describes exists only under concurrency, so the pairs race.
+- **An intent that never closes stays a dedupe candidate for ever** — the naive lane was built
+  not to close, so A1 stayed `in_flight` and deduplicated the eleventh ticket at 0.3686 against
+  a task that had been *given up on*. It now closes, and the findings the sink writes into its
+  scope are simply never read. Reasoning in `docs/DECISIONS.md`.
+
+**Julian's call, 2026-08-13: the naive lane's lock locks the ticket, not the file.** Locking
+files and honouring them serialises the contended trio and deletes interlock 3; locking files
+and ignoring them reads as a strawman. A job lock is what that stack actually takes and is
+exactly what cannot see two tickets colliding in one file. `docs/SPEC-DELTA.md` carries it.
 
 **The cut is chosen and it is `P6a P6b P2a P2b C1 C2 C3 I3 R3 A1`** (V38, `npm run
 measure:statements`). Design §3's slices exactly. The measured numbers, which belong beside
@@ -829,11 +859,13 @@ the statements when they are written into code:
 a **small orders dashboard that renders in a browser**, and the demo shows **both final apps
 live in iframes** next to the journey and the meter. Reasoning in `docs/DECISIONS.md`.
 
-The corpus is new and demo-owned: **`bench/demo-app/`**, roughly **fourteen files across seven
-modules** (`lib`, `inventory`, `orders`, `shipping`, `notify`, `payments`, `web`) — deliberately
-layered, so "which file does this ticket touch" has a non-obvious answer and the interlocks
-above have room to cross a boundary. `bench/fixtures/` and `bench/tasks.json` are untouched, so
-`08` §4's passed gate is unaffected.
+The corpus is new and demo-owned: **`bench/demo-app/`** — **built, fourteen files across seven
+modules** (`lib`, `inventory`, `orders`, `shipping`, `notify`, `payments`, `web`), deliberately
+layered so "which file does this ticket touch" has a non-obvious answer and the interlocks above
+have room to cross a boundary. Plain scripts in a dependency load order, no imports and no
+network, so `assembleApp` can hand a whole tree to an `iframe` via `srcdoc`; and **no input
+element anywhere**, so there is no field on the demo surface for invariant 8 to be argued about.
+`bench/fixtures/` and `bench/tasks.json` are untouched, so `08` §4's passed gate is unaffected.
 
 **The domain stays orders, and that is not aesthetic.** V38 measured 253 pairwise Titan
 distances to pick these eleven tickets. Changing the domain voids every one of them. An orders
@@ -859,6 +891,22 @@ and nothing carries that across in the naive lane. **Interlock 2 is the sharpest
 are different tickets in different modules and *neither agent is wrong* — the cache is correct,
 the guard is correct, and together they oversell. Interlock 4 is the isolation proof in one
 line: two files, no conflict, clean merge, duplicated work.
+
+**Interlock 2 was a dead beat until V49 measured it, and the repair is the finding.** What P2's
+agent would naturally write down — a cache was added — sits **0.8459** from the task the cache
+endangers, and recall reaches 0.60; two further ordinary phrasings measured 0.7183 and 0.6544. A
+note naming **the work the change endangers** rather than the change reaches at **0.3633**, which
+is V39's abandonment finding arriving a second time from a different direction. That note is
+**authored**, so `07` §4's honesty rule extends to it exactly as it extends to the patches: the
+page must say the closure notes are authored, and must not claim consolidation *derived* the
+warning. Interlock 1 carries no such caveat — its finding is `03` §4.4's own fallback, 0.4323 from
+R3, with nothing written to make the beat fire.
+
+**Four of the five are verified by executing the composed app** (`test/demo-workload.test.ts`),
+which is design §12 item 8's requirement rather than a nicety: the naive lane renders a £3.37
+quote as £0.03, oversells with the guard present and stock at −1, keeps one of three behaviours in
+the shared file, and renders the confirmation banner twice, identically. Interlock 5 has no file
+difference at all and shows in the journey.
 
 **None of this touches a task statement.** V38's 253 measurements are what make the pairs fire;
 rewording any statement or moving the domain off orders voids all of them. What changed is the
@@ -890,8 +938,10 @@ incomplete: no agent, no intent id, or an intent id the run's own steps do not c
 `{ taskId, agent, intentId, reported }` — where `reported` distinguishes `done` from
 `deduped`/`blocked`/`abandoned`/`contended`, because attributing a loss to an agent that never
 claimed it is a false accusation that passes every null check.
-**Still to build: the panel that renders these rows** (U21/U25). The guard exists and is waiting
-for it; the requirement can no longer be lost by nobody implementing it.
+**Still to build: the panel that renders these rows — U25's, now that the runner exists.** The
+runner supplies what the guard needs (a `WorkStep` per ticket per arm) and `npm run gate:workload`
+prints the rows it would render, so the requirement can no longer be lost by nobody implementing
+it.
 
 **And the interlock map narrows what this covers to one interlock of five — read this before
 building the panel.** `attributeFeatures` marks a loss as `inCortex && !inNaive`, i.e. the patch
@@ -918,8 +968,8 @@ nothing conflicting, composed result wrong.
 page showing zero unattributed losses across a run whose whole point is four clean-merge
 interlocks would be truthfully reporting the wrong question.
 
-**Fallback if the corpus is not ready:** the existing TypeScript fixtures still work and the
-demo shows diffs instead of running apps. Nothing built is lost.
+**~~Fallback if the corpus is not ready~~ — not needed.** The corpus is built and both arms'
+final trees assemble into running apps (V50). Kept as the record of what the escape hatch was.
 
 **The patches are committed, not model-authored (Julian, 2026-08-13).** This is the
 unit's biggest change since it was written, and it came from the right question — the deployed
@@ -954,8 +1004,12 @@ which `findDuplicate` never reads, so it cannot dedupe anything at any distance 
 *statement* becomes an intent at status `done` and **is** a dedupe candidate. The first version
 of the measurement script applied the statement's rule to the fact and rejected two good
 candidates.
-**Note:** re-recording cassettes is required — "produce a patch" is a different prompt shape
-and the cassette key is a hash of the prompt, so the committed library will miss by design.
+**~~Note: re-recording cassettes is required~~ — not for this unit, and deliberately not.** The
+runner makes **no model call at all**. Which variant of a patch an informed agent applies is
+decided by comparing what `recall()` returned against what consolidation actually wrote, exactly —
+so no cached model output sits in the causal path, and an undelivered changefeed leaves the agent
+honestly uninformed. `07` §4's mode line therefore keeps its current wording rather than gaining
+"reasoning is cached". Recorded in `docs/SPEC-DELTA.md`; cassettes become U24's if LIVE lands.
 
 **An eleventh task is approved and must NOT go in `bench/tasks.json`** (Julian, 2026-08-12).
 Design §1 and `08` §4's passed gate freeze that file at 30 tasks with committed results, so the
@@ -971,6 +1025,14 @@ dedupe). Pick one, re-measure it in place, and put the number in the comment.
 **Done when:** "`POST /demo/run` returns inside the gateway ceiling and the whole run arrives
 over the socket." *(design §11, verbatim)*
 **Specs:** `05` §5, `04` §2, `04` §5
+**Carried in from U21 (2026-08-13):** the runner is built and takes one scope per arm, but
+**`POST /demo/session` still creates one scope, and deliberately.** Design §4.1 wants it to create
+two; changing the route's response shape breaks the page that is deployed and serving, and design
+decision 7 keeps that page serving until U26's cold read. So the two-scope creation moves here,
+with the route change, and `npm run gate:workload` creates both itself in the meantime.
+**Also carried in:** `runArm` already takes an `onEvent` callback that fires as each fleet event
+happens, so the streaming half needs no change to the runner — only a sink. The events carry no
+primary key, per design §5.3, and must stay labelled differently from changefeed rows.
 **Verify live first:** API Gateway HTTP's integration timeout (design §12 item 1 — "the async
 shape depends on it"), and the pool's max connections plus whether Basic tier tolerates ten
 concurrent sessions from one runner (§12 item 2). If it does not, the fleet runs in two waves

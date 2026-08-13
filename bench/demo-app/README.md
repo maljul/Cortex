@@ -65,7 +65,7 @@ tell you which."
 | --- | --- | --- | --- |
 | 1 | I3 → R3 money representation | shipping line renders `£0.03` for a `£3.37` quote | executed |
 | 2 | P2 → C3 stale cache defeats the guard | guard present, second order oversells, stock goes to −1 | executed |
-| 3 | C1 · C2 · C3 one file | one of the three behaviours silently missing | executed |
+| 3 | C1 · C2 · C3 one file | one of the three behaviours silently missing | text presence, `test/patches.test.ts` |
 | 4 | P6a ‖ P6b same work, two files | the confirmation banner renders twice, identically | executed |
 | 5 | A1 → T11 abandonment recall | no file difference at all — a second agent burns the same dead end | journey and token meter |
 

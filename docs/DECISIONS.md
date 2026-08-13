@@ -1038,3 +1038,74 @@ A guard demanding one would fail every run for a reason the page is not making.
 
 **Not built: the panel.** This is the record and the rule. Rendering it is U21/U25's, and the
 guard now waits for them rather than the other way round.
+
+---
+
+## 2026-08-13 — What the naive lane's lock service locks, and what it closes
+
+Two decisions taken inside U21, both about the same thing: how much of a conventional stack the
+demo's naive lane is, given that `06` §2 forbids strawmanning it and a database-company judge will
+attack exactly there.
+
+### The lock locks the ticket, not the file *(Julian's call)*
+
+Design §4.2 gives the naive lane "the same dedupe search and the same claim, in separate
+transactions". Taken literally that means it claims the same **file** keys the cortex lane claims —
+and C1, C2 and C3 all name `orders/repository.js`. A lock service that locks files and is honoured
+serialises those three agents, nobody reads a stale tree, and design §3.1's interlock 3 cannot
+happen at all. The alternatives were: drop that interlock and rest on the four cross-module ones,
+or have the naive lane take a file lock and then ignore it.
+
+The lock locks the **ticket**. That is what a lock service is for in the stack people actually run:
+nobody operating a fleet of worktrees locks files, they lock jobs so two agents do not pick up the
+same one. It is not a weakened claim — it is a real all-or-nothing lease through the same table and
+the same unique index — and it makes the argument sharper rather than softer. Two *different*
+tickets colliding in one file is invisible to a job lock, invisible to a worktree, and invisible to
+a merge. Every component of the conventional stack does its own job correctly and the fleet still
+duplicates work and still loses it.
+
+Rejected: locking files and ignoring the lock. It produces every interlock and it reads as "you
+gave it a lock and made it ignore the lock", which is the strawman charge §4.2 was rewritten to
+avoid.
+
+The deviation is published in `docs/SPEC-DELTA.md` beside the one design §4.2 already creates.
+
+### The naive lane closes its intents, and its findings go unread
+
+Built the other way first — the lane recorded completion only in its shared task file and never
+closed an intent — so that nothing of its would consolidate, since the changefeed sink consolidates
+any closed intent in any live demo scope and `06` §2 gives NAIVE "Consolidation: none".
+
+The first live run falsified it (V50). An intent that never closes stays `in_flight` for ever, and
+`findDuplicate`'s candidate set is `status IN ('in_flight','done')` — so the naive lane
+deduplicated the eleventh ticket against A1, a task that had been **given up on**, at 0.3686. Its
+agent stood down believing the work was in progress. Interlock 5 was deleted, and V38 had cleared
+that ticket for dedupe safety relying on the exclusion of abandoned rows that this arrangement
+never reached.
+
+So the lane closes. Findings do then appear in its scope, written by the shared sink, and **no
+agent in that lane ever reads one**, because a vector store plus a lock service has no step that
+consults an outcome.
+
+That is the better claim, not a concession. Withholding the tier would have been the demo choosing
+what the naive lane is allowed to have. Leaving the rows there, one query away in the same
+database, and having the lane lose anyway makes the point the whole project is about: the
+difference is not the storage, it is whether arbitration and recall are in the agent's path.
+
+**What it costs, and it is U25's to solve:** `07` §2's memory panel contrasted "four populated
+tiers against one JSON cell", and that contrast is now weaker — both scopes have rows in all four
+tiers. The honest replacement is the journey, where the naive lane's agents visibly never ask.
+
+### Every meter figure is a count over what was recorded
+
+No `meter.field += 1` exists in `src/demo/workload.ts`. U16b's fabrication was two unconditional
+increments, and the defence built then was a source-text rule permitting an increment guarded on
+its own line by a condition. The runner is block-structured, so that rule would have had to be
+loosened to fit it — and loosening the rule that catches the fabrication is how the fabrication
+comes back.
+
+Instead each figure is derived at the end: a filter over `steps` or `events`, a subtraction over a
+readback of the finished tree, or a distance the cluster computed. `test/workload.test.ts` forbids
+an increment of a meter field **in any form**, guarded or not, which is stricter than the rule it
+inherits. A fabricated number would now have to be a fabricated *event*, and the journey renders
+every event.
