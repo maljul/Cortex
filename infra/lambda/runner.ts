@@ -41,7 +41,7 @@ interface LambdaContext {
   getRemainingTimeInMillis?: () => number;
 }
 
-const BUNDLE_REVISION = 1;
+const BUNDLE_REVISION = 2;
 
 /**
  * How much of the sandbox's remaining life is reserved for ending the run properly.
