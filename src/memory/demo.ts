@@ -272,6 +272,49 @@ export async function createDemoSession(
 }
 
 /**
+ * One visitor, two scopes — one per arm. Design §4.1.
+ *
+ * "Today both arms share a single scope and are separated only by using different tables. That
+ * works, but the isolation is incidental, and incidental isolation is the kind that quietly stops
+ * being true. Two scopes make it a property of RLS."
+ *
+ * **`sessionId` is the cortex scope rather than a third row**, and that is what makes this
+ * additive. Design decision 7 keeps the currently deployed page serving until U26's cold read,
+ * and that page holds one `sessionId` and runs both of its arms inside it; handing it the cortex
+ * scope under the name it already uses means nothing it does changes. Minting a separate
+ * "session" row to own the pair would have cost a third `repos` row per visitor and bought a
+ * level of indirection nothing reads.
+ *
+ * Sequential rather than concurrent on purpose: two round trips of about a hundred milliseconds
+ * sit inside the one route a visitor waits on synchronously, and `Promise.all` here would buy
+ * one of them back at the price of a second failure mode — a pair that half-exists, with one
+ * scope created and one not, and nothing to say which.
+ *
+ * `DEMO_SESSION_ROW_CAP` is per scope, so a visitor now has two budgets. V50 measured a full run
+ * at 24 rows in the cortex scope and 30–32 in the naive one against a cap of 200; the cap does
+ * not move.
+ */
+export interface DemoSessionPair {
+  /** The cortex scope, under the name every existing caller already knows it by. */
+  sessionId: string;
+  expiresAt: Date;
+  scopes: { cortex: string; naive: string };
+}
+
+export async function createDemoSessionPair(
+  ttlSeconds: number = DEMO_SESSION_TTL_SECONDS,
+): Promise<DemoSessionPair> {
+  const cortex = await createDemoSession(ttlSeconds);
+  const naive = await createDemoSession(ttlSeconds);
+
+  return {
+    sessionId: cortex.sessionId,
+    expiresAt: cortex.expiresAt,
+    scopes: { cortex: cortex.sessionId, naive: naive.sessionId },
+  };
+}
+
+/**
  * Whether `repoId` names a demo scope that has not expired.
  *
  * Asked by *attempting the read as `cortex_demo`*, scoped to that id, rather than by

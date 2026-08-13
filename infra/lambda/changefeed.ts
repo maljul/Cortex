@@ -24,14 +24,7 @@
  * changefeed job retry and eventually fail, which takes the live panel down for a
  * reason that has nothing to do with the rows.
  */
-import {
-  ApiGatewayManagementApiClient,
-  DeleteConnectionCommand,
-  PostToConnectionCommand,
-} from '@aws-sdk/client-apigatewaymanagementapi';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DeleteCommand, DynamoDBDocumentClient, ScanCommand } from '@aws-sdk/lib-dynamodb';
-
+import { listConnections, push, requireFanoutEnvironment } from './fanout.js';
 import {
   forTransport,
   isAuthorizedChangefeed,
@@ -48,16 +41,7 @@ interface HttpEvent {
   isBase64Encoded?: boolean;
 }
 
-const documents = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-
-const TABLE = process.env.CONNECTIONS_TABLE;
-const CALLBACK_URL = process.env.WEBSOCKET_CALLBACK_URL;
-
-const sockets = new ApiGatewayManagementApiClient(
-  CALLBACK_URL ? { endpoint: CALLBACK_URL } : {},
-);
-
-const BUNDLE_REVISION = 3;
+const BUNDLE_REVISION = 4;
 
 /**
  * Lazily built, like `getPool()` and for the same reason: a module-scope `Embedder` would
@@ -70,38 +54,6 @@ function embedder(): Embedder {
   return cachedEmbedder;
 }
 
-interface Connection {
-  connectionId: string;
-  sessionId: string | null;
-}
-
-async function listConnections(): Promise<Connection[]> {
-  const { Items } = await documents.send(
-    new ScanCommand({ TableName: TABLE, ProjectionExpression: 'connectionId, sessionId' }),
-  );
-  return (Items ?? []) as Connection[];
-}
-
-/** Posts to one socket, forgetting it if API Gateway says it is gone. */
-async function push(connectionId: string, message: unknown): Promise<void> {
-  try {
-    await sockets.send(
-      new PostToConnectionCommand({
-        ConnectionId: connectionId,
-        Data: Buffer.from(JSON.stringify(message)),
-      }),
-    );
-  } catch (error) {
-    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
-    if (status === 410) {
-      await documents.send(new DeleteCommand({ TableName: TABLE, Key: { connectionId } }));
-      return;
-    }
-    // One bad socket must not cost the rest of the batch its delivery.
-    console.error(JSON.stringify({ level: 'error', connectionId, message: String(error) }));
-  }
-}
-
 export async function handler(event: HttpEvent): Promise<{ statusCode: number; body: string }> {
   const presented = event.headers?.['authorization'] ?? event.headers?.['Authorization'];
 
@@ -111,7 +63,7 @@ export async function handler(event: HttpEvent): Promise<{ statusCode: number; b
     return { statusCode: 401, body: JSON.stringify({ error: 'unauthorized' }) };
   }
 
-  if (!TABLE || !CALLBACK_URL) throw new Error('CONNECTIONS_TABLE / WEBSOCKET_CALLBACK_URL unset');
+  requireFanoutEnvironment();
 
   const raw = event.isBase64Encoded
     ? Buffer.from(event.body ?? '', 'base64').toString('utf8')
@@ -190,8 +142,7 @@ export async function handler(event: HttpEvent): Promise<{ statusCode: number; b
     };
 
     for (const connection of connections.filter((c) => c.sessionId === scope)) {
-      await push(connection.connectionId, message);
-      delivered += 1;
+      if (await push(connection.connectionId, message)) delivered += 1;
     }
   }
 

@@ -11,42 +11,48 @@
  * its connection: V22 measured a cold query at ~690ms and a warm one at 3ms on exactly
  * that arrangement.
  */
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 
 import { Embedder } from '../../src/embed/titan.js';
-import { handleDemoRequest, useEmbedder } from '../../src/demo/api.js';
-import { useSqlLogStore, type SqlLogEntry } from '../../src/demo/sql-log.js';
+import { handleDemoRequest, useEmbedder, useRunStarter } from '../../src/demo/api.js';
+import { installSqlLogStore } from './sql-log-store.js';
+
+installSqlLogStore();
 
 /**
- * The show-SQL transcript, stored where the connection registry is stored and for the
- * same reason (`docs/DECISIONS.md`): `POST /demo/run` and `GET /demo/sql-log` are two
- * invocations and possibly two sandboxes, and the transcript is bookkeeping with a
- * lifetime of minutes rather than memory.
+ * HOW A FLEET RUN LEAVES THIS FUNCTION. Design §5.1 and §5.2.
+ *
+ * `InvocationType: 'Event'` is the whole of the async shape. What the visitor gets back is a run
+ * id, and the run itself arrives over the WebSocket.
+ *
+ * **Both halves of this were measured against each other on the deployed stack (V51)**, because
+ * design §5.1's stated reason — that the run exceeds API Gateway's 30,000ms integration ceiling —
+ * turned out not to hold in-region. `RequestResponse` was deployed first and answered in
+ * **4548ms**, inside the ceiling; `Event` answers in **482ms**. The shape is kept for the reasons
+ * in `src/demo/run.ts`'s header, not for the one that was falsified.
+ *
+ * **This is the second and last invocation a visitor's run costs.** §5.2's arithmetic is binding:
+ * ten account-wide, unraisable and indivisible (V22, V26), so the ten agents are async tasks
+ * inside `runner.ts` rather than ten more of these.
+ *
+ * A failure here is a failure of the *handoff*, and it happens before the 202 — so the visitor is
+ * told, by the route, that the run did not start. That is the one case where nothing needs to
+ * reach the socket, because nothing was ever promised to it.
  */
-const documents = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const SQL_LOG_TABLE = process.env.SQL_LOG_TABLE;
-/** Outlives the session it describes by a margin, and no longer. */
-const SQL_LOG_TTL_SECONDS = 2 * 60 * 60;
+const lambdaClient = new LambdaClient({});
+const RUNNER_FUNCTION = process.env.RUNNER_FUNCTION;
 
-if (SQL_LOG_TABLE) {
-  useSqlLogStore({
-    async put(entry) {
-      await documents.send(
-        new PutCommand({
-          TableName: SQL_LOG_TABLE,
-          Item: { ...entry, expiresAt: Math.floor(Date.now() / 1000) + SQL_LOG_TTL_SECONDS },
-        }),
-      );
-    },
-    async get(sessionId) {
-      const { Item } = await documents.send(
-        new GetCommand({ TableName: SQL_LOG_TABLE, Key: { sessionId } }),
-      );
-      return (Item as SqlLogEntry | undefined) ?? null;
-    },
-  });
-}
+useRunStarter(async (job) => {
+  if (!RUNNER_FUNCTION) throw new Error('RUNNER_FUNCTION is not set');
+
+  await lambdaClient.send(
+    new InvokeCommand({
+      FunctionName: RUNNER_FUNCTION,
+      InvocationType: 'Event',
+      Payload: Buffer.from(JSON.stringify(job)),
+    }),
+  );
+});
 
 // Lazily built, like `getPool()`: a module-scope `Embedder` would read `BEDROCK_REGION`
 // before the handler's environment is in place. U8 hit exactly that.
@@ -75,7 +81,7 @@ interface HttpResult {
  * Bumped by hand on each redeploy, as the identity handler's is. Without it a redeploy
  * and a no-op are indistinguishable from outside.
  */
-const BUNDLE_REVISION = 3;
+const BUNDLE_REVISION = 5;
 
 function decodeBody(event: HttpEvent): unknown {
   if (!event.body) return undefined;

@@ -940,3 +940,66 @@ if the changefeed has not delivered, the agent is uninformed and the page says s
 The consequence is that `07` §4's mode line keeps the honest wording `src/memory/demo.ts` already
 ships — live database, live embeddings, **no** model reasoning — rather than gaining "reasoning is
 cached". Re-recording cassettes is not required for U21 and is U24's if LIVE reasoning lands.
+
+---
+
+## Design §5.1 — `POST /demo/run` is asynchronous, but not for the reason §5.1 gives
+
+**2026-08-13, U22, V51.** §5.1 opens: "A ten-task two-arm run will exceed API Gateway HTTP's
+integration ceiling (~30s — **verify first**, it is a hard boundary and the whole shape depends on
+it)." It was verified first, exactly as instructed, and **the premise is false in the deployed
+environment.**
+
+- The ceiling is real and is **30,000ms** on all three of this API's integrations.
+- The run does not reach it. A runner deployed with `InvocationType: 'RequestResponse'` — deployed
+  on purpose, to force the 504 — answered **202 in 7.36s**, and `npm run gate:async` against that
+  same synchronous deployment measured the whole response at **4548ms**. The runner's own log put
+  the two-arm run at **5943ms**.
+- The same run from a laptop is ~50s. The gap is round-trip latency over 343 and 358 statements,
+  not work: the runner and the cluster are both in `us-east-1`.
+
+**The shape stays asynchronous and the justification is replaced rather than quietly retained.**
+Every comment that had cited the ceiling was rewritten in place, because a correct decision resting
+on a measured-false premise is one refactor away from being undone by someone who checks. What
+holds it up now:
+
+1. **The stream is the demo.** Design §9 requires each agent step visible as it happens, so a judge
+   watches the collision rather than reading that it occurred. That is substance, not a workaround.
+2. **LIVE will exceed the ceiling.** Design §7.3 puts a metered run at ~50 model calls; at seconds
+   each that is past 30s alone, and U24 must not have to reshape this to get there.
+3. **`07` §1 budgets ninety seconds** for a run, which no HTTP response can carry.
+4. The margin is 3.6×, not a hundred: a cold pool adds ~1.4s and contention adds retries.
+
+**A second correction follows from the same measurement, and it is the one most likely to mislead
+later:** every wall-clock number this repository has published for the workload — U21's 28–42s
+cortex and 19–25s naive, the ~60s of live cluster time in `npm run gate:workload`'s description —
+is a **laptop-to-cloud** figure. It is honest about what a developer waits and says nothing about
+what a visitor waits. Deployed, that is 6–9 seconds.
+
+---
+
+## `05` §5 — `POST /demo/run` gains a `mode`, and the route list does not grow
+
+**2026-08-13, U22.** §5 lists five routes and design §8 refuses to add a sixth ("served through
+`GET /demo/state` rather than a sixth route, so `05` §5's route list does not grow"). Design §14
+anticipated this entry as "`POST /demo/run` changes from synchronous to run-id-plus-stream".
+
+It did not change; it **gained a second mode**, because design decision 7 keeps the currently
+deployed page serving until U26's cold read and that page consumes the synchronous four-beat
+response. `mode` is `arm`'s twin — two accepted values, decided against a closed set, neither
+reaching SQL or naming a table, so invariant 7 is untouched. Default is the beats; `fleet` returns
+`202 {runId, scopes}` and streams. `test/demo-plane.test.ts` guards the default path live, because
+no other test in the repository would notice if it were removed: `test/scenario.test.ts` calls
+`runScenario` directly.
+
+When U25 lands the new page, the beats branch goes and the route keeps its name.
+
+---
+
+## `05` §5 — `POST /demo/session` creates two scopes, additively
+
+**2026-08-13, U22.** Design §4.1 requires one session to create **two** demo scopes, one per arm,
+so the isolation between the arms is row-level security rather than the incidental "they happen to
+use different tables". Done — and `sessionId` is now *the cortex scope* rather than a third `repos`
+row, so every existing caller reads the field it always read and nothing it does changes. The
+response gains `scopes: {cortex, naive}` and loses nothing.

@@ -1109,3 +1109,62 @@ readback of the finished tree, or a distance the cluster computed. `test/workloa
 an increment of a meter field **in any form**, guarded or not, which is stricter than the rule it
 inherits. A fabricated number would now have to be a fabricated *event*, and the journey renders
 every event.
+
+---
+
+## U22 — the fleet run is a mode on `POST /demo/run`, not a sixth route
+
+**2026-08-13.** Three ways to add an asynchronous ten-ticket run without breaking the page that is
+deployed and serving. Design decision 7 is that the current page keeps serving until U26's cold
+read, so nothing here may cost it.
+
+A **sixth route** was the obvious shape and is refused by the design in writing: §8 puts the
+artifacts on `GET /demo/state` "rather than a sixth route, so `05` §5's route list does not grow".
+Adding one here for a weaker reason than the one already declined would have made that decision
+arbitrary. **Breaking the route and updating `infra/site/index.html` in the same unit** is U25's
+work pulled forward, which moves the cut line — and the cut line is the one thing §11 says protects
+the submission.
+
+So `POST /demo/run` keeps its synchronous four-beat behaviour and takes the fleet run behind
+`mode`. That is not a new kind of parameter: `arm` has been exactly this since U16 — two accepted
+values, decided against a closed set, neither reaching SQL — and `src/demo/api.ts` already says so
+in the comment above it. Invariant 7 is a claim about what reaches a handler, and a `mode` compared
+against one literal reaches nothing.
+
+The branch is temporary by construction. When U25's page lands, the beats branch is deleted and the
+route keeps its name, its meaning and its place in `05` §5's list.
+
+## U22 — the run's shape survived its own justification being falsified
+
+**2026-08-13, V51.** Design §5.1 says the run must be asynchronous because it would exceed API
+Gateway's ~30s integration ceiling, and instructs that this be verified first. It was, by deploying
+the runner **synchronously on purpose** to take the 504 — and no 504 came: the response was 4548ms
+against a 30,000ms ceiling, because deployed in-region a run is 5.9–8.3s rather than the ~50s it
+takes from a laptop.
+
+The decision was to **keep the asynchronous shape and rewrite every justification in place**. Three
+reasons survive the measurement and each is independent of it: the stream is the demo rather than a
+consolation for a timeout (design §9); U24's LIVE mode at ~50 model calls per run will exceed the
+ceiling on its own, and the shape must not have to change then; and `07` §1's ninety-second budget
+is not carriable on any HTTP response.
+
+What was not done is worth naming: the comments were not left standing. A correct decision resting
+on a premise a measurement has falsified is one careful reader away from being undone, and this
+repository has a rule about asserting in a comment what nothing checks. `docs/SPEC-DELTA.md`
+carries the deviation.
+
+## U22 — the terminal event's watchdog lives in `src/demo/`, not in the Lambda
+
+**2026-08-13.** The unit's named silent break is a run that dies after `POST /demo/run` has
+returned: a page that never finishes and never errors. Two paths reach it and only one is a throw —
+the other is the runner hitting its Lambda timeout, which kills the process without running any
+`finally`, so wrapping the run in `try/finally` covers half the problem and looks like all of it.
+
+The watchdog therefore lives in `streamRun`, which takes a `budgetMs`, races it against the run,
+and publishes the terminal message **without waiting for a run that is not coming back**.
+`infra/lambda/runner.ts` computes that budget from `context.getRemainingTimeInMillis()` and
+contributes nothing else to how a run ends.
+
+The reason is testability and nothing else: a terminal event that only exists in AWS code is a
+terminal event nobody has watched fire. `test/run-stream.test.ts` forces it with a 60ms budget
+against a run that never settles, and removing the race hangs that test to vitest's own ceiling.

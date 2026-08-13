@@ -28,8 +28,8 @@ What does not belong in a unit list, and so lives here:
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0`.
 - Off-plan: `src/extract/graph.ts` belongs to consolidation (§4.4) — **do not extend**.
 - **The hosted demo is deployed and anonymous, U14, V26, 2026-08-11.** `infra/cdk/` (was
-  `cdk-spike/`) deploys stack `CortexStack`: four Lambdas behind API Gateway HTTP, a
-  WebSocket API, a DynamoDB connection registry, S3 + CloudFront. IaC is **CDK** — `04`
+  `cdk-spike/`) deploys stack `CortexStack`: **five** Lambdas behind API Gateway HTTP (U22 added
+  the runner), a WebSocket API, a DynamoDB connection registry, S3 + CloudFront. IaC is **CDK** — `04`
   §2's `[OPEN]` is closed, and the ten-minute criterion tied rather than decided (CDK 42s
   / SAM 33s redeploy). Lambda reaches CockroachDB Cloud with no TLS work, no VPC: cold
   `queryMs` ~690, warm 3 on a reused pool.
@@ -212,6 +212,31 @@ What does not belong in a unit list, and so lives here:
   **The runner makes no model call**, deliberately: which patch variant an informed agent applies
   is decided by comparing what `recall()` returned against what consolidation wrote, exactly. So
   `07` §4's mode line keeps its wording and cassettes are not re-recorded — `docs/SPEC-DELTA.md`.
+  **Two of the gate's 17 checks are race-dependent: a run can honestly come back 15/17** (V51).
+  When the naive lane's dedupe catches the racing P6 pair, interlock 4 does not happen and its
+  absent hunk reads as an unattributable loss. Re-run before calling a red gate a regression.
+- **The run is asynchronous and streamed, and the design's reason for it was measured false
+  (U22, V51, 2026-08-13).** `npm run gate:async` is the proof, 13/13 against the deployed stack:
+  `POST /demo/run` answers **482ms** against a **30,000ms** gateway ceiling and the whole run —
+  87 fleet events, one terminal message, nothing after it — arrives over the existing WebSocket.
+  **Design §5.1 said a two-arm run would exceed the ceiling. It does not.** A runner deployed
+  synchronously *on purpose* to take the 504 answered in **4548ms**; the run itself is **5943ms**.
+  Deployed in-region it is **6–9s** where the identical run from a laptop is ~50s — round-trip
+  latency over ~350 statements per arm, not work. **So every wall-clock number in this repository
+  for the workload, U21's 28–42s included, is a laptop-to-cloud figure and says nothing about what
+  a visitor waits.** The shape stayed and every comment citing the ceiling was rewritten in place,
+  on three reasons that survive: the stream *is* the demo (§9 wants the collision watched), U24's
+  LIVE mode at ~50 model calls will exceed 30s alone, and `07` §1 budgets ninety seconds.
+  **`POST /demo/run` gained a `mode`, not a sixth route** — design §8 refuses one, and decision 7
+  keeps the deployed page serving, so the four-beat response is still the default and is guarded
+  live. **`POST /demo/session` now creates two scopes** and `sessionId` *is* the cortex one, not a
+  third `repos` row. **The terminal event has two paths and only one is a throw** — the other is
+  the Lambda timeout, which runs no `finally` — so the watchdog is in `streamRun` where
+  `test/run-stream.test.ts` forces it with a 60ms budget. **`pg`'s demo pool max is 10 and ten
+  overlapping transactions commit in 2497ms**, so no two-wave fallback is needed; the arms still
+  run sequentially so neither arm's `claim_p50` is measured under the other's load.
+  **`import.meta.url` is empty under esbuild's CJS**: `bench/demo-app/` is copied next to the
+  handler and `CORTEX_CORPUS_ROOT` names it, or the runner deploys clean and throws on first read.
 - **A fact is reachable only if it names the work, not the change (V49, and V39 found it first).**
   Measured twice on unrelated pairs. An abandonment note naming the *obstacle* sits 0.6725–0.7246
   from the task it warns; the restatement naming the *work* sits 0.4698. A closure note naming a
@@ -298,15 +323,16 @@ What does not belong in a unit list, and so lives here:
   `USING (true) WITH CHECK (true)`, so the same rows are reachable either way, and invariant 7
   already blocks the agent-reachable path. It buys that the published table is true, and a test
   holds it there.
-  **Suite 397/397 across 32 files, 588.97s against the
-  real cluster (2026-08-13, V50)** — 170 after U15 (down from 174 because 13 blanket demo
+  **Suite 410/410 across 33 files, 597.41s against the
+  real cluster (2026-08-13, V51)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
   refusals to 278, `test/degraded-embedding.test.ts` to 297, U21's abandonment tests to 300,
   `test/patches.test.ts` and `test/app-bundle.test.ts` to 316, `test/attribution.test.ts` to 323,
   `test/gate-mechanical.test.ts` to 327, `test/git-hook.test.ts` to 333, and V45's five
-  query-string cases in `test/demo-plane.test.ts` to 338.
+  query-string cases in `test/demo-plane.test.ts` to 338. U22's `test/run-stream.test.ts` (8) and
+  five live route cases in `test/demo-plane.test.ts` took 397 to 410.
   **~600s is a cluster health check as much as a suite result** (589s, 608s and 633s on three rested
   runs the same day; that spread is noise, a multiple is not). The same suite on the same tree
   took 2504s and then hung outright on the fourth back-to-back run of one day (V43). A duration
@@ -456,8 +482,12 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
 `npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
-`npm run gate:workload` (U21's done-when; 17/17 — two scopes, both arms, four beats, ~60s of live
-cluster time, and it needs a **running changefeed** or beat 4 honestly reports nothing known) ·
+`npm run gate:workload` (U21's done-when; 17/17, but **two checks are race-dependent and 15/17 is
+an honest run** — V51 — two scopes, both arms, four beats, ~60s of live cluster time *from here*
+and 6–9s deployed, and it needs a **running changefeed** or beat 4 honestly reports nothing known) ·
+`npm run gate:async` (U22's done-when; hosted, 13/13 — needs the deployed stack and a running
+changefeed; times `POST /demo/run` against the gateway ceiling and reads the whole run off the
+socket) ·
 `npm run changefeed status|create|cancel` ·
 `bash scripts/gate-mechanical.sh --report` (`/check` row 4; also runs as the commit hook) ·
 `npm run deploy:secrets` · `npm run deploy:site` · `npm run sweep:recall` (live Titan +

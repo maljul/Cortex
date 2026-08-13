@@ -5147,3 +5147,232 @@ than asserted**: the gate prints `2 blocked and told the holder` when that is wh
 `no block: the losers hit N SERIALIZABLE retries and were granted after the holder released` when
 it is not. A page that needed a named holder every time would be depicting a determinism the
 system does not have — design §9's motion rule 3, arriving as a gate design question.
+
+---
+
+## V51 — U22: the async run, and the premise it falsified
+
+**2026-08-13.** The done-when is design §11's: "`POST /demo/run` returns inside the gateway ceiling
+and the whole run arrives over the socket." It is met — **482ms against a 30,000ms ceiling, 87 of
+87 fleet events delivered, one terminal message and nothing after it** — but the reason the shape
+is asynchronous is not the reason the design gives, and measuring that was the useful part.
+
+### The verify-first list, in the order design §12 puts it
+
+**1. API Gateway HTTP's integration timeout — and the run does *not* exceed it.**
+
+The configured value first, from the deployed API rather than from documentation:
+
+```
+$ aws apigatewayv2 get-integrations --api-id clotk5952m \
+    --query "Items[].{Id:IntegrationId,Uri:IntegrationUri,Timeout:TimeoutInMillis}" --output table
+|   Id    | Timeout  |                          Uri                                    |
+|  9d84urj|  30000   |  …function:CortexStack-DemoFnB919995A-R51083KzaCvK              |
+|  ak4l242|  30000   |  …function:CortexStack-ChangefeedFn143F7617-h5kZLdFHJ8r6        |
+|  ap7tpld|  30000   |  …function:CortexStack-IdentityFn28936BFE-DshcmkAlPDEz          |
+```
+
+Design §12 says invoke it, not read it. **So the runner was deliberately deployed invoked
+*synchronously* first** — `InvocationType: 'RequestResponse'`, one line — to make the route wait on
+the whole run and take the 504. It did not take one:
+
+```
+$ curl -s -o /tmp/ceiling.txt -w "http %{http_code}  total %{time_total}s\n" \
+    -X POST $API/demo/run -H 'content-type: application/json' \
+    -d '{"session":"6c0575d1-…","mode":"fleet","naive":"217dd6e6-…"}'
+http 202  total 7.358849s
+```
+
+and the runner's own log for that invocation:
+
+```
+INFO {"level":"info","bundleRevision":1,"runId":"73523da0-f0b4-4d01-ae8a-eb99bea0e0da",
+      "phase":"finished","ms":5943,"undelivered":0,
+      "events":[{"arm":"cortex","events":43},{"arm":"naive","events":44}]}
+REPORT Duration: 6054.12 ms  Billed Duration: 6399 ms  Memory Size: 1024 MB
+       Max Memory Used: 131 MB  Init Duration: 344.81 ms
+```
+
+**Design §5.1's premise is false in the deployed environment.** It says "a ten-task two-arm run
+will exceed API Gateway HTTP's integration ceiling (~30s)". Deployed, both arms complete in
+**5943ms**, and `npm run gate:async` against that synchronous deployment measured the whole
+response at **4548ms** — inside the ceiling with 6× to spare. The same run from this laptop is
+~50s (27.2s cortex + 22.3s naive on the day's baseline).
+
+The difference is not work, it is distance: the runner and the cluster are both in `us-east-1`, and
+a run issues 343 statements in the cortex arm and 358 in the naive one. At ~80ms a round trip from
+here and ~3ms in region, that is the whole gap. **Any timing read off `npm run gate:workload` is a
+laptop-to-cloud number and says nothing about what a visitor waits.**
+
+The async shape was kept anyway, and the justification was rewritten in place everywhere it
+appeared rather than left standing on a premise that had been measured false:
+
+- the stream **is** the demo — design §9 wants each agent step visible as it happens;
+- U24's LIVE mode is ~50 model calls per run (design §7.3), which will exceed 30s on its own, and
+  the shape must not have to change then;
+- `07` §1 budgets ninety seconds for a run, which no HTTP response can carry;
+- 8.3s of a ten-slot account-wide concurrency budget per visitor against 482ms.
+
+Recorded in `docs/SPEC-DELTA.md`.
+
+**2. Pool max connections, and ten concurrent sessions from one runner.**
+
+```
+pg Pool max on the demo plane: 10
+created 10 demo scopes
+10 concurrent demo-plane transactions, each holding a 2s sleep:
+  fulfilled 10/10 in 2497ms
+pool after: total 10, idle 10, waiting 0
+```
+
+Ten overlapping transactions, each holding a `pg_sleep(2)`, all committed in **2497ms** — 2.5s for
+a 2s sleep is genuine concurrency; serialised would have been 20s+. `pg`'s pool max is exactly 10,
+so an eleventh would queue rather than fail. **No two-wave fallback is needed**, and the page has
+nothing to disclose. The runner still runs its arms **sequentially**, which is a measurement
+decision and not a capacity one: concurrent arms would have each arm's `claim_p50` and
+`serialization_retries` measured under the other's load, and those numbers are the comparison.
+
+### The done-when, measured against the deployed stack
+
+`npm run gate:async`, after flipping to `InvocationType: 'Event'` and redeploying:
+
+```
+PASS  1. session created anonymously, with two scopes    cortex 60a4… naive 8f11…
+PASS  2. socket open, filtered to the cortex scope
+PASS  3. POST /demo/run accepted the run                 202 …
+PASS  3b. returned inside the gateway ceiling (30000ms)  482ms
+PASS  4. the run terminated rather than going silent     8348ms
+PASS  4b. exactly one terminal message                   1
+PASS  4c. nothing arrived after it                       0 after
+PASS  4d. it finished rather than failing
+PASS  5. both arms streamed their agents                 cortex naive
+PASS  5b. every step arrived                             87 fleet events
+PASS  5c. the summary agrees with what was streamed      87 claimed
+PASS  5d. nothing was undelivered                        0
+PASS  6. fleet events are labelled apart from changefeed rows   43 real rows also arrived
+  SUMMARY
+    cortex  43 events   recall✓ dedupe✓ collision✗ consolidate✓
+    naive   44 events   recall✗ dedupe✗ collision✗ consolidate✗
+  wall clock: response 482ms, whole run 8348ms
+GATE PASSED
+```
+
+**482ms against 4548ms** is the whole change, measured on the same stack an hour apart. Beat 3
+reported `collision✗` on this run — that is V50's second honest ending (the losers took 40001s and
+were granted after the holder released, with no block recorded), not a regression.
+
+**43 real changefeed rows arrived on the same socket as the 87 fleet events**, which is what makes
+design §5.3's labelling load-bearing rather than tidy: both sources reach one browser, and only the
+`type` field separates a row that has a primary key from an event that does not.
+
+### The named silent break, and the path a `try/finally` cannot reach
+
+U22's silent break is a run that dies after the 202 has gone out — a page that never finishes and
+never errors, `04` §5 invariant 1 satisfied to the letter and broken in spirit. **There are two
+paths to it and only one is a throw.** The other is the runner hitting its own Lambda timeout,
+which kills the process without running any `finally`.
+
+So the watchdog lives in `src/demo/run.ts`, where a test can force it with a 60ms budget, rather
+than in `infra/lambda/runner.ts` where it would only ever have been seen firing in production.
+Mutating the race out of it — `budgetMs === undefined ? running : Promise.race(...)` forced to the
+first branch — hangs that test to vitest's 30-second ceiling:
+
+```
+× emits one when the run outlives its budget, without waiting for the run 30003ms
+  Tests  1 failed | 6 passed (7)
+```
+
+### A defect in this unit's own sink, and two tests that failed to catch it
+
+Found by re-reading `streamRun` after the gate had already passed. The terminal message was
+published and the channel closed **afterwards**:
+
+```
+await chain;                 // drain
+send(terminal);              // queue the terminal
+await chain;                 // publish it
+terminated = true;           // close the channel
+```
+
+On the healthy path that is fine — the run has finished and has nothing left to emit. **On the
+watchdog path, which is the one this module exists for, the run is still going**, so any event it
+emits while the terminal is being published lands behind it on the wire. A page reading the stream
+in order would see work continue after being told the run was over. The fix closes the channel
+first and queues the terminal past the guard.
+
+**Two attempts to test it passed against the defect**, and both are worth knowing about because
+they are the same mistake in different clothes:
+
+1. **A synchronous `publish`.** The sink used elsewhere in the file pushes to an array, so the
+   whole chain drains in microtasks and the window shuts before any timer can fire. The real
+   publish is a DynamoDB scan and a socket post — tens of milliseconds, spanning macrotasks.
+2. **Asserting the instant `streamRun` resolved.** The late publishes are queued but have not had
+   their turn yet. `streamRun` returning does not end the process: `infra/lambda/runner.ts` writes
+   two transcripts afterwards, and the stalled arm emits throughout.
+
+With an async publish *and* a 150ms wait after the return, the mutation fails and the fix passes:
+
+```
+× lets nothing follow the terminal message when the run is still going 354ms
+AssertionError: expected { Object (type, runId, ...) } to be { type: 'run', runId: 'run-2b', … }
+  Tests  1 failed | 7 passed (8)
+```
+
+### Two findings that were not U22's, both found by running things
+
+**A pre-existing test was passing on timing, not on behaviour.** `test/demo-stream.test.ts`'s
+expiry case created a scope with a **one-second** TTL and slept past it. `createDemoSession`
+computes `expires_at` in this process and then inserts, and the insert's own `WITH CHECK` requires
+a live demo scope — so when the round trip outlasts the TTL, the row is expired before the policy
+sees it and *creation* fails:
+
+```
+error: new row violates row-level security policy for table "repos"
+ ❯ createDemoSession src/memory/demo.ts:256:15
+ ❯ test/demo-stream.test.ts:142:21
+```
+
+Confirmed pre-existing by stashing this unit's changes and reproducing it at HEAD. The cause,
+timed:
+
+```
+createDemoSession cold  1355ms
+createDemoSession warm  489ms
+createDemoSession warm  476ms
+createDemoSessionPair       939ms
+```
+
+**A cold creation takes 1355ms against a one-second TTL.** The test now creates with an ordinary
+lifetime and expires the scope deliberately as the admin principal — same property, no clock in it
+— plus a non-vacuity assertion that the scope is live first, which the old version never made.
+
+**`npm run gate:workload`'s two race-dependent checks.** The pre-change baseline run was **15/17**,
+on an unmodified tree: `every loss is attributable — P6b` and `interlock 4 — naive implemented the
+confirmation twice`. Both are the same event — on that run the naive lane's two-transaction dedupe
+*caught* the racing P6 pair, so the second half never did the work, interlock 4 did not happen, and
+its absent hunk was reported as a loss nobody could be blamed for. The post-change run was
+**17/17**. Nothing in U22 touches the runner, so this is run-to-run variance in a beat that depends
+on a race, and it is written into U21's entry rather than left in scrollback.
+
+### Cluster housekeeping, which went further than intended
+
+Timing `createDemoSession` needed clean scopes, and the sweep of leftovers found **195** — demo
+sandboxes accumulated by past suites and gates, which nothing reclaims (`03` §7 requires automatic
+reclamation; U14 recorded it as unbuilt). Deleting them orphaned their children: **4527 `intents`,
+975 `findings`, 3293 `action_ledger`**. Julian's call was to delete the orphans, and they are gone:
+
+```
+claims         deleted 0
+intents        deleted 4527
+findings       deleted 975
+action_ledger  deleted 3293
+agents         deleted 0
+```
+
+Every table is now empty, and **nothing reachable was lost**: `repos` was already at 0 before the
+delete, so every remaining row was an orphan — no tenant, and unreachable by every code path, since
+every read carries `WHERE repo_id` and RLS demands a live demo scope. `bench/results/` is committed
+on disk and untouched, so `08` §4's passed gate is unaffected. The 975 orphan findings had been
+sitting in `findings_semantic`, which V5 showed is scanned rather than prefix-isolated.
+
+The sweep should have been asked about before it ran, not after.

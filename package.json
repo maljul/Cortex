@@ -26,6 +26,7 @@
     "gate:consolidate": "tsx scripts/gate-consolidate.mts",
     "gate:degrade": "tsx scripts/gate-degrade.mts",
     "gate:workload": "tsx scripts/gate-workload.mts",
+    "gate:async": "tsx scripts/gate-async.mts",
     "measure:statements": "tsx scripts/measure-statements.mts",
     "sweep:recall": "tsx scripts/sweep-recall.mts"
   },
@@ -38,6 +39,7 @@
     "@aws-sdk/client-apigatewaymanagementapi": "^3.1107.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1106.0",
     "@aws-sdk/client-dynamodb": "^3.1107.0",
+    "@aws-sdk/client-lambda": "^3.1109.0",
     "@aws-sdk/lib-dynamodb": "^3.1107.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "pg": "^8.22.0"

@@ -807,9 +807,19 @@ invariant 8.
 beats observed." *(design §11, verbatim)*
 **Specs:** `06` §2, `06` §4, `03` §4.2 — plus design §3 and §4, which are the shape.
 
-**Closed by `npm run gate:workload`, 16/16, V50.** Eleven tickets, two scopes, both arms,
+**Closed by `npm run gate:workload`, 17/17, V50.** Eleven tickets, two scopes, both arms,
 all four beats observed rather than scripted — and four of the five interlocks produced their
-defect on the run. `src/demo/workload.ts` is the runner, `src/memory/naive-lane.ts` the
+defect on the run.
+
+**Two of its checks are race-dependent and a run can legitimately come back 15/17 (V51,
+2026-08-13).** A pre-change baseline on an unmodified tree failed `every loss is attributable —
+P6b` and `interlock 4 — naive implemented the confirmation twice`; the run immediately after U22
+was 17/17. Both failures are one event: the naive lane's two-transaction dedupe sometimes *catches*
+the racing P6 pair, so the second half never does the work, interlock 4 does not happen, and its
+absent hunk is reported as a loss with nobody to attribute it to. That is the window design §4.2
+describes — "the dedupe passes against a snapshot that was true a moment ago" — being narrow rather
+than absent. **Re-run before concluding anything from a red gate**, and do not treat a 15/17 as a
+regression without a second run. `src/demo/workload.ts` is the runner, `src/memory/naive-lane.ts` the
 conventional stack it is compared against, `bench/demo-app/` the fourteen-file corpus,
 `bench/demo-workload.ts` the cut with its patches. Tests: `test/workload.test.ts` (10),
 `test/naive-lane.test.ts` (5), `test/demo-workload.test.ts` (17), plus `test/patches.test.ts`
@@ -1021,22 +1031,92 @@ embedded on the work rather than the obstacle. Candidate wordings measured at **
 from A1's finding (recalled) and **≥ 0.8342** from every live task in the cut (no accidental
 dedupe). Pick one, re-measure it in place, and put the number in the comment.
 
-### U22 — Async run and streamed events ⬜
+### U22 — Async run and streamed events ✅ 2026-08-13
 **Done when:** "`POST /demo/run` returns inside the gateway ceiling and the whole run arrives
 over the socket." *(design §11, verbatim)*
 **Specs:** `05` §5, `04` §2, `04` §5
-**Carried in from U21 (2026-08-13):** the runner is built and takes one scope per arm, but
-**`POST /demo/session` still creates one scope, and deliberately.** Design §4.1 wants it to create
-two; changing the route's response shape breaks the page that is deployed and serving, and design
-decision 7 keeps that page serving until U26's cold read. So the two-scope creation moves here,
-with the route change, and `npm run gate:workload` creates both itself in the meantime.
-**Also carried in:** `runArm` already takes an `onEvent` callback that fires as each fleet event
-happens, so the streaming half needs no change to the runner — only a sink. The events carry no
-primary key, per design §5.3, and must stay labelled differently from changefeed rows.
-**Verify live first:** API Gateway HTTP's integration timeout (design §12 item 1 — "the async
-shape depends on it"), and the pool's max connections plus whether Basic tier tolerates ten
-concurrent sessions from one runner (§12 item 2). If it does not, the fleet runs in two waves
-of five **and the page says so**; it does not silently serialise.
+
+**Closed by `npm run gate:async`, 13/13, V51** — against the deployed stack, which is the only
+place a gateway ceiling exists. **482ms against a 30,000ms ceiling; 87 of 87 fleet events
+delivered; exactly one terminal message and nothing after it.** `src/demo/run.ts` is the sink,
+`infra/lambda/runner.ts` the second Lambda, `infra/lambda/fanout.ts` the one socket fan-out both
+producers now share. Tests: `test/run-stream.test.ts` (7) and five live cases in
+`test/demo-plane.test.ts`.
+
+**The verify-first list falsified the design's own premise, and that is the unit's main finding.**
+Design §5.1 says a two-arm run "will exceed API Gateway HTTP's integration ceiling (~30s)" and to
+verify it first. Verified by deploying the runner **synchronously on purpose** to take the 504 —
+and no 504 came: **202 in 7.36s**, the whole response measured at **4548ms**, the runner's own log
+putting the two-arm run at **5943ms**. Deployed in-region a run is **6–9 seconds**, not the ~50s
+the same run takes from a laptop; the gap is round-trip latency over ~350 statements per arm.
+**Every wall-clock figure this repository publishes for the workload is a laptop-to-cloud number**
+— U21's 28–42s and 19–25s included — and says nothing about what a visitor waits.
+
+The shape stayed asynchronous and **every comment citing the ceiling was rewritten in place**, on
+three reasons that survive the measurement: the stream *is* the demo (design §9 wants the collision
+watched, not reported); U24's LIVE mode at ~50 model calls will exceed the ceiling on its own;
+and `07` §1's ninety-second budget is not carriable on any response. `docs/SPEC-DELTA.md` and
+`docs/DECISIONS.md` carry it.
+
+**The route decision, and it was the unit's first act (`docs/DECISIONS.md`).** `POST /demo/run`
+keeps its synchronous four-beat behaviour and takes the fleet run behind **`mode`** — `arm`'s twin,
+two accepted values against a closed set, neither reaching SQL. A sixth route is refused by design
+§8 in writing; breaking the route is U25's work pulled forward and moves the cut line. The beats
+branch is deleted when U25's page lands, and the route keeps its name. `test/demo-plane.test.ts`
+guards the default path **live**, because nothing else would notice its removal —
+`test/scenario.test.ts` calls `runScenario` directly.
+
+**`POST /demo/session` creates two scopes and `sessionId` is the cortex one**, not a third `repos`
+row, so the deployed page reads the field it always read. `npm run gate:workload` now takes the
+pair from `createDemoSessionPair` rather than assembling its own — while it assembled its own, the
+route could have created one scope for ever and the gate would have passed.
+
+**Pool headroom, §12 item 2: no two-wave fallback is needed and the page has nothing to disclose.**
+`pg`'s pool max on the demo plane is exactly **10**, and ten overlapping transactions each holding
+a 2s sleep all committed in **2497ms** — genuine concurrency, not queueing. The runner still runs
+its arms **sequentially**, which is a measurement decision rather than a capacity one: concurrent
+arms would have each arm's `claim_p50` and `serialization_retries` measured under the other's load.
+
+**The named silent break has two paths and only one is a throw.** The other is the runner reaching
+its Lambda timeout, which kills the process without running any `finally` — so `try/finally` covers
+half the problem while looking like all of it. The watchdog is therefore in `streamRun`, where a
+test forces it with a 60ms budget against a run that never settles; removing the race hangs that
+test to vitest's 30s ceiling.
+
+**And the sink had its own version of the same defect, found by re-reading it after the gate had
+already passed.** The terminal message was published and the channel closed *afterwards*, so on the
+watchdog path — where the run is still alive and still emitting — a late fleet event could land
+behind it. **Two attempts to test that passed against it**, both the same mistake: a *synchronous*
+`publish` drains in microtasks and shuts the window before a timer fires, and asserting the instant
+`streamRun` resolves misses publishes that are queued but have not had their turn. The guard needs
+an async publish **and** a wait after the return, because `streamRun` returning does not end the
+process — the runner writes two transcripts afterwards. V51 has the mutation output.
+
+**One thing this unit deliberately did not build:** the final trees are returned by `streamRun` and
+**not** published on the socket. Design §8 serves the artifacts through `GET /demo/state`, and that
+is U23's.
+
+**Three things U25 inherits, and the first is a real gap rather than a note.**
+- **A socket registers exactly one `session` query parameter, and a visitor now has two scopes.**
+  The *runner* broadcasts a run's messages to both, so one socket sees the whole fleet journey —
+  but `infra/lambda/changefeed.ts` matches a row's scope exactly, so **the naive lane's real rows
+  do not reach a page subscribed to the cortex scope**. Measured on the gate: 43 changefeed rows
+  arrived, all cortex. The page needs a second connection, or `$connect` needs to accept more than
+  one session. Do not discover this while building the swimlanes.
+- **The show-SQL transcript is per scope**, because `writeSqlLog` keys on the session id. The
+  runner writes two entries, so the naive lane's `BEGIN` blocks are at
+  `GET /demo/sql-log?session=<naive scope>` and the cortex lane's at the cortex one. Design §9
+  wants them side by side, which is two fetches rather than one.
+- **`infra/lambda/fanout.ts` has no unit test and deliberately so** — it is DynamoDB and API
+  Gateway's management API and nothing else. `npm run gate:async` is its coverage, end to end
+  against the deployed stack. If it grows a decision, that decision belongs in `src/demo/`.
+
+**A blocker found by bundling rather than by reasoning.** `src/demo/patches.ts` reads the corpus off
+disk through `import.meta.url`, which esbuild leaves **empty** under CommonJS — and the fourteen
+files were not in the artifact at all. The runner would have deployed cleanly and thrown on the
+first file the first agent read. `bench/demo-app/` is now copied next to the handler,
+`CORTEX_CORPUS_ROOT` names it (the shape `CORTEX_REPO_ROOT` already set in U8), and `infra/bundle.mjs`
+fails loudly if the copy is empty.
 **Every agent step streams as it happens (Julian, 2026-08-13):** `started → reading → decided
 → claiming → patched | blocked | deduped`, per agent, over the existing socket. A judge watches
 the collision happen rather than reading that it happened. Design §5.3's requirement stands —

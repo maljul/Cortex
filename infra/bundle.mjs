@@ -21,6 +21,7 @@
  */
 import { build } from 'esbuild';
 import { existsSync } from 'node:fs';
+import { cp, readdir, rm } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -39,17 +40,34 @@ const resolveTsFromJs = {
 /**
  * One directory per function, each containing a single `index.cjs`.
  *
- * Not one shared directory with four entry files: CDK hashes the asset directory, so a
+ * Not one shared directory with five entry files: CDK hashes the asset directory, so a
  * shared one makes every function's asset change whenever any handler does, and a
  * one-line edit to the demo router redeploys the changefeed sink as well. Separate
  * directories keep a redeploy to the function that actually changed.
  */
-const FUNCTIONS = ['identity', 'demo', 'changefeed', 'connections'];
+const FUNCTIONS = ['identity', 'demo', 'changefeed', 'connections', 'runner'];
+
+/**
+ * Functions whose handler reads the demo corpus off disk, and therefore needs it shipped
+ * alongside the bundle.
+ *
+ * `src/demo/patches.ts` reads `bench/demo-app/`'s fourteen files because the agents work on real
+ * committed text — that is the whole reason a lost write is a missing *feature* on screen rather
+ * than a missing row. A bundler cannot inline them: they are data the run reads at run time, not
+ * modules it imports. So they are copied next to the handler, and the function points
+ * `CORTEX_CORPUS_ROOT` at its own directory.
+ *
+ * Discovered by bundling rather than by reasoning: esbuild warned that `import.meta.url` is empty
+ * under CommonJS, which would have deployed a runner that threw on its first file read.
+ */
+const NEEDS_CORPUS = { runner: 'bench/demo-app' };
 
 for (const name of FUNCTIONS) {
+  const outdir = resolve(here, `lambda-dist/${name}`);
+
   await build({
     entryPoints: [resolve(here, `lambda/${name}.ts`)],
-    outfile: resolve(here, `lambda-dist/${name}/index.cjs`),
+    outfile: resolve(outdir, 'index.cjs'),
     bundle: true,
     platform: 'node',
     target: 'node22',
@@ -58,4 +76,19 @@ for (const name of FUNCTIONS) {
     plugins: [resolveTsFromJs],
     logLevel: 'info',
   });
+
+  const corpus = NEEDS_CORPUS[name];
+  if (!corpus) continue;
+
+  const from = resolve(here, '..', corpus);
+  const to = resolve(outdir, corpus);
+  await rm(to, { recursive: true, force: true });
+  await cp(from, to, { recursive: true });
+
+  // An empty copy is the failure this is guarding — a moved or renamed corpus would otherwise
+  // deploy silently and throw on the first file the first agent reads, in front of whoever
+  // clicked run. Counted rather than assumed.
+  const copied = (await readdir(to, { recursive: true })).length;
+  if (copied === 0) throw new Error(`${corpus} copied nothing into ${name}'s bundle`);
+  console.log(`  ${name}: ${copied} corpus entries from ${corpus}`);
 }

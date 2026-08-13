@@ -29,7 +29,7 @@ import { Embedder } from '../src/embed/titan.js';
 import { attributeFeatures, unattributableLosses, type Feature } from '../src/demo/attribution.js';
 import { assembleApp } from '../src/demo/app-bundle.js';
 import { runArm, ASSIGNMENT, type ArmResult } from '../src/demo/workload.js';
-import { createDemoSession, DEMO_SESSION_ROW_CAP, demoState } from '../src/memory/demo.js';
+import { createDemoSessionPair, DEMO_SESSION_ROW_CAP, demoState } from '../src/memory/demo.js';
 import { DEMO_TASKS, taskById } from '../bench/demo-workload.js';
 
 const ENV_PATH = resolve(process.cwd(), '.env');
@@ -67,17 +67,19 @@ async function main(): Promise<void> {
   const waves = new Set(ASSIGNMENT.map((a) => a.wave)).size;
   console.log(`${ASSIGNMENT.length} assignments across 5 agents, in ${waves} waves\n`);
 
-  const cortexScope = await createDemoSession();
-  const naiveScope = await createDemoSession();
-  console.log(`cortex scope ${cortexScope.sessionId}`);
-  console.log(`naive  scope ${naiveScope.sessionId}\n`);
+  // Since U22 the route creates both, so this asks for the pair the same way a visitor does
+  // rather than assembling one of its own. While it did assemble its own, `POST /demo/session`
+  // could have created one scope for ever and this gate would have gone on passing.
+  const { scopes } = await createDemoSessionPair();
+  console.log(`cortex scope ${scopes.cortex}`);
+  console.log(`naive  scope ${scopes.naive}\n`);
 
   const cortexRecorder = new StatementRecorder();
   const naiveRecorder = new StatementRecorder();
 
   const cortexStarted = Date.now();
   const cortex = await runArm({
-    sessionId: cortexScope.sessionId,
+    sessionId: scopes.cortex,
     arm: 'cortex',
     embed,
     recorder: cortexRecorder,
@@ -86,7 +88,7 @@ async function main(): Promise<void> {
 
   const naiveStarted = Date.now();
   const naive = await runArm({
-    sessionId: naiveScope.sessionId,
+    sessionId: scopes.naive,
     arm: 'naive',
     embed,
     recorder: naiveRecorder,
@@ -152,8 +154,8 @@ async function main(): Promise<void> {
   }
 
   // ---- Row budgets, per scope. Design §12 item 3 ----
-  const cortexState = await demoState(cortexScope.sessionId);
-  const naiveState = await demoState(naiveScope.sessionId);
+  const cortexState = await demoState(scopes.cortex);
+  const naiveState = await demoState(scopes.naive);
 
   console.log('\nROW BUDGET (per scope, cap ' + DEMO_SESSION_ROW_CAP + ')');
   console.log(`  cortex  ${cortexState?.rows.used} used, ${cortexState?.rows.remaining} left`);

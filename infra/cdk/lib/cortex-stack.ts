@@ -6,8 +6,8 @@
  * CA and a warm query at 3ms (V22). What it deployed is still here, renamed rather than
  * rewritten, because "spike" stopped being true the moment the demo depended on it.
  *
- * Four functions, and the concurrency they share is the binding constraint on this whole
- * deployment. See `CONCURRENCY` below before adding a fifth.
+ * Five functions, and the concurrency they share is the binding constraint on this whole
+ * deployment. See `CONCURRENCY` below before adding a sixth.
  */
 import * as cdk from 'aws-cdk-lib/core';
 import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
@@ -43,18 +43,38 @@ const DIST = path.join(__dirname, '..', '..', 'lambda-dist');
  * That is recorded in `docs/SPEC-DELTA.md` rather than worked around in code, because
  * the replacement brake is `04` §5's decision to re-make and U17's to force.
  *
- * So all four functions draw on one shared pool of 10, and the budget is a statement
+ * So all five functions draw on one shared pool of 10, and the budget is a statement
  * about what is expected to be in flight rather than a limit any of them can exceed:
  *
  *   demo        — the visitor-facing route. Every panel refresh is one invocation.
+ *   runner      — one per fleet run, held for 6–9s (V51). The expensive one; see below.
  *   changefeed  — one at a time in practice; the sink posts batches, not rows.
  *   connections — $connect / $disconnect only, and both are sub-millisecond.
  *   identity    — a curl target for the README and the video. Effectively idle.
  *
+ * **U22 added `runner`, and it is the first function here that holds a slot for seconds
+ * rather than milliseconds.** Design §5.2 fixes one visitor's run at **two** invocations —
+ * this route handler and that runner — precisely because of the ceiling above: ten agents
+ * as ten Lambdas would consume the entire account for one visitor. With the agents as
+ * async tasks *inside* the runner, five concurrent visitors is the arithmetic (two each),
+ * and the sixth waits.
+ *
+ * **The cost is smaller than the design assumed, and it was measured (V51).** A deployed
+ * run is 6–9 seconds, not the 50–70 the design inferred from laptop timings, and the route
+ * handler returns in 482ms — so the two invocations barely overlap and the runner's slot is
+ * held briefly. The mitigation is not concurrency, of which there is none to be had on this
+ * account: it is that a run is *watched*, not polled. Everything after the 202 arrives over
+ * one WebSocket, so a visitor occupies no HTTP slot at all while watching, which is what
+ * keeps this arithmetic workable when U24's LIVE mode makes a run genuinely long.
+ *
  * Ten simultaneous visitors can still exhaust it, and the fifth rung U17 has to build is
  * what answers when they do. Nothing here pretends otherwise.
  */
-const CONCURRENCY = { accountLimit: 10, reservedPerFunction: 'unavailable on this account' };
+const CONCURRENCY = {
+  accountLimit: 10,
+  reservedPerFunction: 'unavailable on this account',
+  invocationsPerFleetRun: 2,
+};
 
 /**
  * Bedrock's region and the embedding model, for consolidation (flow D).
@@ -225,6 +245,78 @@ export class CortexStack extends cdk.Stack {
         ],
       }),
     );
+
+    /**
+     * U22'S RUNNER — one visitor's fleet run, off the request path.
+     *
+     * **Not because the run would blow the gateway ceiling.** V51 measured that it does not:
+     * both arms complete in 5.9–8.3s in-region against a 30,000ms integration timeout, and a
+     * synchronous invocation answered in 4548ms. The shape is kept because the stream is the
+     * demo and because U24's LIVE mode will exceed the ceiling; the argument lives in
+     * `src/demo/run.ts`'s header, next to the code it governs.
+     *
+     * 180s is roughly 20× the longest run measured, and the margin is not slack: what it buys
+     * is that `src/demo/run.ts`'s watchdog — which publishes the terminal event when a run
+     * outlives its budget — fires on a run that has genuinely stalled rather than on one that
+     * was merely slow. A terminal event that fires on healthy runs is worse than none, because
+     * a page would learn to ignore it. It also leaves room for LIVE without a redeploy of the
+     * shape.
+     *
+     * 1024MB rather than 512: Lambda scales CPU with memory, five agents run concurrently
+     * inside one sandbox, and a run that finishes sooner holds one of ten account-wide
+     * concurrency slots for less time. At the handful of runs this demo will serve, the cost
+     * difference is cents.
+     */
+    const runnerFn = new lambda.Function(this, 'RunnerFn', {
+      ...runtime,
+      timeout: cdk.Duration.seconds(180),
+      memorySize: 1024,
+      code: lambda.Code.fromAsset(path.join(DIST, 'runner')),
+      environment: {
+        CORTEX_DEMO_DSN: demoDsn,
+        CONNECTIONS_TABLE: connections.tableName,
+        WEBSOCKET_CALLBACK_URL: streamStage.callbackUrl,
+        SQL_LOG_TABLE: sqlLog.tableName,
+        BEDROCK_REGION: bedrockRegion,
+        BEDROCK_EMBED_MODEL: embedModel,
+        // Where `infra/bundle.mjs` put `bench/demo-app/`. Lambda unpacks the asset at
+        // `/var/task`, so the corpus sits beside the handler rather than two directories above
+        // it, and `src/demo/patches.ts` has no repository to resolve itself against.
+        CORTEX_CORPUS_ROOT: '/var/task',
+      },
+    });
+    connections.grantReadWriteData(runnerFn);
+    sqlLog.grantReadWriteData(runnerFn);
+    // Embeddings only. Like the changefeed sink, this function has no business invoking a
+    // reasoning model — and it makes no model call at all today (`RUNNER_MAKES_MODEL_CALLS`),
+    // so a grant wider than this would be authorising something nothing does.
+    runnerFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          `arn:aws:bedrock:${bedrockRegion}::foundation-model/${embedModel}`,
+          `arn:aws:bedrock:${bedrockRegion}:${this.account}:inference-profile/${embedModel}`,
+        ],
+      }),
+    );
+    runnerFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['execute-api:ManageConnections'],
+        resources: [
+          this.formatArn({
+            service: 'execute-api',
+            resource: webSocketApi.apiId,
+            resourceName: `${streamStage.stageName}/POST/@connections/*`,
+          }),
+        ],
+      }),
+    );
+
+    // Named after the fact rather than at construction because the runner needs the WebSocket
+    // stage, which needs the connections function — and the route handler needs the runner. One
+    // of the three has to learn its neighbour's name late; this is the cheapest one.
+    demoFn.addEnvironment('RUNNER_FUNCTION', runnerFn.functionName);
+    runnerFn.grantInvoke(demoFn);
 
     const api = new apigw.HttpApi(this, 'DemoApi', {
       // Anonymous and cross-origin by construction: the SPA is served from CloudFront and

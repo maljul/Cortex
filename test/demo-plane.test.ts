@@ -24,7 +24,8 @@ import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { handleDemoRequest } from '../src/demo/api.js';
+import { handleDemoRequest, useEmbedder, useRunStarter } from '../src/demo/api.js';
+import { Embedder } from '../src/embed/titan.js';
 import { closePool, getPool } from '../src/db/pool.js';
 import { withRetry } from '../src/db/retry.js';
 import {
@@ -305,12 +306,17 @@ describe('the demo HTTP surface — invariant 8', () => {
     const response = await handleDemoRequest({ method: 'POST', path: '/demo/session' });
     expect(response.statusCode).toBe(200);
 
-    const body = JSON.parse(response.body) as { sessionId: string };
+    const body = JSON.parse(response.body) as {
+      sessionId: string;
+      scopes: { cortex: string; naive: string };
+    };
     try {
       expect(body.sessionId).toMatch(/^[0-9a-f-]{36}$/);
       expect(response.body).not.toMatch(/postgresql:\/\/|sslmode|password/i);
     } finally {
-      await purge(body.sessionId);
+      // Both scopes since U22, or this suite leaves a `repos` row behind on every run.
+      await purge(body.scopes.cortex);
+      await purge(body.scopes.naive);
     }
   });
 
@@ -393,7 +399,10 @@ describe('the demo HTTP surface — invariant 8', () => {
 
   it('serves state for a session over the route the SPA will use', async () => {
     const created = await handleDemoRequest({ method: 'POST', path: '/demo/session' });
-    const { sessionId } = JSON.parse(created.body) as { sessionId: string };
+    const { sessionId, scopes } = JSON.parse(created.body) as {
+      sessionId: string;
+      scopes: { cortex: string; naive: string };
+    };
 
     try {
       const response = await handleDemoRequest({
@@ -407,7 +416,8 @@ describe('the demo HTTP surface — invariant 8', () => {
       expect(state.claims).toEqual([]);
       expect(state.rows.cap).toBeGreaterThan(0);
     } finally {
-      await purge(sessionId);
+      await purge(scopes.cortex);
+      await purge(scopes.naive);
     }
   });
 
@@ -427,4 +437,186 @@ describe('the demo HTTP surface — invariant 8', () => {
       await real.drop();
     }
   });
+});
+
+/**
+ * U22 — THE ASYNC RUN, AND THE ROUTE SURFACE IT DID NOT GROW.
+ *
+ * The done-when is "`POST /demo/run` returns inside the gateway ceiling and the whole run arrives
+ * over the socket". The ceiling is 30,000ms on this deployment and the run turns out to fit
+ * comfortably inside it — 5.9–8.3s in-region against ~50s from a laptop (V51) — so the async shape
+ * rests on the stream being the demo and on U24's LIVE mode, not on design §5.1's predicted
+ * timeout. `src/demo/run.ts` carries that argument; `npm run gate:async` decides the done-when
+ * against the deployed stack, which is the only place a gateway ceiling exists.
+ *
+ * **What was decided, and why it is a mode rather than a sixth route.** Design §8 already refused
+ * to grow `05` §5's route list once — the artifacts are served through `GET /demo/state` "rather
+ * than a sixth route" — and design decision 7 keeps the currently deployed page serving until
+ * U26's cold read. Changing this route's response shape breaks that page. So `POST /demo/run`
+ * keeps its synchronous four-beat behaviour by default and takes the fleet run behind `mode`,
+ * which is a fixed choice between two code paths in exactly the sense `arm` already is: two
+ * accepted values, neither of which reaches SQL, so invariant 7 is untouched.
+ *
+ * The last test here is the guard on decision 7 and it is the reason this block runs live.
+ */
+describe('the fleet run is asynchronous, and the beats route is untouched — U22', () => {
+  // The four-beat path embeds for real, against the same Titan model everything else here uses.
+  const embedder = new Embedder();
+  useEmbedder((text) => embedder.embed(text));
+
+  /** Both of a visitor's scopes, cleaned up together. */
+  async function pair(): Promise<{
+    sessionId: string;
+    scopes: { cortex: string; naive: string };
+    purge: () => Promise<void>;
+  }> {
+    const created = await handleDemoRequest({ method: 'POST', path: '/demo/session' });
+    const body = JSON.parse(created.body) as {
+      sessionId: string;
+      scopes: { cortex: string; naive: string };
+    };
+    return {
+      ...body,
+      purge: async () => {
+        await purge(body.scopes.cortex);
+        await purge(body.scopes.naive);
+      },
+    };
+  }
+
+  it('creates two live scopes, one per arm, without changing what the deployed page reads', async () => {
+    const session = await pair();
+    try {
+      // Design §4.1: two `repos` rows, so the isolation between the arms is row-level security
+      // rather than the incidental "they happen to use different tables" it used to be.
+      expect(session.scopes.cortex).toMatch(/^[0-9a-f-]{36}$/);
+      expect(session.scopes.naive).toMatch(/^[0-9a-f-]{36}$/);
+      expect(session.scopes.naive).not.toBe(session.scopes.cortex);
+
+      // Additive, and this is the whole of decision 7 in one assertion: `sessionId` is still
+      // there and is still a live scope, so the deployed page's session → state → run sequence
+      // does not know anything changed. It is the cortex scope rather than a third row.
+      expect(session.sessionId).toBe(session.scopes.cortex);
+
+      for (const scope of [session.scopes.cortex, session.scopes.naive]) {
+        expect(await demoState(scope)).not.toBeNull();
+      }
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('hands the fleet run off and returns without performing it', async () => {
+    const session = await pair();
+    const jobs: { runId: string; scopes: { cortex: string; naive: string } }[] = [];
+    useRunStarter(async (job) => void jobs.push(job));
+
+    try {
+      const started = Date.now();
+      const response = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        body: { session: session.sessionId, mode: 'fleet', naive: session.scopes.naive },
+      });
+      const elapsed = Date.now() - started;
+
+      // 202: accepted, not done. The distinction is the route's whole point.
+      expect(response.statusCode).toBe(202);
+      const body = JSON.parse(response.body) as { runId: string; scopes: unknown };
+      expect(body.runId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(body.scopes).toEqual(session.scopes);
+
+      // Both scopes reach the runner, and the run id the caller was given is the run id the
+      // socket will carry. A handoff that renamed either would leave the page listening for a
+      // run nobody is performing.
+      expect(jobs).toEqual([{ runId: body.runId, scopes: session.scopes }]);
+
+      // Loose on purpose. This asserts the route is not waiting for the work; it is not a
+      // latency budget, and it runs on a laptop where every round trip crosses the internet.
+      // The number that matters is measured against the deployment by `npm run gate:async`.
+      expect(elapsed).toBeLessThan(10_000);
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('refuses a fleet run that names only one of the two scopes', async () => {
+    const session = await pair();
+    useRunStarter(async () => {
+      throw new Error('the runner must not be reached without both scopes');
+    });
+
+    try {
+      const response = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        body: { session: session.sessionId, mode: 'fleet' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.body)).toMatchObject({
+        error: expect.stringMatching(/both|two|naive/i),
+      });
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('refuses a fleet run whose naive scope is not a live demo scope', async () => {
+    const session = await pair();
+    const real = await realRepository();
+    useRunStarter(async () => {
+      throw new Error('the runner must not be reached with an unowned scope');
+    });
+
+    try {
+      const response = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        body: { session: session.sessionId, mode: 'fleet', naive: real.id },
+      });
+
+      // 404 and not 403: `04` §5 invariant 1 admits no error page, and "that session has
+      // expired or never existed" is the same truthful answer `GET /demo/state` gives.
+      expect(response.statusCode).toBe(404);
+    } finally {
+      await real.drop();
+      await session.purge();
+    }
+  });
+
+  /**
+   * DECISION 7'S GUARD, AND THE REASON THIS FILE PAYS FOR A LIVE SCENARIO RUN.
+   *
+   * The deployed page consumes this route's synchronous four-beat response today, and U26's cold
+   * read is what retires it. If `mode` ever defaults to `fleet`, or the beats branch is deleted
+   * ahead of the new page, that page shows nothing and no other test in this repository notices —
+   * `test/scenario.test.ts` calls `runScenario` directly and would stay green.
+   */
+  it('still performs the four beats synchronously when no mode is given', async () => {
+    const session = await pair();
+    useRunStarter(async () => {
+      throw new Error('the default mode must not reach the fleet runner');
+    });
+
+    try {
+      const response = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        body: { session: session.sessionId },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as {
+        runId?: string;
+        steps?: unknown[];
+        sql?: { statements: number };
+      };
+      expect(body.runId).toBeUndefined();
+      expect(body.steps?.length).toBeGreaterThan(0);
+      expect(body.sql?.statements).toBeGreaterThan(0);
+    } finally {
+      await session.purge();
+    }
+  }, 120_000);
 });

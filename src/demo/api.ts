@@ -16,8 +16,11 @@
  * added `POST /demo/run` and `GET /demo/sql-log`, which are the two that serve `07` §3's
  * beats and `07` §2's show-SQL toggle.
  */
+import { randomUUID } from 'node:crypto';
+
 import { StatementRecorder } from '../db/recorder.js';
-import { createDemoSession, demoState } from '../memory/demo.js';
+import { createDemoSessionPair, demoState } from '../memory/demo.js';
+import type { RunScopes } from './run.js';
 import { runScenario, type DemoArm } from './scenario.js';
 import { readSqlLog, writeSqlLog } from './sql-log.js';
 
@@ -88,6 +91,30 @@ function embedder(): (text: string) => Promise<number[]> {
   return embedderFn;
 }
 
+/** One visitor's fleet run, as handed to whatever performs it. */
+export interface RunJob {
+  runId: string;
+  scopes: RunScopes;
+}
+
+/**
+ * How a fleet run is started. Installed by the caller for the same reason the embedder is: this
+ * module decides *what the route does*, and "invoke another Lambda asynchronously" is an AWS fact
+ * belonging to `infra/lambda/demo.ts`. `test/demo-plane.test.ts` installs a recorder instead and
+ * so can assert the handoff — that both scopes and the run id the caller was given reach the
+ * runner — against the real cluster without deploying anything.
+ */
+let runStarterFn: ((job: RunJob) => Promise<void>) | undefined;
+
+export function useRunStarter(start: (job: RunJob) => Promise<void>): void {
+  runStarterFn = start;
+}
+
+function runStarter(): (job: RunJob) => Promise<void> {
+  if (!runStarterFn) throw new Error('no run starter installed: call useRunStarter() at start-up');
+  return runStarterFn;
+}
+
 /** Walks a decoded request body looking for anything credential-shaped, at any depth. */
 export function findCredentialField(value: unknown, path: string[] = []): string | null {
   if (typeof value === 'string' && CREDENTIAL_VALUE.test(value)) {
@@ -156,10 +183,14 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
   const route = `${request.method} ${request.path}`;
 
   if (route === 'POST /demo/session') {
-    const session = await createDemoSession();
+    // Two scopes since U22, one per arm (design §4.1), and additive: `sessionId` is the cortex
+    // scope under the name it already had, so the deployed page reads the same field it always
+    // read and never learns that anything changed.
+    const session = await createDemoSessionPair();
     return json(200, {
       sessionId: session.sessionId,
       expiresAt: session.expiresAt.toISOString(),
+      scopes: session.scopes,
     });
   }
 
@@ -180,7 +211,12 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
   }
 
   if (route === 'POST /demo/run') {
-    const body = (request.body ?? {}) as { session?: unknown; arm?: unknown };
+    const body = (request.body ?? {}) as {
+      session?: unknown;
+      arm?: unknown;
+      mode?: unknown;
+      naive?: unknown;
+    };
     const sessionId = typeof body.session === 'string' ? body.session : request.query?.['session'];
     if (!sessionId) {
       return json(400, { error: 'A session id is required. Start one at POST /demo/session.' });
@@ -191,9 +227,61 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
     // paths, not a parameter the caller gets to shape.
     const arm: DemoArm = body.arm === 'naive' ? 'naive' : 'cortex';
 
+    /**
+     * THE ONE THING U22 ADDED TO THIS SURFACE, AND WHY IT IS NOT A SIXTH ROUTE.
+     *
+     * `mode` is `arm`'s twin: two accepted values, decided against a closed set, neither of which
+     * reaches SQL or names a table. The default is the four scripted beats this route has always
+     * performed, because the **deployed page consumes that response today** and design decision 7
+     * keeps it serving until U26's cold read. `fleet` is U21's ten-ticket two-arm run, which is
+     * handed off and answered with a run id rather than performed on this response — see
+     * `src/demo/run.ts` for why, and for the design premise V51 measured to be false.
+     *
+     * A sixth route was the obvious alternative and design §8 had already refused one for a weaker
+     * reason — the artifacts go through `GET /demo/state` "rather than a sixth route, so `05` §5's
+     * route list does not grow". When U25 rebuilds the page, the beats branch goes and this route
+     * keeps its name.
+     */
+    const mode = body.mode === 'fleet' ? 'fleet' : 'beats';
+
     if (!(await demoState(sessionId))) {
       return json(404, {
         error: 'That session has expired or never existed. Starting a new one is one click.',
+      });
+    }
+
+    if (mode === 'fleet') {
+      // Both scopes are the caller's own, minted together by `POST /demo/session`, and each is
+      // validated on its own rather than inferred from the other. They cannot be looked up from
+      // one another: `04` §3's policy confines a connection to the scope it names, so a
+      // connection scoped to the cortex row cannot read the naive row to discover it — which is
+      // the confinement working, not an obstacle to route around.
+      const naiveScope = typeof body.naive === 'string' ? body.naive : undefined;
+      if (!naiveScope) {
+        return json(400, {
+          error:
+            'A fleet run needs both of the session\'s scopes. POST /demo/session returns them as ' +
+            'scopes.cortex and scopes.naive; pass the second one as "naive".',
+        });
+      }
+
+      if (!(await demoState(naiveScope))) {
+        return json(404, {
+          error: 'That session has expired or never existed. Starting a new one is one click.',
+        });
+      }
+
+      const runId = randomUUID();
+      await runStarter()({ runId, scopes: { cortex: sessionId, naive: naiveScope } });
+
+      // 202, because the honest answer is "accepted" and not "done". Everything the run does
+      // arrives over the WebSocket, terminal event included — see `src/demo/run.ts` for why a
+      // run that ends without one is the failure this unit was written about.
+      return json(202, {
+        runId,
+        mode: 'fleet',
+        scopes: { cortex: sessionId, naive: naiveScope },
+        stream: 'Every step of the run arrives over the WebSocket, ending with a run message.',
       });
     }
 

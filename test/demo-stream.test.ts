@@ -135,20 +135,44 @@ describe('the fan-out establishes the scope before it broadcasts', () => {
     }
   });
 
-  it('says no to an expired scope, at the instant it expires', async () => {
-    // One second of life, then gone. Expiry is enforced by the policy predicate at read
-    // time rather than by a cleanup job, which is what `04` §3 relies on for a demo that
-    // must survive unattended until 2026-09-15.
-    const session = await createDemoSession(1);
+  /**
+   * Expiry is enforced by the policy predicate at read time rather than by a cleanup job, which
+   * is what `04` §3 relies on for a demo that must survive unattended until 2026-09-15.
+   *
+   * **This test used to create the scope with a one-second TTL and sleep past it, and that raced
+   * the cluster rather than the clock.** `createDemoSession` computes `expires_at` in this
+   * process and then inserts, and the insert's own `WITH CHECK` requires the row to be a live
+   * demo scope — so when the round trip takes longer than the TTL, the row is expired before the
+   * policy ever sees it and the *creation* fails with `new row violates row-level security
+   * policy`. It went red on 2026-08-13 (V51) and stayed red: a **cold** `createDemoSession` was
+   * measured at **1355ms** against a one-second TTL, warm at ~480ms. The test was passing on
+   * timing, not on behaviour, and it would have gone red on any slow morning.
+   *
+   * The scope is now created with an ordinary lifetime and expired deliberately, as the admin
+   * principal. Same property, no clock in it: `cortex_demo` cannot move its own expiry — that is
+   * the point of the policy — so an administrator is the only thing that can put a live scope
+   * into the past, and doing so is exactly what a lapsed session looks like from the outside.
+   */
+  it('says no to a scope whose expiry has passed', async () => {
+    const session = await createDemoSession();
+    const admin = new Client({
+      connectionString: process.env.CORTEX_DSN,
+      connectionTimeoutMillis: 10_000,
+    });
+    await admin.connect();
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Non-vacuity: it must be reachable *before* it expires, or a broken `isLiveDemoScope`
+      // that always answered false would pass the assertion this test exists for.
+      expect(await isLiveDemoScope(session.sessionId)).toBe(true);
+
+      await admin.query(
+        "UPDATE repos SET demo_expires_at = now() - INTERVAL '1 minute' WHERE id = $1",
+        [session.sessionId],
+      );
+
       expect(await isLiveDemoScope(session.sessionId)).toBe(false);
     } finally {
-      const admin = new Client({
-        connectionString: process.env.CORTEX_DSN,
-        connectionTimeoutMillis: 10_000,
-      });
-      await admin.connect();
       await admin.query('DELETE FROM repos WHERE id = $1', [session.sessionId]);
       await admin.end();
     }

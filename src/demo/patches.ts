@@ -49,8 +49,17 @@ export class PatchError extends Error {}
  * `npm test`, `npm run serve` and a deployed Lambda all run from different places, and a
  * corpus that moved with the working directory would make a patch apply in one and throw in
  * another. `bench/reason.ts` resolves its corpus the same way and for the same reason.
+ *
+ * **`CORTEX_CORPUS_ROOT` is how a deployment says where it put the files, and U22 needed it.**
+ * A bundled Lambda has no repository around it in either sense: esbuild's CommonJS output leaves
+ * `import.meta.url` empty, and the corpus is copied *next to* the handler rather than sitting two
+ * directories above it, so even a working `__filename` would resolve to the wrong place. It is a
+ * deployment variable and not an agent-reachable one — the same shape and the same purpose as
+ * `CORTEX_REPO_ROOT`, which U8 added when the glob path hit this from the other side.
  */
 function repoRoot(): string {
+  const declared = process.env['CORTEX_CORPUS_ROOT'];
+  if (declared) return declared;
   return fileURLToPath(new URL('../../', import.meta.url));
 }
 
