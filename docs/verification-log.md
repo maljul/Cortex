@@ -4203,9 +4203,26 @@ until then `bash scripts/gate-mechanical.sh --report` is the one that is known t
 
 ---
 
-## V43 — The cluster stopped serving under sustained test load, four days before ship
+## V43 — The cluster degrades badly under back-to-back suite runs, and recovers when they stop
 
-**2026-08-13, found by accident and it is the most important thing in this session.**
+**2026-08-13, found by accident.**
+
+> **This entry was first written under the title "The cluster stopped serving" and that was an
+> over-call, corrected here rather than appended to.** At the time it was written the cluster
+> had not answered two probes and the conclusion drawn was Request Unit exhaustion — which would
+> have been catastrophic, because a Basic cluster that spends its RU budget stops serving until
+> the period resets, and ship is 2026-08-17. **It is not that.** After roughly fifteen minutes
+> with no load, a cold `pg` connect and a trivial query:
+>
+> ```
+>   authenticated in 1564ms
+>   SELECT 1 returned at 1761ms  -> CLUSTER IS SERVING
+> ```
+>
+> The real finding is milder and still worth having: **progressive degradation under sustained
+> load, with recovery on rest.** Everything below is accurate as measurement; only the diagnosis
+> changed. The RU ceiling in the cluster record is real and worth knowing, but nothing here
+> demonstrates it was reached.
 
 ### What happened
 
@@ -4240,30 +4257,67 @@ assembles a string instead of writing it out. The two files added this session c
 seconds between them, and the one timeout that was raised is a budget, not work. Run 2 and run 3
 were effectively the same tree and differ by a factor of four in wall clock.
 
-### The hypothesis, stated as a hypothesis
+### What it is: saturation, not exhaustion
 
-**CockroachDB Basic tier meters in Request Units with a burst budget, and sustained load spends
-it.** `agent-hack-30704` is Basic tier. Three full suites against the real cluster, each running
-hundreds of statements including deliberate serialization conflicts and vector searches, is a
-lot of RUs in ninety minutes. Throttling would look exactly like this: gradual slowdown, then
-statements that never return.
+The staged probe below separates the layers, and it is the diagnostic worth keeping. Run after
+about fifteen minutes of no load:
 
-**Not confirmed.** Confirming it means reading the cluster's RU consumption in the Cloud console
-or via the Cloud API, and that has not been done. It is the first thing to check.
+```
+=== 1. DNS ===   resolved to 3.226.73.245 in 506ms
+=== 2. TCP :26257 ===   TCP established in 267ms
+=== 3. pg connect + trivial query ===
+  authenticated in 1564ms
+  SELECT 1 returned at 1761ms  -> CLUSTER IS SERVING
+```
 
-### Why this is a submission risk and not a nuisance
+So DNS, TCP, TLS, auth and query are all healthy once load stops. The degradation is **load
+dependent and it recovers.** Run 1 591s, run 2 607s, run 3 2504s, run 4 hanging — a monotone
+slide across four back-to-back runs, then health after a rest.
 
-`08` §4's gate, the hosted demo, `npm run gate:*`, and the recording all run against this one
-cluster. If sustained load can throttle it into not answering, then **a judging session, or a
-recording take, or a pre-ship verification sweep, can do to it exactly what this session did.**
-`04` §5's ladder has rungs for a throttled Bedrock and for an exhausted LIVE budget; it has no
-rung for the database being the thing that stops answering, and `04` §5 invariant 1 admits no
-error page on any path a visitor can reach.
+**A local cause was ruled out first**, because leaked client connections would look identical:
+`ps` showed no surviving `vitest` or `tsx` process and `lsof -nP -iTCP:26257 -sTCP:ESTABLISHED`
+showed **zero** open connections while the cluster was still not answering.
+
+### The RU ceiling, which is real and was not the cause
+
+The Cloud API's cluster record carries a hard cap, worth writing down because nothing in this
+repository mentioned it before:
+
+```
+config: {"serverless": {"routing_id": "agent-hack-30704",
+         "usage_limits": {"request_unit_limit": "60000000", "storage_mib_limit": "6144"},
+         "upgrade_type": "AUTOMATIC"}}
+state: "CREATED"     plan: BASIC     created_at: 2026-07-31
+```
+
+**60M Request Units and 6 GiB.** A Basic cluster that spends its RU budget stops serving until
+the period resets — which, on a cluster created 2026-07-31, would reset after ship. That is why
+the first draft of this entry called it the most important thing in the session.
+
+**It is not what happened**, because the cluster is serving. There is no public usage endpoint —
+`/usage`, `/metrics`, `/usagelimits` and `/costs` all return 404 under `/api/v1/clusters/{id}/`
+— so **consumption against that 60M can only be read in the Cloud Console**, and it has not
+been. Worth reading once before ship, since the ceiling exists and this project's whole
+verification story runs against this one cluster.
+
+### Why it still matters, at its corrected size
+
+`08` §4's gate, the hosted demo, every `npm run gate:*` and the recording all run against this
+one cluster. **Four back-to-back full-suite runs took it from 591s to unusable.** A pre-ship
+verification sweep is exactly that shape, and so is a recording session that re-takes a scene
+several times. `04` §5's ladder has rungs for a throttled Bedrock and an exhausted LIVE budget
+and **no rung for the database being slow**, while invariant 1 admits no error page on any path
+a visitor can reach.
+
+The practical rule that follows: **do not run the suite back to back.** One run, then let it
+rest. `npm test` is ten minutes of continuous SQL against a Basic cluster including vector
+searches and deliberate serialization conflicts, and it is not free.
 
 ### What was done about it
 
-Stopped. No further statement was issued after the probe above. **No conclusion about the
-suite's health should be drawn from runs 3 and 4** — they measure the cluster, not the code.
+Stopped, then diagnosed with single cheap probes rather than another suite run. **No conclusion
+about the suite's health should be drawn from runs 3 and 4** — they measure the cluster under
+self-inflicted load, not the code.
 
 ### What is owed
 
@@ -4273,6 +4327,7 @@ suite's health should be drawn from runs 3 and 4** — they measure the cluster,
   cluster since. `CLAUDE.md` deliberately still carries the older `300/300` rather than a number
   nobody watched pass — a stale number that is visibly stale is safer than a fresh one that is
   guessed.
-- **The RU reading**, before anything else is run.
-- **A decision about load between now and 2026-08-17**: how many full-suite runs the cluster can
-  take, and whether the recording session should avoid running one at all.
+- **The RU reading**, from the Cloud Console, since the API does not expose it and a 60M ceiling
+  exists on a cluster whose period began 2026-07-31.
+- **A decision about load between now and 2026-08-17**: the suite is not free, and four runs in
+  ninety minutes was too many.
