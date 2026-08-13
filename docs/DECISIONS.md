@@ -884,6 +884,48 @@ C1, C2 and C3 all edit the **same file** and are **three separate, non-conflicti
 exactly the structure already built and tested for `orders/repository.ts`. That is what makes
 the naive lane lose two of three without a merge conflict anywhere in sight.
 
+### The mapping deepens into an interlock map *(2026-08-13, second call: "fairly complex on purpose", "find this problem in different codes")*
+
+One-file contention is necessary and not sufficient. A sceptic answers it with *"use git
+worktrees"* — and a 30-day sweep that same day found that is uniformly what the field ships:
+MindFlock and Shikigami both pitch "each agent in its own Git worktree", Rabbitty ships it for
+Mac, PraisonAI merged a "git worktree workspace isolation primitive" so concurrent agents "can
+edit the same repository without clobbering each other's changes", makaio-framework added
+worktree pollution guards. Every one frames its win as *not clobbering*. **Not one arbitrates
+intent.**
+
+So the naive lane is labelled worktree isolation, and the defects are re-engineered to cross
+module boundaries — because a cross-module contradiction is exactly what file-level isolation
+cannot see. Each one is fixed *correctly* in its own branch, the branch passes, the merge is
+**clean**, and the app is still broken:
+
+| # | Interlock | Modules it spans | Naive pane shows |
+| --- | --- | --- | --- |
+| 1 | I3 → R3, money representation | `lib/money` → `shipping/quote` → `web` | shipping line 100× off, totals disagree |
+| 2 | P2 → C3, stale cache defeats the guard | `inventory/repository` → `orders/create` | the guard is present and lets an oversell through |
+| 3 | C1 · C2 · C3, three features one file | `orders/{list,status,create}` → `orders/repository` | one feature silently missing |
+| 4 | P6a ‖ P6b, same work two modules | `notify/email` ‖ `notify/templates` | banner renders twice |
+| 5 | A1 → T11, abandonment recall | `payments/provider` → the spared agent | an agent burns the same dead end twice |
+
+**Interlock 2 is the one to keep if only one survives.** P2 and C3 are different tickets in
+different modules and *neither agent is wrong* — the thirty-second cache is a correct cache, the
+stock check is a correct guard, and composed without shared memory they oversell. There is no
+lock, no worktree and no merge strategy that catches it, because nothing about it is a conflict.
+
+**Interlock 1 rides the recall pair rather than adding anything.** R3 is only correct if it knows
+what I3 decided about representation, which is precisely why the pair measured at 0.4293 —
+outside dedupe, inside recall. The demo's most legible defect and its most carefully measured
+distance turn out to be the same fact.
+
+**This changes no statement.** V38's 253 measurements are what make the pairs fire and the
+non-pairs not fire; rewording anything voids them. Only the patch bodies and their file targets
+move, and those were always free. The corpus grows from six files to roughly fourteen across
+seven modules so the interlocks have a boundary to cross.
+
+**What it costs:** five interlocks must be *verified to actually break* the naive lane. One that
+merges cleanly and then works anyway is a dead beat, and only running it reveals which — recorded
+in the design's verify-first list rather than assumed.
+
 ### What this does not cost
 
 **The patch machinery transfers unchanged.** `src/demo/patches.ts`, the anchored-replacement
