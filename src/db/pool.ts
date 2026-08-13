@@ -4,7 +4,19 @@ import { Pool } from 'pg';
  * Which privilege plane a connection belongs to. `04-ARCHITECTURE.md` §3 defines three;
  * two of them are reachable from code that opens a pool.
  *
- * - `write` — `cortex_writer`, via `CORTEX_DSN`. The CLI and the MCP tools.
+ * - `write` — `CORTEX_DSN`. The CLI and the MCP tools. **`04` §3 names this plane
+ *   `cortex_writer` and it is not: the variable connects as `julian`, a cluster admin.**
+ *   This comment claimed otherwise until 2026-08-13, when `/check` found it blind (V40) —
+ *   nothing asserted the principal, unlike the two planes below, and the missing assertion
+ *   is exactly the one that would have caught it. The deviation is recorded in
+ *   `docs/SPEC-DELTA.md` and pinned by `test/privilege-planes.test.ts`.
+ *   **What it costs, measured rather than assumed (V47):** nothing in `src/`, nothing in
+ *   `test/` and nothing in the deployment depends on the extra privilege — the application
+ *   layer issues only SELECT/INSERT/UPDATE/DELETE. Because every `writer_all` policy is
+ *   `USING (true) WITH CHECK (true)`, `cortex_writer` would reach exactly the same rows, so
+ *   the gap removes DDL and changefeed control and no data access at all. Invariant 7 already
+ *   forbids an agent-reachable path from accepting SQL or a table name, so against §3's own
+ *   threat — a prompt-injected agent — closing it buys nothing.
  * - `demo`  — `cortex_demo`, via `CORTEX_DEMO_DSN`. The hosted demo, and nothing else.
  *
  * The read plane is deliberately absent. `cortex_reader` is reached by agents with a

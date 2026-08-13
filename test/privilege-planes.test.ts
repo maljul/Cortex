@@ -119,6 +119,53 @@ function dsn(name: string): string {
   return value;
 }
 
+/**
+ * THE WRITE PLANE, WHICH WENT UNASSERTED UNTIL `/check` FOUND IT BLIND (V40).
+ *
+ * Both other planes have opened with `currentUser` since V15. This one did not, and that is
+ * precisely why `src/db/pool.ts` was able to claim for months that `CORTEX_DSN` is
+ * `cortex_writer` while it connects as `julian`, a cluster admin. `04` §3's table says
+ * `cortex_writer` — "`SELECT`, `INSERT`, `UPDATE`, `DELETE` on the six tables, nothing else" —
+ * and the deviation is recorded in `docs/SPEC-DELTA.md`.
+ *
+ * **This pins the interim truth on purpose, the way the `cortex_demo` half of this file used
+ * to.** That half asserted "no privilege at all" and said in as many words that it was written
+ * to fail loudly once `04` §3's `[OPEN]` was decided — which is exactly what happened (V24).
+ * Same contract here: assert what is, not what the spec wishes, so that moving the plane to
+ * `cortex_writer` turns this red and forces the record to move with it. A test asserting the
+ * spec's value would simply be red today and teach everyone to ignore it.
+ *
+ * **The blast radius is measured (V47) and the change is small**, so this is a decision rather
+ * than a defect: 35 candidate breakages, 14 surviving refutation, all of them administrative
+ * (`sql/001_init.sql` and `scripts/changefeed.mts`). Nothing in `src/`, nothing in `test/` and
+ * nothing deployed depends on the extra privilege. What blocks it is that no
+ * `CORTEX_WRITER_DSN` exists and that role has never been logged into — V9 exercised it with
+ * `SET ROLE` from an admin session, which proves the grants and nothing about the login path.
+ */
+const WRITE_PLANE_PRINCIPAL = 'julian';
+
+describe('the write plane is not the principal `04` §3 names', () => {
+  it(`connects as ${WRITE_PLANE_PRINCIPAL}, the recorded deviation from §3`, async () => {
+    expect(
+      await currentUser(dsn('CORTEX_DSN')),
+      'the write plane changed principal. If this is the move to cortex_writer, update this ' +
+        'pin, docs/SPEC-DELTA.md and the comment in src/db/pool.ts together — the point of ' +
+        'this assertion is that the three cannot drift apart again.',
+    ).toBe(WRITE_PLANE_PRINCIPAL);
+  });
+
+  /**
+   * The two confusions that would be catastrophic rather than merely over-privileged, and
+   * they are asserted separately because the equality above would pass if someone repointed
+   * every variable at one credential.
+   */
+  it('is neither the reader nor the demo principal', async () => {
+    const who = await currentUser(dsn('CORTEX_DSN'));
+    expect(who).not.toBe('cortex_reader');
+    expect(who).not.toBe('cortex_demo');
+  });
+});
+
 describe('the reader plane reads and cannot write (`04` §3)', () => {
   it('connects as cortex_reader and not as someone else', async () => {
     expect(await currentUser(dsn('CORTEX_READER_DSN'))).toBe('cortex_reader');

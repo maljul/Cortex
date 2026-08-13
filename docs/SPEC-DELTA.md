@@ -845,7 +845,29 @@ rather than the log"* holds for two planes of three. The missing assertion is ex
 that would have caught this — and its absence is the shape of V9, where the narrow question was
 answered truthfully while the account held everything through a membership nobody asked about.
 
-**Not settled by attempting the write**, which is what this project's own rule demands. A `DROP`
-attempt as `CORTEX_DSN` against the live cluster four days before ship is not a risk a
-report-only gate should take. The open question is which principal the write plane should be for
-the recording and the submission, and it is Julian's.
+**Not settled by attempting a `DROP`**, which is what this project's rule would normally demand.
+That attempt as `CORTEX_DSN` against the live cluster four days before ship is not a risk a
+report-only gate should take. V9 already did it against `cortex_writer` and recorded the refusal;
+what was open is whether `CORTEX_DSN` still names that principal, and it does not.
+
+**The missing assertion now exists (2026-08-13).** `test/privilege-planes.test.ts` opens with a
+`describe` for the write plane pinning `currentUser` to what it actually is, plus a second
+assertion that it is neither the reader nor the demo principal — the two confusions that would be
+catastrophic rather than merely over-privileged. Mutating the pin to `04` §3's published value
+fails it with the instruction to move this file, the pin and `src/db/pool.ts` together.
+`src/db/pool.ts` no longer claims `cortex_writer`; it states the deviation and points here.
+
+**The cost of the deviation is measured, not assumed (V47).** 35 candidate breakages swept, 14
+surviving adversarial refutation, every one administrative — `sql/001_init.sql`'s DDL and
+`scripts/changefeed.mts`'s job control. **Nothing in `src/`, nothing in `test/` and nothing
+deployed depends on the extra privilege.** Because every `writer_all` policy is
+`USING (true) WITH CHECK (true)`, `cortex_writer` would reach exactly the same rows: the gap is
+DDL and changefeed control, not data access. Invariant 7 already forbids an agent-reachable path
+from accepting SQL or a table name (`test/mcp.test.ts:255`), so against §3's own threat — a
+prompt-injected agent — closing this buys nothing.
+
+**What blocks closing it is a credential, not code.** There is no `CORTEX_WRITER_DSN` and never
+has been; V9 reached that role with `SET ROLE` from an already-authenticated admin session, which
+proves the grants and nothing about the login path. Producing one is a Cloud Console action. The
+code change is then one line in `src/db/pool.ts`, two scripts left on the admin credential, and
+this pin.

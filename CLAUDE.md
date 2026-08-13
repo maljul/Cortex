@@ -253,9 +253,17 @@ What does not belong in a unit list, and so lives here:
   it is refused `DROP` — what is unproven is that this variable names it. The file asserts the
   principal for the reader (`:124`) and the demo plane (`:284`) and for `CORTEX_DSN` opens a
   client it calls `admin` (`:238`), asserting nothing; that missing assertion is the one that
-  would have caught this. **"writer writes and cannot `DROP`" is therefore still log-only.**
-  Deviation in `docs/SPEC-DELTA.md`; the decision about which principal the write plane should
-  be for the recording is open and Julian's. **Suite 338/338 across 29 files, 632.54s against the
+  would have caught this, **and it now exists**: the file opens with a write-plane `describe`
+  pinning `currentUser` to what it actually is, plus "neither the reader nor the demo
+  principal", so the three planes can no longer drift unnoticed. Deviation in
+  `docs/SPEC-DELTA.md`.
+  **The cost is measured (V47): nothing.** 35 candidate breakages, 14 surviving refutation, all
+  administrative (`sql/001_init.sql`, `scripts/changefeed.mts`). `src/`, `test/` and the
+  deployment are unaffected, and because every `writer_all` policy is `USING (true) WITH CHECK
+  (true)` the switch would remove DDL and changefeed control but **no data access at all** — so
+  against `04` §3's own threat, a prompt-injected agent, it buys nothing. **What blocks it is a
+  credential:** no `CORTEX_WRITER_DSN` exists and that role has never been logged into (V9 used
+  `SET ROLE`). A Console action and Julian's call — fully scoped, not urgent. **Suite 338/338 across 29 files, 632.54s against the
   real cluster (2026-08-13, V45)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
