@@ -4460,3 +4460,16 @@ git config core.hooksPath .githooks
 it is unset, rather than skipping — the same refusal `test/privilege-planes.test.ts` makes for
 an unset DSN, and for the same reason. An unwired guard that reports green is indistinguishable
 from a guard that works, which is the whole of V42.
+
+### Suite, after the hook
+
+```
+ Test Files  29 passed (29)
+      Tests  333 passed (333)
+   Duration  608.44s
+EXIT=0
+```
+
+327 → 333: `test/git-hook.test.ts`'s six. **608.44s against 589.27s** on the previous rested run
+of the same day — a 3% spread, which is what noise looks like on this cluster. The number worth
+reacting to is a *multiple*, not a percentage; V43's bad run was 4.2x.

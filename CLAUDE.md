@@ -237,15 +237,16 @@ What does not belong in a unit list, and so lives here:
   client it calls `admin` (`:238`), asserting nothing; that missing assertion is the one that
   would have caught this. **"writer writes and cannot `DROP`" is therefore still log-only.**
   Deviation in `docs/SPEC-DELTA.md`; the decision about which principal the write plane should
-  be for the recording is open and Julian's. **Suite 327/327 across 28 files, 589.27s against the
-  real cluster (2026-08-13, V43)** — 170 after U15 (down from 174 because 13 blanket demo
+  be for the recording is open and Julian's. **Suite 333/333 across 29 files, 608.44s against the
+  real cluster (2026-08-13, V44)** — 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
   refusals to 278, `test/degraded-embedding.test.ts` to 297, U21's abandonment tests to 300,
   `test/patches.test.ts` and `test/app-bundle.test.ts` to 316, `test/attribution.test.ts` to 323,
-  and `test/gate-mechanical.test.ts` to 327.
-  **590s is a cluster health check as much as a suite result.** The same suite on the same tree
+  `test/gate-mechanical.test.ts` to 327 and `test/git-hook.test.ts` to 333.
+  **~600s is a cluster health check as much as a suite result** (589s and 608s on two rested
+  runs the same day; the spread is noise, a multiple is not). The same suite on the same tree
   took 2504s and then hung outright on the fourth back-to-back run of one day (V43). A duration
   far off 590s means the cluster is saturated, not that the code changed. **Do not run the suite
   back to back** — one run, then let it rest.
