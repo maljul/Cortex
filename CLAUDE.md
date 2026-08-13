@@ -249,6 +249,12 @@ What does not belong in a unit list, and so lives here:
   took 2504s and then hung outright on the fourth back-to-back run of one day (V43). A duration
   far off 590s means the cluster is saturated, not that the code changed. **Do not run the suite
   back to back** — one run, then let it rest.
+  **It is a rate limit, not a budget.** Julian read the Console on 2026-08-13: **2.81M of 60M
+  Request Units, 4.7%**, after two weeks of benchmarks, sweeps, gates, a deployed demo and four
+  suite runs in one morning. So nothing needs rationing before ship and the ceiling is not
+  reachable at this burn — what is exhaustible is Basic tier's **burst throughput**, which
+  refills with rest. The reading is Console-only: `/usage`, `/metrics`, `/usagelimits` and
+  `/costs` are all 404 on the Cloud API.
 - **`08` §4's end-of-day-two gate is PASSED (U13, V20, 2026-08-10). The project is
   submittable from this moment even if everything else fails.** The table is committed
   under `bench/results/`, median of three runs. **Republished 2026-08-11 (V23) after the

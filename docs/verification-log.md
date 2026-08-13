@@ -4294,11 +4294,29 @@ state: "CREATED"     plan: BASIC     created_at: 2026-07-31
 the period resets — which, on a cluster created 2026-07-31, would reset after ship. That is why
 the first draft of this entry called it the most important thing in the session.
 
-**It is not what happened**, because the cluster is serving. There is no public usage endpoint —
-`/usage`, `/metrics`, `/usagelimits` and `/costs` all return 404 under `/api/v1/clusters/{id}/`
-— so **consumption against that 60M can only be read in the Cloud Console**, and it has not
-been. Worth reading once before ship, since the ceiling exists and this project's whole
-verification story runs against this one cluster.
+**Julian read the Console on 2026-08-13: `2.81 million / 60 million`.** Four point seven per
+cent, after two weeks of benchmarks, sweeps, gates, a deployed demo and four full suite runs in
+one morning. **The total budget is not the constraint and will not become one before ship** — at
+this burn the project would need to run roughly twenty times its entire history to reach the
+ceiling. Nothing needs to be rationed for it.
+
+There is no public usage endpoint — `/usage`, `/metrics`, `/usagelimits` and `/costs` all return
+404 under `/api/v1/clusters/{id}/` — so that reading came from the Console, which is the only
+route.
+
+### So it is rate, not budget, and that is the finding
+
+With 95% of the budget unspent and the cluster nonetheless refusing to answer, **the throttle
+cannot have been the RU total.** What remains is throughput: Basic tier serves a baseline rate
+and a burst allowance on top of it, and the burst refills over time. Four back-to-back suite
+runs drain the burst; what follows is service at baseline only, which is what a 4x slowdown and
+then hanging statements look like. Resting refills it, which is what the clean 589.27s run
+afterwards is.
+
+**This is a better finding than the one it replaced**, because it is bounded and actionable:
+nothing accumulates, nothing needs husbanding until 2026-08-17, and the whole mitigation is
+*don't run the suite back to back*. A judging session — a handful of visitors clicking through
+a demo — is nowhere near the load four consecutive full suites represent.
 
 ### Why it still matters, at its corrected size
 
@@ -4336,7 +4354,6 @@ self-inflicted load, not the code.
   strongest evidence that runs 3 and 4 measured saturation rather than anything in the tree, and
   it is why `CLAUDE.md` now carries 327/327 rather than the guess it could have carried an hour
   earlier.
-- **The RU reading**, from the Cloud Console, since the API does not expose it and a 60M ceiling
-  exists on a cluster whose period began 2026-07-31.
-- **A decision about load between now and 2026-08-17**: the suite is not free, and four runs in
-  ninety minutes was too many.
+- ~~The RU reading.~~ **Done, same day: 2.81M / 60M.** Budget is not a constraint; see above.
+- **A decision about load between now and 2026-08-17** — settled by the reading: one suite run
+  at a time, rested. Not a quota to husband, a rate not to exceed.
