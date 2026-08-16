@@ -5609,3 +5609,86 @@ read → decide → patch reasoning contract and usage aggregation; the LIVE-onl
 that brake 3 can disable without taking public replay down with it; and how §7.3's whole-event
 budget is enforced by the banked per-UTC-day counter. U24 remains partial until those are decided,
 implemented test-first, deployed, and exercised as one metered run.
+
+---
+
+## V55 — U25 judge revision is wired to the real fleet result
+
+**2026-08-16.** Julian's first read found the mechanism panel too abstract and the explanation too
+promotional for judges. `infra/site/index.html` now shows five developer agents working on the
+actual ticket statement and repository module around the CORTEX logo. The previous topology graph
+is gone. A plain five-step guide says exactly what the coordination layer does: describe work,
+check semantic similarity, claim files, re-plan when blocked, and save the outcome for recall.
+
+The page also names why this is not a toy workload: two semantic duplicate pairs, three agents
+editing `orders/repository.js`, and two cross-task decision dependencies. It still uses the same
+eleven measured statements; none was reworded, so the recorded Titan distance evidence remains
+valid.
+
+### The comparison is computed after both arms finish
+
+`renderDevelopmentWorkflow()` consumes the streamed CORTEX fleet events and maps each state to a
+normal development action such as reading a module, requesting file ownership, applying a patch,
+or re-planning around its holder. The centre packet only moves when the database-backed fleet
+event names that agent; no winner or event order is pre-positioned.
+
+`renderOutcomeComparison(arms)` waits for both returned file trees and both terminal meters. It
+then reports application faults, duplicate work, lost writes and file collisions from those
+objects. It prints a CORTEX advantage only when the actual sum is lower. The waiting state makes
+no success claim.
+
+The test-first seam was visible: five new assertions failed before these elements and bindings
+existed. After implementation:
+
+```
+npm test -- --run test/site.test.ts
+  47 passed
+
+npm test -- --run test/site.test.ts test/app-bundle.test.ts
+  60 passed across 2 files
+
+npx tsc --noEmit
+  clean
+
+inline script extracted from infra/site/index.html | node --check -
+  clean
+
+git diff --check
+  clean
+```
+
+### The difficult workload produces different systems, not different labels
+
+Two real-cluster runs were made because `docs/UNITS.md` already records that the consolidation
+wait and shared-file race can legitimately change which named interlock appears. The first run
+still measured the system-level difference — CORTEX `0` duplicate work, `0` lost writes and `0`
+file collisions against naive `2`, `2` and `4` — but two informed-patch interlocks did not arrive
+inside that run's recall window. No task or threshold was changed. The one required re-run passed
+all checks:
+
+```
+metric                    CORTEX     NAIVE
+duplicate work avoided    2          1
+duplicate work done       0          1
+writes lost               0          2
+blocked and re-planned    2          0
+findings recalled         4          0
+agents spared             1          0
+dead ends walked          1          2
+file collisions           0          3
+
+PASS  interlock 1 — naive priced shipping in pounds, cortex in minor units
+PASS  interlock 2 — cortex read the record, naive read the cache
+PASS  interlock 4 — naive implemented the confirmation twice
+PASS  interlock 5 — the spared agent is named, with what spared it
+PASS — all checks
+```
+
+Both arms returned fourteen-file runnable applications and stayed under their 200-row scope
+caps. The naive failures are attributable to the run: two shared-file patches were overwritten,
+one duplicate notification implementation survived, and the second provider investigation
+walked a dead end the CORTEX arm recalled and skipped.
+
+**Still open:** U25's formal done-when is an independent cold read. Julian approved this design
+direction and supplied the revision, but is not a reader unfamiliar with the project. Deployment
+also remains untouched until U26, as design decision 7 requires.

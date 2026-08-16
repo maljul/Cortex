@@ -101,6 +101,7 @@ describe('the fleet redesign makes the coordination visible — U25', () => {
   it.each([
     'id="comparison"',
     'id="journey"',
+    'id="judge-guide"',
     'id="flow-graphs"',
     'id="task-board"',
     'id="results"',
@@ -181,6 +182,54 @@ describe('the fleet redesign makes the coordination visible — U25', () => {
     expect(page).toContain('SIMULATED UI PREVIEW');
     expect(page).toContain('runPreview');
     expect(page).toContain('backend unreachable');
+  });
+
+  /**
+   * Break caught: replacing the mechanism explanation with an abstract graph that gives a judge
+   * no way to connect a fleet event to ordinary development work.
+   */
+  it('shows the system as a concrete development workflow driven by fleet events', () => {
+    expect(page).toContain('id="development-workflow"');
+    expect(page).toContain('const DEVELOPMENT_PHASES =');
+    expect(page).toContain('function renderDevelopmentWorkflow()');
+    expect(page).toContain('renderDevelopmentWorkflow();');
+    expect(page).toContain("task.module");
+    expect(page).toContain("task.statement");
+  });
+
+  /**
+   * Break caught: restoring the anonymous center circle from V53. The coordination point must be
+   * the supplied CORTEX mark so the visual says which component owns the transaction boundary.
+   */
+  it('uses the CORTEX brain as the central workflow node', () => {
+    expect(page).toContain('id="cortex-hub-logo"');
+    expect(page).toContain('class="workflow-logo"');
+    expect(page).toContain('aria-label="CORTEX coordination hub"');
+  });
+
+  /**
+   * Break caught: simplifying the workload until both arms can succeed by accident. These are the
+   * three independent ways the committed run forces agents to coordinate across task wording,
+   * files and earlier decisions.
+   */
+  it('makes the workload hazards visible before the result', () => {
+    expect(page).toContain('id="workload-risks"');
+    expect(page).toContain('data-risk="semantic-duplicates"');
+    expect(page).toContain('data-risk="shared-file"');
+    expect(page).toContain('data-risk="decision-dependency"');
+  });
+
+  /**
+   * Break caught: two application panes with no computed verdict, which forces the judge to infer
+   * whether the systems actually behaved differently. The summary consumes the terminal meters
+   * and the returned trees after both exist.
+   */
+  it('derives a direct two-arm verdict after the final state is loaded', () => {
+    expect(page).toContain('id="outcome-comparison"');
+    expect(page).toContain('function renderOutcomeComparison(arms)');
+    expect(page).toContain('renderOutcomeComparison(message.arms || []);');
+    expect(page).toContain('state.states.naive.files');
+    expect(page).toContain('state.states.cortex.files');
   });
 });
 

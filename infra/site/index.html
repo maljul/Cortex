@@ -575,89 +575,227 @@
     .source-event:last-child { border-bottom: 0; }
     .source-event time { color: var(--grey); }
 
-    .graph-grid {
+    .mechanism-flow {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin: 0;
+      padding: 0;
+      border: 1px solid var(--border);
+      background: var(--border);
       gap: 1px;
+      list-style: none;
+    }
+
+    .mechanism-flow li {
+      min-height: 11rem;
+      padding: clamp(1rem, 2.2vw, 1.8rem);
+      background: var(--surface);
+    }
+
+    .mechanism-flow b {
+      display: block;
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .mechanism-flow span {
+      display: block;
+      margin-top: .75rem;
+      color: var(--grey);
+      font-size: .78rem;
+      line-height: 1.55;
+    }
+
+    .development-workflow {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(12rem, .58fr) minmax(0, 1fr);
+      gap: clamp(1.2rem, 3vw, 3.5rem);
+      align-items: center;
+      min-height: 42rem;
+      padding: clamp(1.25rem, 3.5vw, 3.5rem);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .developer-column {
+      display: grid;
+      gap: 1rem;
+      align-content: center;
+    }
+
+    .developer-agent {
+      position: relative;
+      min-width: 0;
+      min-height: 8.3rem;
+      padding: 1rem;
+      border: 1px solid var(--border-strong);
+      background: var(--canvas);
+    }
+
+    .developer-column[data-side="left"] .developer-agent::before,
+    .developer-column[data-side="right"] .developer-agent::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: clamp(1.2rem, 3vw, 3.5rem);
+      height: 1px;
+      background: var(--border-strong);
+    }
+
+    .developer-column[data-side="left"] .developer-agent::before { left: 100%; }
+    .developer-column[data-side="right"] .developer-agent::before { right: 100%; }
+
+    .developer-agent.event-active { border-color: var(--teal); }
+    .developer-agent.event-active::after {
+      content: "";
+      position: absolute;
+      top: calc(50% - 3px);
+      width: 6px;
+      height: 6px;
+      background: var(--teal-light);
+      animation: developer-packet 720ms cubic-bezier(.16, 1, .3, 1) 1 both;
+    }
+
+    .developer-column[data-side="left"] .developer-agent.event-active::after {
+      left: 100%;
+      --packet-distance: clamp(1.2rem, 3vw, 3.5rem);
+    }
+
+    .developer-column[data-side="right"] .developer-agent.event-active::after {
+      right: 100%;
+      --packet-distance: calc(clamp(1.2rem, 3vw, 3.5rem) * -1);
+    }
+
+    @keyframes developer-packet {
+      from { opacity: 0; transform: translateX(0) scale(.6); }
+      35% { opacity: 1; }
+      to { opacity: 0; transform: translateX(var(--packet-distance)) scale(1); }
+    }
+
+    .developer-agent[data-phase="blocked"],
+    .developer-agent[data-phase="deduped"],
+    .developer-agent[data-phase="spared"] { border-color: var(--teal); }
+
+    .developer-agent[data-phase="overwritten"],
+    .developer-agent[data-phase="contended"],
+    .developer-agent[data-phase="abandoned"] { border-color: var(--failure); }
+
+    .developer-head {
+      display: flex;
+      justify-content: space-between;
+      gap: .8rem;
+      padding-bottom: .65rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: .61rem;
+    }
+
+    .developer-head b { color: var(--grey); }
+    .developer-head span { color: var(--teal-light); text-align: right; }
+    .developer-agent[data-arm="naive"] .developer-head span { color: var(--grey-muted); }
+
+    .developer-task {
+      margin-top: .75rem;
+      color: var(--text);
+      font-size: .75rem;
+      line-height: 1.35;
+    }
+
+    .developer-file {
+      display: block;
+      margin-top: .55rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .59rem;
+    }
+
+    .workflow-hub {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      min-height: 24rem;
+      padding: 1.2rem .8rem;
+      border-inline: 1px solid var(--teal);
+      background: var(--canvas);
+      text-align: center;
+    }
+
+    .workflow-logo {
+      width: min(100%, 9.5rem);
+      height: auto;
+      filter: none;
+    }
+
+    .workflow-hub h3 {
+      margin-top: 1rem;
+      font-family: var(--mono);
+      font-size: .76rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .workflow-hub p {
+      max-width: 18ch;
+      margin-top: .65rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .6rem;
+    }
+
+    .workflow-log {
+      display: grid;
+      gap: .35rem;
+      width: 100%;
+      margin-top: 1rem;
+      text-align: left;
+    }
+
+    .workflow-log span {
+      padding: .38rem .45rem;
+      border-left: 2px solid var(--teal);
+      background: var(--surface);
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .53rem;
+      animation: event-land 360ms cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .workload-risks {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-bottom: 2rem;
       border: 1px solid var(--border);
       background: var(--border);
     }
 
-    .graph-panel {
-      min-width: 0;
-      padding: clamp(1.15rem, 3vw, 2.4rem);
+    .workload-risk {
+      min-height: 9rem;
+      padding: 1rem;
       background: var(--surface);
     }
 
-    .graph-panel header {
-      min-height: 6.5rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .graph-panel h3 {
-      font-size: 1.2rem;
-      letter-spacing: -.025em;
-    }
-
-    .graph-panel p {
-      max-width: 48ch;
-      margin-top: .6rem;
-      color: var(--muted);
-      font-size: .78rem;
-    }
-
-    .graph-canvas {
-      width: 100%;
-      height: auto;
-      margin-top: 1.25rem;
-      overflow: visible;
-    }
-
-    .graph-line {
-      fill: none;
-      stroke: var(--border-strong);
-      stroke-width: 1.2;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .graph-line.spine { stroke: var(--teal); stroke-width: 5; }
-    .graph-line.loss { stroke: var(--failure); }
-    .graph-line.flow { stroke-dasharray: 7 9; }
-    .graph-line.flow.active { animation: edge-flow 900ms linear 1; }
-
-    @keyframes edge-flow {
-      from { stroke-dashoffset: 32; opacity: .25; }
-      to { stroke-dashoffset: 0; opacity: 1; }
-    }
-
-    .graph-node {
-      fill: var(--canvas);
-      stroke: var(--grey-muted);
-      stroke-width: 1.4;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .graph-node.center { stroke: var(--teal-light); }
-
-    .graph-labels {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1px;
-      margin-top: 1rem;
-      background: var(--border);
-    }
-
-    .message-kind {
-      padding: .7rem;
-      background: var(--canvas);
-      color: var(--muted);
+    .workload-risk b {
+      display: block;
+      color: var(--amber);
       font-family: var(--mono);
-      font-size: .58rem;
-      line-height: 1.45;
+      font-size: .64rem;
+      text-transform: uppercase;
     }
 
-    .message-kind b { display: block; color: var(--teal-light); font-weight: 600; }
+    .workload-risk span {
+      display: block;
+      margin-top: .6rem;
+      color: var(--grey);
+      font-size: .74rem;
+    }
 
     .task-table {
       border-top: 1px solid var(--border-strong);
@@ -709,6 +847,66 @@
     .task-status.done { color: var(--teal-light); }
     .task-status.failed { color: var(--failure); }
     .task-status.waiting { color: var(--grey-muted); }
+
+    .outcome-comparison {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin-bottom: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .outcome-arm {
+      min-height: 12rem;
+      padding: clamp(1rem, 2.5vw, 2rem);
+      background: var(--canvas);
+    }
+
+    .outcome-arm h3 {
+      font-size: clamp(1.15rem, 2vw, 1.7rem);
+      letter-spacing: -.035em;
+    }
+
+    .outcome-arm > p {
+      max-width: 48ch;
+      margin-top: .55rem;
+      color: var(--muted);
+      font-size: .75rem;
+    }
+
+    .outcome-evidence {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1.1rem;
+      background: var(--border);
+    }
+
+    .outcome-evidence div {
+      padding: .7rem;
+      background: var(--surface);
+    }
+
+    .outcome-evidence b {
+      display: block;
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+
+    .outcome-cortex .outcome-evidence b { color: var(--teal-light); }
+    .outcome-naive.has-loss { border-top: 3px solid var(--failure); }
+    .outcome-cortex.is-better { border-top: 3px solid var(--teal); }
+
+    .outcome-evidence span {
+      display: block;
+      margin-top: .38rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .54rem;
+    }
 
     .results-grid {
       display: grid;
@@ -1115,6 +1313,7 @@
       .meter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .task-row { grid-template-columns: 3.5rem minmax(11rem, 1fr) 7rem 5.5rem 6rem; }
       .published-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .mechanism-flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
     @media (max-width: 820px) {
@@ -1124,10 +1323,17 @@
       .mark-caption { right: 1rem; }
       .run-cluster { grid-template-columns: 1fr; }
       .split-stage,
-      .graph-grid,
+      .outcome-comparison,
       .results-grid,
       .production-grid { grid-template-columns: 1fr; }
       .split-stage::after { display: none; }
+      .mechanism-flow,
+      .workload-risks { grid-template-columns: 1fr; }
+      .mechanism-flow li { min-height: auto; }
+      .development-workflow { grid-template-columns: 1fr; min-height: auto; }
+      .workflow-hub { order: -1; min-height: 18rem; border-inline: 0; border-block: 1px solid var(--teal); }
+      .developer-column[data-side] .developer-agent::before,
+      .developer-column[data-side] .developer-agent::after { display: none; }
       .source-rail { grid-template-columns: 1fr; }
       .task-table { overflow-x: auto; }
       .task-row { min-width: 760px; }
@@ -1150,8 +1356,8 @@
       .agent-track::before { left: 5.4rem; right: .75rem; }
       .track-phase { grid-column: 2; text-align: left; }
       .holder-link { grid-column: 1 / -1; }
-      .graph-labels,
       .feature-summary,
+      .outcome-evidence,
       .meter-grid,
       .published-metrics,
       .readiness-list { grid-template-columns: 1fr; }
@@ -1188,21 +1394,18 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="shell hero-inner">
         <div>
-          <p class="eyebrow">Coordination for coding-agent fleets</p>
-          <h1 id="hero-title">Intent before damage.</h1>
-          <p class="positioning">Arbitrated shared memory for parallel coding agents.</p>
-          <p class="thesis">
-            Worktrees prevent file clobbering, not duplicate work across modules. <strong>CORTEX checks intent and claims files in one database transaction.</strong>
-          </p>
+          <p class="eyebrow">Hackathon judge demo</p>
+          <h1 id="hero-title">Five coding agents. One shared repository.</h1>
+          <p class="positioning">Run eleven overlapping tickets with worktrees alone, then with CORTEX, and inspect both returned applications.</p>
 
           <div class="run-cluster">
             <button class="run-button" id="run-demo" type="button" disabled>Run the demo</button>
-            <p class="run-note">Eleven real tickets, five agents, two arms, one live CockroachDB cluster. About ten seconds.</p>
+            <p class="run-note">The task order, patch set and database are identical in both arms. Only coordination changes.</p>
           </div>
 
           <div class="mode-line" id="mode" role="status" aria-live="polite">
             <b>CONNECTING</b>
-            <span>Code patches and one cross-module note are authored and reviewed. Coordination, embeddings, claims, recall and database writes are measured live.</span>
+            <span>Waiting for the demo backend. The page labels simulated preview data separately.</span>
           </div>
 
           <div class="preview-controls" id="preview-controls">
@@ -1230,16 +1433,32 @@
             <path d="M116 287C96 292 92 311 100 327" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
             <path d="M204 287C224 292 228 311 220 327" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
           </svg>
-          <span class="mark-caption">Two agents / one shared channel</span>
+          <span class="mark-caption">CORTEX coordination layer</span>
         </div>
+      </div>
+    </section>
+
+    <section class="section" id="judge-guide" aria-labelledby="judge-guide-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="judge-guide-title">What CORTEX does during one task.</h2>
+          <p>These five actions are the mechanism. The animation below uses the same actions reported by the running agents.</p>
+        </div>
+        <ol class="mechanism-flow">
+          <li><b>Describe work</b><span>The agent submits the intended change before editing files.</span></li>
+          <li><b>Check meaning</b><span>A vector search finds semantically equivalent work, even when ticket wording differs.</span></li>
+          <li><b>Claim files</b><span>The duplicate check and every required file claim commit in one serializable transaction.</span></li>
+          <li><b>Re-plan</b><span>A blocked agent receives the holder and intent, then chooses different work instead of polling.</span></li>
+          <li><b>Store outcome</b><span>Completed or abandoned work becomes repository-scoped memory for later agents.</span></li>
+        </ol>
       </div>
     </section>
 
     <section class="section comparison-shell" id="comparison" aria-labelledby="comparison-title">
       <div class="shell">
         <div class="section-heading">
-          <h2 id="comparison-title">The same agents. The same tickets. One transaction boundary changes the result.</h2>
-          <p>Activity arrives in database order. No lane is pre-positioned to win, and a beat stays dark when it did not happen in this run.</p>
+          <h2 id="comparison-title">The same workload runs through two coordination systems.</h2>
+          <p>Each lane reports agent activity and committed rows separately. Nothing is marked successful before the returned file tree is inspected.</p>
         </div>
 
         <div class="split-stage" id="journey">
@@ -1283,57 +1502,25 @@
     <section class="section" id="flow-graphs" aria-labelledby="graphs-title">
       <div class="shell reveal">
         <div class="section-heading">
-          <h2 id="graphs-title">Isolation has five private paths. Arbitration has one shared channel.</h2>
-          <p>Graph edges animate only when the corresponding claim, refusal or finding appears in the run.</p>
+          <h2 id="graphs-title">Watch the agents perform development work.</h2>
+          <p>Each card shows the active ticket, repository file and current action. A connector moves only when that agent emits a fleet event.</p>
         </div>
-
-        <div class="graph-grid">
-          <article class="graph-panel">
-            <header><h3>Five islands, one late merge</h3><p>Agents can write without clobbering a branch. They cannot see an intent in another worktree.</p></header>
-            <svg class="graph-canvas" viewBox="0 0 520 320" role="img" aria-label="Five isolated agents writing to separate worktrees and merging at the end">
-              <line class="graph-line" x1="70" y1="48" x2="115" y2="245"/>
-              <line class="graph-line" x1="165" y1="48" x2="185" y2="245"/>
-              <line class="graph-line" x1="260" y1="48" x2="260" y2="245"/>
-              <line class="graph-line" x1="355" y1="48" x2="335" y2="245"/>
-              <line class="graph-line" x1="450" y1="48" x2="405" y2="245"/>
-              <line class="graph-line loss flow" id="naive-merge-edge" x1="115" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
-              <line class="graph-line loss flow" x1="185" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
-              <line class="graph-line loss flow" x1="335" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
-              <line class="graph-line loss flow" x1="405" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
-              <circle class="graph-node" cx="70" cy="48" r="22"/>
-              <circle class="graph-node" cx="165" cy="48" r="22"/>
-              <circle class="graph-node" cx="260" cy="48" r="22"/>
-              <circle class="graph-node" cx="355" cy="48" r="22"/>
-              <circle class="graph-node" cx="450" cy="48" r="22"/>
-              <rect class="graph-node" x="92" y="224" width="46" height="42"/>
-              <rect class="graph-node" x="162" y="224" width="46" height="42"/>
-              <rect class="graph-node" x="237" y="224" width="46" height="42"/>
-              <rect class="graph-node" x="312" y="224" width="46" height="42"/>
-              <rect class="graph-node" x="382" y="224" width="46" height="42"/>
-              <circle class="graph-node" cx="260" cy="292" r="18"/>
+        <div class="development-workflow" id="development-workflow" aria-label="Five coding agents coordinating through CORTEX">
+          <div class="developer-column" id="developer-left" data-side="left"></div>
+          <div class="workflow-hub" aria-label="CORTEX coordination hub">
+            <svg class="workflow-logo" id="cortex-hub-logo" viewBox="0 0 320 360" role="img" aria-labelledby="hub-logo-title hub-logo-desc">
+              <title id="hub-logo-title">CORTEX</title>
+              <desc id="hub-logo-desc">The CORTEX brain logo at the coordination point for five coding agents.</desc>
+              <defs><path id="hub-hemi" d="M142 40C99 22 57 48 54 94C24 112 21 161 48 183C17 224 38 285 78 296C72 332 103 349 142 334Z"/></defs>
+              <use href="#hub-hemi" fill="#C9CBCF"/><use href="#hub-hemi" fill="#C9CBCF" transform="translate(320 0) scale(-1 1)"/>
+              <path d="M128 38C128 18 146 8 160 24V336C160 352 142 354 128 338Z" fill="#4C9C90"/><path d="M160 24C174 8 192 18 192 38V338C178 354 160 352 160 336Z" fill="#5CBCAA"/>
+              <path d="M116 73C91 64 77 83 81 106C84 124 103 127 102 147C101 164 89 170 75 170M204 73C229 64 243 83 239 106C236 124 217 127 218 147C219 164 231 170 245 170M112 190C86 204 66 198 52 183M208 190C234 204 254 198 268 183M112 246C79 236 61 258 65 294M208 246C241 236 259 258 255 294" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
             </svg>
-            <div class="graph-labels"><div class="message-kind"><b>NO EDGES</b>intent stays private</div><div class="message-kind"><b>LOCAL WRITE</b>each branch looks correct</div><div class="message-kind"><b>LATE MERGE</b>one clean loss</div></div>
-          </article>
-
-          <article class="graph-panel">
-            <header><h3>Five agents, one transactional spine</h3><p>The central channel carries ownership, refusals and durable findings before work is wasted.</p></header>
-            <svg class="graph-canvas" viewBox="0 0 520 320" role="img" aria-label="Five agents connected through one central teal memory channel">
-              <line class="graph-line spine" x1="260" y1="28" x2="260" y2="294"/>
-              <line class="graph-line flow cortex-edge" x1="72" y1="58" x2="260" y2="78" data-kind="claim"/>
-              <line class="graph-line flow cortex-edge" x1="72" y1="154" x2="260" y2="154" data-kind="refusal"/>
-              <line class="graph-line flow cortex-edge" x1="72" y1="250" x2="260" y2="230" data-kind="finding"/>
-              <line class="graph-line flow cortex-edge" x1="448" y1="58" x2="260" y2="78" data-kind="claim"/>
-              <line class="graph-line flow cortex-edge" x1="448" y1="154" x2="260" y2="154" data-kind="refusal"/>
-              <line class="graph-line flow cortex-edge" x1="448" y1="250" x2="260" y2="230" data-kind="finding"/>
-              <circle class="graph-node" cx="72" cy="58" r="22"/>
-              <circle class="graph-node" cx="72" cy="154" r="22"/>
-              <circle class="graph-node" cx="72" cy="250" r="22"/>
-              <circle class="graph-node" cx="448" cy="58" r="22"/>
-              <circle class="graph-node" cx="448" cy="154" r="22"/>
-              <circle class="graph-node center" cx="260" cy="154" r="25"/>
-            </svg>
-            <div class="graph-labels"><div class="message-kind"><b>CLAIM</b>this file is mine</div><div class="message-kind"><b>REFUSAL</b>already underway, holder named</div><div class="message-kind"><b>FINDING</b>what the fleet learned</div></div>
-          </article>
+            <h3>CORTEX transaction</h3>
+            <p>Intent search and all file claims share one serializable snapshot.</p>
+            <div class="workflow-log" id="workflow-log"><span>Waiting for fleet events.</span></div>
+          </div>
+          <div class="developer-column" id="developer-right" data-side="right"></div>
         </div>
       </div>
     </section>
@@ -1341,8 +1528,13 @@
     <section class="section" id="task-board" aria-labelledby="tasks-title">
       <div class="shell reveal">
         <div class="section-heading">
-          <h2 id="tasks-title">Eleven tickets engineered to cross module boundaries.</h2>
-          <p>Two pairs are semantic duplicates. Three tasks touch one shared file. Two later tickets need a decision another agent made.</p>
+          <h2 id="tasks-title">Why this workload can fail.</h2>
+          <p>The tickets create three different coordination hazards. Worktrees handle none of them before agents start editing.</p>
+        </div>
+        <div class="workload-risks" id="workload-risks">
+          <div class="workload-risk" data-risk="semantic-duplicates"><b>Two duplicate pairs</b><span>P2 and P6 request the same outcomes using different wording and different modules.</span></div>
+          <div class="workload-risk" data-risk="shared-file"><b>Three agents, one file</b><span>C1, C2 and C3 change separate behaviors inside orders/repository.js during overlapping windows.</span></div>
+          <div class="workload-risk" data-risk="decision-dependency"><b>Two decision chains</b><span>Shipping and refund work must reuse choices made earlier by the money and payment tasks.</span></div>
         </div>
         <div class="task-table" id="tasks"></div>
       </div>
@@ -1351,8 +1543,13 @@
     <section class="section" id="results" aria-labelledby="results-title">
       <div class="shell reveal">
         <div class="section-heading">
-          <h2 id="results-title">The artifact is the application, not a diff.</h2>
-          <p>Both file trees come back from the database and run here without network access. Click through both.</p>
+          <h2 id="results-title">Compare what each system returned.</h2>
+          <p>Both file trees come from the database and run without network access. The verdict below uses those trees and the terminal meters.</p>
+        </div>
+
+        <div class="outcome-comparison" id="outcome-comparison" aria-live="polite">
+          <article class="outcome-arm"><h3>Waiting for both arms</h3><p>No verdict is calculated until both terminal summaries and both file trees exist.</p></article>
+          <article class="outcome-arm"><h3>No result yet</h3><p>Run the workload to compare duplicated work, lost writes and file collisions.</p></article>
         </div>
 
         <div class="results-grid">
@@ -1386,8 +1583,8 @@
     <section class="section" id="benchmark" aria-labelledby="benchmark-title">
       <div class="shell reveal">
         <div class="section-heading">
-          <h2 id="benchmark-title">One transaction turns coordination into a database invariant.</h2>
-          <p>The blocks read independently. Together they show why semantic memory and file ownership must share one snapshot.</p>
+          <h2 id="benchmark-title">What changes inside the database.</h2>
+          <p>These are the mechanisms used by the CORTEX arm. The published benchmark remains separate from this demo run.</p>
         </div>
 
         <div class="infographic">
@@ -1432,7 +1629,7 @@
       <div class="shell reveal">
         <div class="production-grid">
           <article class="production-block">
-            <h2 id="production-title">Built for the failure paths.</h2>
+            <h2 id="production-title">Checks outside the animation.</h2>
             <div class="readiness-list">
               <div class="readiness-item">Row-level security isolates every demo scope.</div>
               <div class="readiness-item">Three least-privileged database principals.</div>
@@ -1443,8 +1640,8 @@
             </div>
           </article>
           <article class="production-block argument">
-            <p>The bottleneck is no longer model quality. It is coordination.</p>
-            <small>Isolation protects files. Arbitration protects the fleet's time, intent and decisions. That belongs in the transactional database holding the memory.</small>
+            <p>What judges should verify.</p>
+            <small>The two arms receive the same tasks and patches. CORTEX changes only the coordination path. Every result shown above is tied to streamed activity, committed rows, terminal meters or the returned file trees.</small>
           </article>
         </div>
       </div>
@@ -1482,6 +1679,22 @@
     const AGENTS = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5'];
     const BEATS = ['recall', 'dedupe', 'collision', 'consolidate'];
     const ARMS = ['naive', 'cortex'];
+    const DEVELOPMENT_PHASES = {
+      idle: 'queued',
+      started: 'receiving ticket',
+      reading: 'reading repository',
+      recalled: 'loading prior finding',
+      decided: 'planning patch',
+      claiming: 'claiming required files',
+      patched: 'writing patch',
+      blocked: 'blocked; re-planning',
+      deduped: 'stopped as duplicate',
+      abandoned: 'recording dead end',
+      spared: 'work avoided from memory',
+      contended: 'retrying transaction',
+      saved: 'files committed',
+      overwritten: 'write overwritten'
+    };
     const SCRIPT_ORDER = [
       'lib/money.js', 'orders/data.js', 'inventory/repository.js', 'orders/repository.js',
       'shipping/quote.js', 'payments/provider.js', 'notify/templates.js', 'notify/email.js',
@@ -1537,6 +1750,7 @@
       rows: { naive: [], cortex: [] },
       taskStatus: new Map(),
       agentState: { naive: new Map(), cortex: new Map() },
+      workflowPulseAgent: null,
       socket: null,
       states: { naive: null, cortex: null },
       sqlLoaded: false
@@ -1633,6 +1847,55 @@
       });
     }
 
+    function renderDevelopmentWorkflow() {
+      const left = $('developer-left');
+      const right = $('developer-right');
+      const log = $('workflow-log');
+      left.replaceChildren();
+      right.replaceChildren();
+
+      AGENTS.forEach((agent, index) => {
+        const current = state.agentState.cortex.get(agent) || { phase: 'idle', events: [] };
+        const task = TASKS.find((item) => item.id === current.taskId) || TASKS.find((item) => item.agent === agent);
+        const card = document.createElement('article');
+        card.className = 'developer-agent';
+        card.dataset.arm = 'cortex';
+        card.dataset.phase = current.phase;
+        if (state.workflowPulseAgent === agent) card.classList.add('event-active');
+
+        const head = document.createElement('div');
+        head.className = 'developer-head';
+        const name = document.createElement('b');
+        name.textContent = agent;
+        const action = document.createElement('span');
+        action.textContent = DEVELOPMENT_PHASES[current.phase] || current.phase;
+        head.append(name, action);
+
+        const statement = document.createElement('p');
+        statement.className = 'developer-task';
+        statement.textContent = task ? task.id + ': ' + task.statement : 'Waiting for assigned work.';
+        const file = document.createElement('code');
+        file.className = 'developer-file';
+        file.textContent = task ? 'repo/' + task.module + '.js' : 'repo';
+        card.append(head, statement, file);
+        (index < 3 ? left : right).appendChild(card);
+      });
+
+      log.replaceChildren();
+      const recent = state.events.cortex.slice(-4);
+      if (!recent.length) {
+        const waiting = document.createElement('span');
+        waiting.textContent = 'Waiting for fleet events.';
+        log.appendChild(waiting);
+      } else {
+        recent.forEach((event) => {
+          const entry = document.createElement('span');
+          entry.textContent = event.taskId + ': ' + (DEVELOPMENT_PHASES[event.phase] || event.phase);
+          log.appendChild(entry);
+        });
+      }
+    }
+
     function renderBeats(final = false) {
       ARMS.forEach((arm) => {
         const host = $('beats-' + arm);
@@ -1681,28 +1944,6 @@
       while (host.children.length > 8) host.lastElementChild.remove();
     }
 
-    function updateGraphs(event) {
-      if (event.arm === 'naive' && ['overwritten', 'contended', 'patched'].includes(event.phase) && ['C1', 'C2', 'C3'].includes(event.taskId)) {
-        pulseEdge($('naive-merge-edge'));
-      }
-
-      if (event.arm === 'cortex') {
-        let kind = null;
-        if (event.phase === 'claiming') kind = 'claim';
-        if (['blocked', 'deduped'].includes(event.phase)) kind = 'refusal';
-        if (['recalled', 'patched', 'spared'].includes(event.phase)) kind = 'finding';
-        if (kind) document.querySelectorAll('.cortex-edge[data-kind="' + kind + '"]').forEach(pulseEdge);
-      }
-    }
-
-    function pulseEdge(edge) {
-      if (!edge) return;
-      edge.classList.remove('active');
-      void edge.getBoundingClientRect();
-      edge.classList.add('active');
-      window.setTimeout(() => edge.classList.remove('active'), 1000);
-    }
-
     function handleFleet(message) {
       const event = message.event;
       if (!event || !ARMS.includes(event.arm) || !AGENTS.includes(event.agent)) return;
@@ -1719,7 +1960,10 @@
       renderTracks();
       renderTasks();
       renderBeats(false);
-      updateGraphs(event);
+      if (event.arm === 'cortex') {
+        state.workflowPulseAgent = event.agent;
+        renderDevelopmentWorkflow();
+      }
     }
 
     function handleChange(message) {
@@ -1743,6 +1987,7 @@
         renderBeats(true);
         renderMeter(message.arms || []);
         await loadFinalState();
+        renderOutcomeComparison(message.arms || []);
         setText('meter-provenance', state.preview
           ? 'SIMULATED UI PREVIEW. Values below are interface fixtures, not measurements.'
           : 'Every run-level figure below came from the database or from work read back from it. Measured zero, N/A and TBD remain distinct.');
@@ -1769,6 +2014,7 @@
       state.rows = { naive: [], cortex: [] };
       state.taskStatus.clear();
       state.agentState = { naive: new Map(), cortex: new Map() };
+      state.workflowPulseAgent = null;
       state.states = { naive: null, cortex: null };
       state.sqlLoaded = false;
       ARMS.forEach((arm) => {
@@ -1777,8 +2023,10 @@
       });
       renderTasks();
       renderTracks();
+      renderDevelopmentWorkflow();
       renderBeats(false);
       renderMeter([]);
+      renderOutcomeComparison([]);
       setEmptyFrames();
     }
 
@@ -1906,6 +2154,92 @@
       renderFeatureSummary('cortex', cortexTree, cortexTree);
       renderFeatureSummary('naive', naiveTree, cortexTree);
       renderAttribution(naiveTree, cortexTree);
+    }
+
+    function applicationIssueCount(tree, reference) {
+      if (!tree || !reference) return null;
+      const byId = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature]));
+      const shippingWrong = present(tree, byId.I3) && !present(tree, byId.R3);
+      const duplicateConfirmation = present(tree, byId.P6a) && present(tree, byId.P6b);
+      const repository = tree['orders/repository.js'] || '';
+      const oversellWrong = repository.includes('availableStock(wanted.sku)');
+      const missingSharedFile = ['C1', 'C2', 'C3'].some((id) => present(reference, byId[id]) && !present(tree, byId[id]));
+      return [shippingWrong, duplicateConfirmation, oversellWrong, missingSharedFile].filter(Boolean).length;
+    }
+
+    function renderOutcomeComparison(arms) {
+      const host = $('outcome-comparison');
+      host.replaceChildren();
+      const naiveTree = state.states.naive && state.states.naive.files;
+      const cortexTree = state.states.cortex && state.states.cortex.files;
+      const byArm = Object.fromEntries((arms || []).map((arm) => [arm.arm, arm.meter || {}]));
+
+      if (!naiveTree || !cortexTree || !byArm.naive || !byArm.cortex) {
+        [['Waiting for both arms', 'No verdict is calculated until both terminal summaries and both file trees exist.'], ['No result yet', 'Run the workload to compare duplicated work, lost writes and file collisions.']].forEach(([title, detail]) => {
+          const card = document.createElement('article');
+          card.className = 'outcome-arm';
+          const heading = document.createElement('h3');
+          heading.textContent = title;
+          const copy = document.createElement('p');
+          copy.textContent = detail;
+          card.append(heading, copy);
+          host.appendChild(card);
+        });
+        return;
+      }
+
+      const evidence = {
+        naive: {
+          appFaults: applicationIssueCount(naiveTree, cortexTree),
+          duplicateWorkDone: byArm.naive.duplicateWorkDone,
+          lostWrites: byArm.naive.lostWrites,
+          fileCollisions: byArm.naive.fileCollisions
+        },
+        cortex: {
+          appFaults: applicationIssueCount(cortexTree, cortexTree),
+          duplicateWorkDone: byArm.cortex.duplicateWorkDone,
+          lostWrites: byArm.cortex.lostWrites,
+          fileCollisions: byArm.cortex.fileCollisions
+        }
+      };
+      const score = (values) => Object.values(values).reduce((sum, value) => sum + (Number.isFinite(Number(value)) ? Number(value) : 0), 0);
+      const cortexIsBetter = score(evidence.cortex) < score(evidence.naive);
+
+      ['naive', 'cortex'].forEach((arm) => {
+        const isCortex = arm === 'cortex';
+        const hasLoss = score(evidence[arm]) > 0;
+        const card = document.createElement('article');
+        card.className = 'outcome-arm outcome-' + arm;
+        if (!isCortex && hasLoss) card.classList.add('has-loss');
+        if (isCortex && cortexIsBetter) card.classList.add('is-better');
+
+        const heading = document.createElement('h3');
+        heading.textContent = isCortex
+          ? (cortexIsBetter ? 'CORTEX returned the safer application' : 'CORTEX result needs inspection')
+          : (hasLoss ? 'Worktrees returned coordination failures' : 'Worktree result has no detected coordination failure');
+        const copy = document.createElement('p');
+        copy.textContent = isCortex
+          ? 'This verdict uses the returned CORTEX tree and its measured run summary.'
+          : 'Local patches can report success even when duplicate work or later writes change the final tree.';
+        const facts = document.createElement('div');
+        facts.className = 'outcome-evidence';
+        [
+          ['app faults', evidence[arm].appFaults],
+          ['duplicate work done', evidence[arm].duplicateWorkDone],
+          ['lost writes', evidence[arm].lostWrites],
+          ['file collisions', evidence[arm].fileCollisions]
+        ].forEach(([label, value]) => {
+          const fact = document.createElement('div');
+          const number = document.createElement('b');
+          number.textContent = Number.isFinite(Number(value)) ? String(value) : 'TBD';
+          const name = document.createElement('span');
+          name.textContent = label;
+          fact.append(number, name);
+          facts.appendChild(fact);
+        });
+        card.append(heading, copy, facts);
+        host.appendChild(card);
+      });
     }
 
     function renderFeatureSummary(arm, tree, reference) {
@@ -2191,8 +2525,10 @@
     async function boot() {
       renderTasks();
       renderTracks();
+      renderDevelopmentWorkflow();
       renderBeats(false);
       renderMeter([]);
+      renderOutcomeComparison([]);
       setEmptyFrames();
 
       if (PREVIEW) {
