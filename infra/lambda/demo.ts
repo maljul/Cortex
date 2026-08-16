@@ -14,7 +14,12 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 
 import { Embedder } from '../../src/embed/titan.js';
-import { handleDemoRequest, useEmbedder, useRunStarter } from '../../src/demo/api.js';
+import {
+  backendUnreachable,
+  handleDemoRequest,
+  useEmbedder,
+  useRunStarter,
+} from '../../src/demo/api.js';
 import { installSqlLogStore } from './sql-log-store.js';
 
 installSqlLogStore();
@@ -81,7 +86,7 @@ interface HttpResult {
  * Bumped by hand on each redeploy, as the identity handler's is. Without it a redeploy
  * and a no-op are indistinguishable from outside.
  */
-const BUNDLE_REVISION = 6;
+const BUNDLE_REVISION = 7;
 
 function decodeBody(event: HttpEvent): unknown {
   if (!event.body) return undefined;
@@ -119,18 +124,23 @@ export async function handler(event: HttpEvent): Promise<HttpResult> {
       headers: { ...response.headers, 'x-cortex-bundle': String(BUNDLE_REVISION) },
     };
   } catch (error) {
-    // The only 5xx this surface produces. A fault is not a limit: the degradation ladder
-    // covers limits, and dressing a genuine failure up as a working page would
-    // misrepresent liveness, which `04` §5 invariant 2 forbids just as firmly.
+    // The only 5xx this surface produces, and since U24 it is the *second* place that produces
+    // it: `handleDemoRequest` answers rung 4 itself, so this catch covers a fault outside the
+    // router — decoding the event, or the module-scope wiring above. The body is the same
+    // shape either way, built by the same function, because a page that had to tell two
+    // versions of "the backend is down" apart would get one of them wrong.
+    //
+    // A fault is not a limit: the degradation ladder covers limits, and dressing a genuine
+    // failure up as a working page would misrepresent liveness, which `04` §5 invariant 2
+    // forbids just as firmly. Rung 4's obligation is on the page — an explicit banner over a
+    // pre-recorded walkthrough — and the `rung` and `banner` fields below are what it reads.
     const failure = error as { code?: string; message: string };
     console.error(JSON.stringify({ level: 'error', message: failure.message, code: failure.code }));
 
+    const response = backendUnreachable(error);
     return {
-      statusCode: 503,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
-      body: JSON.stringify({
-        error: 'The demo backend could not reach its database. Nothing here is live right now.',
-      }),
+      ...response,
+      headers: { ...response.headers, 'x-cortex-bundle': String(BUNDLE_REVISION) },
     };
   }
 }

@@ -42,12 +42,29 @@ export const DEMO_SESSION_TTL_SECONDS = 60 * 60;
  * a visitor who keeps clicking, and still small enough that a scripted abuser fills one
  * session and gets a read-only page rather than a bill.
  *
- * **Enforcement is not in this unit.** U14 builds the surface that *reports* the budget,
- * which is what `05` §5 requires so the SPA can render a degraded state truthfully. The
- * routes that consume budget arrive with the SPA, and rung 3 is forced deliberately in
- * U17. Nothing here claims the cap is applied; `remaining` is a number to display.
+ * **Enforced since U24, and as a preflight rather than at write time.** U14 built the surface
+ * that *reports* the budget; `POST /demo/run` now refuses to *start* a run a scope cannot
+ * afford. The distinction is the whole of `04` §5 rung 3: a write-time cap refuses a statement
+ * halfway through a run, which is invariant 1's failure in its worst form — a page that was
+ * working a second ago and now shows a half-finished fleet. A preflight leaves the session
+ * exactly as it was: read-only for runs, with its rows, counters and SQL log still inspectable
+ * and a new session one click away.
  */
 export const DEMO_SESSION_ROW_CAP = 200;
+
+/**
+ * Rows one fleet run writes into one scope, and therefore what rung 3's preflight must clear.
+ *
+ * **Measured (V50), not budgeted:** a full run costs 24 rows in the cortex scope and 32 in the
+ * naive one. The larger of the two is the figure here, because a visitor's two scopes are
+ * checked against one constant and the check must be the one that cannot start a run it can
+ * only half-finish.
+ *
+ * It is deliberately not a fraction of `DEMO_SESSION_ROW_CAP`. The cap is sized off the demo
+ * (`03` §7, roughly six runs of headroom) and this is sized off the run; tying one to the
+ * other would make a change to either silently move the other.
+ */
+export const FLEET_RUN_ROW_COST = 32;
 
 /**
  * The five tables a session's rows can accumulate in. `repos` is excluded on purpose:
@@ -59,21 +76,29 @@ const COUNTED_TABLES = ['agents', 'claims', 'intents', 'findings', 'action_ledge
  * What the page says about its own liveness, per `07` §4's honesty rule.
  *
  * §4 prescribes the literal line "replay mode: agent reasoning is cached, all database
- * behaviour is live", and this deployment **must not** ship that wording: the scenario
- * performs no model reasoning at all, so there is nothing cached and claiming otherwise
- * would be exactly the misrepresentation A7 and the honesty rule exist to prevent. The
- * embeddings that drive dedupe *are* live Bedrock calls, which is worth saying because it
- * is the part a sceptic would assume was faked.
+ * behaviour is live", and this deployment still **must not** ship that wording — but for a
+ * narrower reason than before U24. The cached thing is a **reviewed patch set**, not a
+ * cassette of model output, and "cached" would have a judge looking for recorded inference
+ * that does not exist. The embeddings that drive dedupe *are* live Bedrock calls, which is
+ * worth saying because it is the part a sceptic would assume was faked.
  *
- * Recorded against `07` §4 in `docs/SPEC-DELTA.md`. When U17 builds the LIVE reasoning path
- * and its quota rung, this becomes a real two-value mode and §4's wording becomes correct.
+ * **What changed with U24 is that this is now the REPLAY half of a real two-value mode.** A
+ * run authorised LIVE calls a model and says so on its own line, reported by `POST /demo/run`
+ * and, for a caller holding design §7.1's capability, by the `live` block `src/demo/api.ts`
+ * adds to this response. This sentence therefore describes what an anonymous visitor's run is
+ * and names no quota and no capability: design §7.1 requires the page to render exactly as the
+ * public page does without a token, and a mode line mentioning a live budget is the hint that
+ * a gate exists.
+ *
+ * Recorded against `07` §4 in `docs/SPEC-DELTA.md`.
  */
 const DEMO_MODE = {
   name: 'live database, live embeddings',
   reason:
     'Every row on this page was committed by CockroachDB and arrived over its own ' +
-    'changefeed. Dedupe distances come from live Bedrock embeddings. This scenario ' +
-    'performs no model reasoning, so nothing here is replayed from a cassette.',
+    'changefeed. Dedupe distances come from live Bedrock embeddings. Each agent applies a ' +
+    'reviewed patch rather than calling a model: there is no model reasoning on this run, ' +
+    'and nothing is replayed from a cassette.',
 } as const;
 
 export const DEMO_CLAIMS_SQL = `

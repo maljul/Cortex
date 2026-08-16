@@ -19,7 +19,19 @@
 import { randomUUID } from 'node:crypto';
 
 import { StatementRecorder } from '../db/recorder.js';
-import { createDemoSessionPair, demoState } from '../memory/demo.js';
+import {
+  createDemoSessionPair,
+  demoState,
+  FLEET_RUN_ROW_COST,
+  type DemoState,
+} from '../memory/demo.js';
+import {
+  authoriseLiveRun,
+  liveBudget,
+  liveCapabilityGranted,
+  PUBLIC_REPLAY_REASON,
+  type LiveAuthorisation,
+} from '../memory/live-budget.js';
 import type { RunScopes } from './run.js';
 import { runScenario, type DemoArm } from './scenario.js';
 import { readSqlLog, writeSqlLog } from './sql-log.js';
@@ -95,6 +107,17 @@ function embedder(): (text: string) => Promise<number[]> {
 export interface RunJob {
   runId: string;
   scopes: RunScopes;
+  /**
+   * Present **only** when this route authorised a LIVE run and spent a slot for it. Absent is
+   * the ordinary case and is what keeps an anonymous visitor's run free.
+   *
+   * It carries the capability the caller presented rather than a boolean, because the runner
+   * receives this payload over an asynchronous Lambda invoke it cannot authenticate: a
+   * `live: true` field would be a *claim*, and the runner re-comparing the token against its
+   * own copy of the secret is what turns it into a proof. Two functions, one secret, checked
+   * twice — see `liveCapabilityGranted`.
+   */
+  live?: { capability: string };
 }
 
 /**
@@ -141,12 +164,87 @@ export function findCredentialField(value: unknown, path: string[] = []): string
 }
 
 /**
+ * RUNG 3 — the per-session row cap, `04` §5.
+ *
+ * "session becomes read-only; its rows, counters and SQL log stay inspectable; a new session
+ * is one click." Two decisions are in this function and both are the rung rather than the
+ * mechanism:
+ *
+ * - **It is a preflight, not a write-time check.** A cap enforced at the moment a statement
+ *   would exceed it stops a run halfway through, leaving a page that was working a second ago
+ *   showing half a fleet and no explanation. `04` §5 invariant 1 forbids an error page; a
+ *   half-finished run is that failure wearing a 200.
+ * - **It is not an error status.** `05` §5: "Every degradation rung MUST be expressible
+ *   through these routes without an error status." So a capped session answers 200 with
+ *   `started: false` and the reason, and every other route on that session goes on working —
+ *   which is the "still inspectable" half of §5's row, and it holds because nothing here
+ *   touches `GET /demo/state` or `GET /demo/sql-log`.
+ */
+function rungThree(
+  scopes: { scope: string; state: DemoState }[],
+): DemoResponse | null {
+  const full = scopes.filter((s) => s.state.rows.remaining < FLEET_RUN_ROW_COST);
+  if (full.length === 0) return null;
+
+  return json(200, {
+    started: false,
+    rung: 3,
+    reason:
+      'This session has used its row budget, so it is read-only from here. Everything it ' +
+      'already wrote is still on this page and still queryable — the rows, the counters and ' +
+      'the SQL transcript are all unchanged. Starting a fresh session is one click and costs ' +
+      'nothing.',
+    rows: Object.fromEntries(full.map((s) => [s.scope, s.state.rows])),
+    newSession: 'POST /demo/session',
+  });
+}
+
+/**
+ * RUNG 4 — the cluster or the write path is unreachable, `04` §5.
+ *
+ * Answered here rather than only in `infra/lambda/demo.ts` for the reason this whole module
+ * exists: a rung that can only be exercised by deploying it is a rung that is exercised once.
+ * `npm run gate:ladder` forces this one by pointing the demo plane at a host that is not
+ * there, which is a thing a test can do and a deployed handler cannot.
+ *
+ * **It states that nothing is live, and that is invariant 2 rather than politeness.** §5's own
+ * "what is still true" column for this rung reads "nothing is live, and the banner says so",
+ * and `07` §4 repeats it: "A static fallback that silently depicts a live system would breach
+ * rule A7 far more seriously than replayed reasoning does." The status stays 5xx on purpose —
+ * this is the one case that is a fault rather than a limit, and the page's obligation is to
+ * put the pre-recorded walkthrough behind an explicit banner rather than to pretend the run
+ * happened.
+ */
+export function backendUnreachable(error: unknown): DemoResponse {
+  const failure = error as { code?: string; message?: string };
+  return json(503, {
+    rung: 4,
+    live: false,
+    error: 'The demo backend could not reach its database. Nothing here is live right now.',
+    banner:
+      'The database behind this demo is unreachable, so nothing on this page is live. What ' +
+      'follows is a pre-recorded walkthrough of a real run, not a run happening now.',
+    // The code, never the message: a driver's message can carry the host it failed to reach,
+    // and a connection string is the one thing that must never be echoed to a browser.
+    ...(failure.code ? { code: failure.code } : {}),
+  });
+}
+
+/**
  * Routes one request. Never throws for a limit or a missing session — `04` §5 invariant
  * 1 admits no error page on any path a visitor can reach, so an expired or unknown
  * session is a 404 carrying an explanation the SPA can render, and a genuine fault is
  * the only 5xx.
  */
 export async function handleDemoRequest(request: DemoRequest): Promise<DemoResponse> {
+  try {
+    return await dispatch(request);
+  } catch (error) {
+    return backendUnreachable(error);
+  }
+}
+
+async function dispatch(request: DemoRequest): Promise<DemoResponse> {
   if (request.method === 'OPTIONS') {
     return { statusCode: 204, headers: JSON_HEADERS, body: '' };
   }
@@ -207,6 +305,26 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
       });
     }
 
+    /**
+     * `05` §5: "The current mode, the reason for it, and the session's remaining row budget
+     * MUST be readable by the SPA, so that the interface can render a degraded state
+     * truthfully instead of discovering it through a failed request."
+     *
+     * The row budget has always been in `state.rows`. The LIVE half is added **only for a
+     * caller holding design §7.1's capability**, and that is the §7.1 rule rather than
+     * caution: without the token the response must be exactly what the public page gets, and
+     * a `live` block appearing in every state response is precisely the hint that a gate
+     * exists. The page that can offer a LIVE run is the page that needs to render rung 1
+     * before the click; nobody else does.
+     */
+    if (liveCapabilityGranted(request.query?.['live'])) {
+      const budget = await liveBudget();
+      return json(200, {
+        ...state,
+        live: { ...budget, available: budget.remaining > 0 },
+      });
+    }
+
     return json(200, state);
   }
 
@@ -244,7 +362,8 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
      */
     const mode = body.mode === 'fleet' ? 'fleet' : 'beats';
 
-    if (!(await demoState(sessionId))) {
+    const state = await demoState(sessionId);
+    if (!state) {
       return json(404, {
         error: 'That session has expired or never existed. Starting a new one is one click.',
       });
@@ -265,14 +384,48 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
         });
       }
 
-      if (!(await demoState(naiveScope))) {
+      const naiveState = await demoState(naiveScope);
+      if (!naiveState) {
         return json(404, {
           error: 'That session has expired or never existed. Starting a new one is one click.',
         });
       }
 
+      // Rung 3, on both of the visitor's scopes. Each has its own budget (design §4.1), and a
+      // run that could finish one arm and not the other is the half-finished page this rung
+      // exists to prevent.
+      const capped = rungThree([
+        { scope: sessionId, state },
+        { scope: naiveScope, state: naiveState },
+      ]);
+      if (capped) return capped;
+
+      /**
+       * RUNG 1 AND THE CAPABILITY, IN THE ORDER THAT MAKES THEM SAFE.
+       *
+       * The token is checked first and the budget is only spent for a caller that holds it, so
+       * an anonymous visitor cannot drain the day's runs by clicking. A caller without the
+       * token gets `replay` and `PUBLIC_REPLAY_REASON`, which names no quota and no
+       * capability — design §7.1: "no error, no hint that a gate exists".
+       *
+       * A caller *with* the token gets whatever the counter says, and exhaustion is a normal
+       * return value carrying rung 1's sentence rather than a failure. `05` §5 is explicit:
+       * "POST /demo/run MUST NOT fail when the LIVE quota is exhausted. It returns a replay
+       * run together with the reason it is not live."
+       */
+      const presented = request.query?.['live'];
+      const authorisation: LiveAuthorisation | null = liveCapabilityGranted(presented)
+        ? await authoriseLiveRun()
+        : null;
+      const live = authorisation?.mode === 'live';
+
       const runId = randomUUID();
-      await runStarter()({ runId, scopes: { cortex: sessionId, naive: naiveScope } });
+      await runStarter()({
+        runId,
+        scopes: { cortex: sessionId, naive: naiveScope },
+        // The presented value, not a flag, and only once a slot has actually been taken.
+        ...(live && presented ? { live: { capability: presented } } : {}),
+      });
 
       // 202, because the honest answer is "accepted" and not "done". Everything the run does
       // arrives over the WebSocket, terminal event included — see `src/demo/run.ts` for why a
@@ -280,10 +433,38 @@ export async function handleDemoRequest(request: DemoRequest): Promise<DemoRespo
       return json(202, {
         runId,
         mode: 'fleet',
+        started: true,
         scopes: { cortex: sessionId, naive: naiveScope },
         stream: 'Every step of the run arrives over the WebSocket, ending with a run message.',
+        /**
+         * `07` §4's mode line, as a value the page renders rather than a string it hard-codes.
+         * Never the token, and never a field named for one — the capability is compared and
+         * then forgotten.
+         */
+        reasoning: {
+          mode: authorisation ? authorisation.mode : ('replay' as const),
+          reason: authorisation ? authorisation.reason : PUBLIC_REPLAY_REASON,
+          // Rung 1 is *named* only when it actually fired, so a page cannot render a
+          // degradation banner on an ordinary run.
+          ...(authorisation && authorisation.mode === 'replay' ? { rung: 1 } : {}),
+          ...(authorisation
+            ? {
+                live: {
+                  used: authorisation.used,
+                  cap: authorisation.cap,
+                  remaining: authorisation.remaining,
+                },
+              }
+            : {}),
+        },
       });
     }
+
+    // Rung 3 again, for the four-beat path. It writes fewer rows than a fleet run, so this is
+    // the conservative side of one constant rather than a second measurement — and the path is
+    // still reachable by a scripted caller, which is the case the cap is for.
+    const beatsCapped = rungThree([{ scope: sessionId, state }]);
+    if (beatsCapped) return beatsCapped;
 
     const recorder = new StatementRecorder();
     const result = await runScenario({

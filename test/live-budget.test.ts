@@ -2,9 +2,10 @@
  * THE LIVE RUN BUDGET — spec/04-ARCHITECTURE.md §5 brake 2, and rung 1's other end.
  *
  * §5: "A run counter in CockroachDB, default 40 LIVE runs per day globally. On exhaustion
- * the UI switches to REPLAY and says so plainly." The cap that ships is 10 rather than 40 —
- * Julian's call on 2026-08-12 from the measured Bedrock rate; see `LIVE_RUNS_PER_DAY` and
- * `docs/DECISIONS.md`. Everything else in that sentence is asserted here.
+ * the UI switches to REPLAY and says so plainly." The cap that ships is not 40 and is not a
+ * chosen number either: since U24 it is derived from one metered LIVE run's own Bedrock usage,
+ * per design §7.3. See `LIVE_RUNS_PER_DAY` and `docs/DECISIONS.md`. Everything else in that
+ * sentence is asserted here.
  *
  * **This is the project's seventh table and its first row that is not tenant memory.** Both
  * of those are deliberate and both are load-bearing, so both are tested rather than
@@ -41,9 +42,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closePool } from '../src/db/pool.js';
 import {
   LIVE_BUDGET_CLAIM_SQL,
+  LIVE_BUDGET_USD,
   LIVE_RUNS_PER_DAY,
+  METERED_LIVE_RUN,
   authoriseLiveRun,
   liveBudget,
+  liveRunCostUsd,
 } from '../src/memory/live-budget.js';
 
 let original: number | null = null;
@@ -101,13 +105,22 @@ afterAll(async () => {
 });
 
 describe('the cap is one number in one place', () => {
-  it('ships 10 runs a day, which is what the measured Bedrock rate affords', () => {
-    // Not an arbitrary assertion of today's value: `04` §5's own budget is "single-digit
-    // dollars for the whole hackathon and judging period", and at the rate measured from
-    // this account's billing on 2026-08-12 ($3.30/1M input, $16.50/1M output) ten runs a
-    // day is the largest round cap whose worst case stays inside that. If the cap moves,
-    // that arithmetic moved with it and this line should be the thing that says so.
-    expect(LIVE_RUNS_PER_DAY).toBe(10);
+  it('is derived from a metered run rather than chosen (U24)', () => {
+    // **This used to assert `toBe(10)` and that is the assertion U24 removed.** Ten was
+    // Julian's call on 2026-08-12 against the *old* five-agent scenario, and `docs/UNITS.md`
+    // recorded it as wrong for this workload by roughly an order of magnitude and gating
+    // nothing, because no route called `authoriseLiveRun`. A literal here would have gone on
+    // passing through both of those facts.
+    //
+    // What is asserted instead is design §7.3's formula, recomputed from the same inputs: the
+    // cap must be what one metered run's own Bedrock usage affords out of the LIVE budget.
+    // Move the measurement and this follows; edit the cap without the measurement and it
+    // fails. The fuller arithmetic — and why a per-UTC-day counter cannot carry a whole-event
+    // budget at these numbers — is in `test/ladder.test.ts` and in the constant's own comment.
+    expect(METERED_LIVE_RUN).not.toBeNull();
+    expect(LIVE_RUNS_PER_DAY).toBe(
+      Math.floor(LIVE_BUDGET_USD / liveRunCostUsd(METERED_LIVE_RUN!)),
+    );
   });
 
   it('binds the cap and never the day — invariant 7', () => {

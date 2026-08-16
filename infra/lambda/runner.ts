@@ -25,15 +25,19 @@
  * when this sandbox stops existing.
  */
 import { StatementRecorder } from '../../src/db/recorder.js';
+import { modelAuthor, type AuthorResult, type PatchAuthor } from '../../src/demo/author.js';
 import { streamRun, type RunScopes } from '../../src/demo/run.js';
 import { writeSqlLog } from '../../src/demo/sql-log.js';
 import { Embedder } from '../../src/embed/titan.js';
+import { liveCapabilityGranted, liveRunCostUsd } from '../../src/memory/live-budget.js';
 import { broadcast, requireFanoutEnvironment } from './fanout.js';
 import { installSqlLogStore } from './sql-log-store.js';
 
 interface RunEvent {
   runId?: unknown;
   scopes?: { cortex?: unknown; naive?: unknown };
+  /** Present only when `POST /demo/run` authorised LIVE and spent a slot. See `RunJob`. */
+  live?: { capability?: unknown };
 }
 
 /** The subset of Lambda's context this handler reads. */
@@ -41,7 +45,7 @@ interface LambdaContext {
   getRemainingTimeInMillis?: () => number;
 }
 
-const BUNDLE_REVISION = 3;
+const BUNDLE_REVISION = 4;
 
 /**
  * How much of the sandbox's remaining life is reserved for ending the run properly.
@@ -63,6 +67,71 @@ function embedder(): Embedder {
 }
 
 installSqlLogStore();
+
+/** What one run spent at Bedrock, summed from Bedrock's own `usage`. U24's metered figure. */
+export interface RunUsage {
+  /** Calls that reached Bedrock and came back with a `usage` block. */
+  calls: number;
+  /** Calls whose answer survived validation and was applied. */
+  authored: number;
+  /** Calls whose answer did not, and which fell back to the reviewed patch. */
+  fellBack: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Why each rejection happened, so a run that quietly authored nothing is visible. */
+  rejections: string[];
+}
+
+/**
+ * THE LIVE AUTHOR, AND THE SECOND CHECK ON THE TOKEN.
+ *
+ * `POST /demo/run` authorised this run and spent a slot for it, then invoked this function
+ * asynchronously with a payload it cannot sign. So `live` arriving in that payload is a claim;
+ * comparing the capability it carries against this function's own copy of the secret is what
+ * makes it a proof. Two functions, one Secrets Manager value, checked twice — and if the
+ * comparison fails, the run is a perfectly good REPLAY run rather than an error, because
+ * `04` §5 invariant 1 admits no error page on the path behind the run button.
+ *
+ * **Returns `null` for REPLAY**, which `streamRun` spreads away entirely, so an unauthorised
+ * run reaches no model code at all rather than reaching a model author that declines.
+ *
+ * The tally wraps `modelAuthor` rather than living inside it: `src/demo/author.ts` answers
+ * "what does this agent write" and has no business knowing what a run costs, and this is the
+ * one place both arms' calls pass through.
+ */
+function liveAuthor(event: RunEvent): { author: PatchAuthor; usage: RunUsage } | null {
+  const presented = typeof event.live?.capability === 'string' ? event.live.capability : undefined;
+  if (!liveCapabilityGranted(presented)) return null;
+
+  const usage: RunUsage = {
+    calls: 0,
+    authored: 0,
+    fellBack: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    rejections: [],
+  };
+
+  const region = process.env['BEDROCK_REGION'];
+  const base = modelAuthor({
+    ...(region ? { region } : {}),
+    onReject: (reason) => usage.rejections.push(reason),
+  });
+
+  const author: PatchAuthor = async (request) => {
+    const result: AuthorResult = await base(request);
+    if (result.usage) {
+      usage.calls += 1;
+      usage.inputTokens += result.usage.inputTokens;
+      usage.outputTokens += result.usage.outputTokens;
+    }
+    if (result.source === 'model') usage.authored += 1;
+    if (result.source === 'fallback') usage.fellBack += 1;
+    return result;
+  };
+
+  return { author, usage };
+}
 
 export async function handler(
   event: RunEvent,
@@ -89,6 +158,12 @@ export async function handler(
     ? Math.max(1_000, remaining - TERMINAL_MARGIN_MS)
     : undefined;
 
+  // REPLAY unless this payload carries a capability that matches this function's own secret.
+  // Both arms get the same author or neither does — `src/demo/run.ts` enforces that, because
+  // handing the lanes different authors would make the run a comparison between two code
+  // generators rather than between two coordination strategies.
+  const live = liveAuthor(event);
+
   const outcome = await streamRun({
     runId,
     scopes,
@@ -99,6 +174,7 @@ export async function handler(
     },
     recorders,
     ...(budgetMs === undefined ? {} : { budgetMs }),
+    ...(live ? { author: live.author } : {}),
   });
 
   // Best effort and deliberately after the terminal message: the transcript is what the show-SQL
@@ -115,6 +191,19 @@ export async function handler(
     ),
   );
 
+  /**
+   * **U24's metered figure leaves the deployment here and nowhere else.**
+   *
+   * The done-when is "one metered LIVE run exists and the cap is derived from it, not
+   * estimated", and design §7.3's formula needs Bedrock's own `usage` for a whole run. This
+   * line is that record for a run performed on the deployment; `npm run gate:ladder -- --meter`
+   * is the same measurement taken where a human can read it directly. `costUsd` is priced at
+   * the one reasoning rate this account has been billed at — see
+   * `MEASURED_REASON_RATE_USD_PER_MTOK`, which explains why that is Sonnet's number.
+   *
+   * The capability is not in this object and must never be. It is compared and forgotten;
+   * CloudWatch is a place secrets go to live for ever.
+   */
   console.log(
     JSON.stringify({
       level: 'info',
@@ -125,6 +214,13 @@ export async function handler(
       undelivered: outcome.undelivered,
       ...(outcome.reason ? { reason: outcome.reason } : {}),
       events: outcome.arms.map((a) => ({ arm: a.arm, events: a.events.length })),
+      reasoning: live
+        ? {
+            mode: 'live',
+            ...live.usage,
+            costUsd: Number(liveRunCostUsd({ at: '', ...live.usage }).toFixed(4)),
+          }
+        : { mode: 'replay' },
     }),
   );
 

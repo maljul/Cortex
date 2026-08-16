@@ -45,7 +45,15 @@
  * fail when the LIVE quota is exhausted. It returns a replay run together with the reason it
  * is not live." `04` §5 invariant 1 says the same thing more strongly — no rung may present
  * an error page — and this is the rung most likely to be reached by an ordinary judge.
+ *
+ * **The capability check lives here too, and that is not filing convenience.** Design §7.1's
+ * token and §5's counter are the same question asked twice — *may this visitor spend model
+ * tokens* — and they are answered in two different processes: `POST /demo/run` authorises, and
+ * `infra/lambda/runner.ts` re-checks, because the runner receives a payload it cannot
+ * authenticate and a `mode: live` field in it would otherwise be a claim rather than a proof.
+ * Both import this module; neither imports the other.
  */
+import { timingSafeEqual } from 'node:crypto';
 import type { PoolClient } from 'pg';
 
 import type { Plane } from '../db/pool.js';
@@ -53,35 +61,240 @@ import type { StatementRecorder } from '../db/recorder.js';
 import { withRetry } from '../db/retry.js';
 
 /**
- * LIVE runs the demo will pay for in one day, globally.
+ * THE CAPABILITY LINK — design §7.1, and invariant 7 applied to the most agent-reachable
+ * path there is.
  *
- * **`04` §5 says 40 and this is 10. Julian's call on 2026-08-12, from a measurement.**
+ * "An unguessable token in the URL (`/?live=<token>`), pasted only into the Devpost
+ * submission, enables the RUN LIVE control. The token is compared server-side; it never
+ * appears in an input element, and the page contains no field of any kind."
  *
- * §5's own budget for the project is "single-digit dollars for the whole hackathon and
- * judging period", and until 2026-08-12 nobody could check the two against each other,
- * because the Bedrock rate for Sonnet 4.5 was TBD — AWS's pricing page did not return it
- * twice (V30) and its machine-readable Price List API does not carry the model at all.
- * The rate came from this account's own billing instead: Cost Explorer records
- * `Claude Sonnet 4.5 (Amazon Bedrock Edition)` as a service of its own at
- * **$3.30 per 1M input tokens and $16.50 per 1M output** — a Marketplace usage type, 1.10x
- * the familiar list price.
+ * Three properties, each of which has cost this project or a sibling real time:
  *
- * Against the committed cassettes (30 calls: input 320/500/1067, output 59/72/111) a
- * five-agent run costs $0.0142 typically and $0.0268 at the observed maximum. So §5's 40
- * runs a day is $0.57–1.07 a day, or **$19–36 through 2026-09-15** — §5's default breaks
- * §5's budget. Ten a day is $4.83–9.10 over the same window: the largest round cap whose
- * worst case stays single digit.
+ * - **Compared, never interpolated.** Nothing structural crosses this boundary: the value is
+ *   read, length-checked and byte-compared, and it reaches no SQL, no template and no log.
+ *   `timingSafeEqual` rather than `===`, because a token that leaks its prefix through
+ *   response timing is a token an unattended script can walk.
+ * - **Absent or wrong is indistinguishable from the public page.** This returns `false` and
+ *   the caller serves exactly what an anonymous visitor gets — no error, no hint that a gate
+ *   exists, per `04` §5 invariant 1.
+ * - **Unset means unavailable, never a fault.** A deployment without the secret serves REPLAY
+ *   for ever. `05` §5's degradation rule is that a limit resolves to a working page, and a
+ *   missing capability is the most ordinary limit of all.
+ *
+ * The expected value arrives in `LIVE_TOKEN` from Secrets Manager as a
+ * `{{resolve:secretsmanager:...}}` dynamic reference, never a template value — the first DSN
+ * arrangement leaked one into `cdk.out/` and that is the whole reason that rule exists.
+ *
+ * Read from the environment on every call rather than at module scope: a module-scope read
+ * runs before the Lambda's environment is in place, which is exactly what bit `Embedder` in U8.
+ */
+export function liveCapabilityGranted(
+  presented: string | undefined | null,
+  expected: string | undefined = process.env['LIVE_TOKEN'],
+): boolean {
+  if (!expected || !presented) return false;
+
+  const offered = Buffer.from(presented, 'utf8');
+  const secret = Buffer.from(expected, 'utf8');
+  // `timingSafeEqual` throws on unequal lengths, so the guard is required rather than an
+  // optimisation. It leaks the length of the secret and nothing else, which is a property of
+  // the alphabet the secret is generated in and is public anyway.
+  if (offered.length !== secret.length) return false;
+
+  return timingSafeEqual(offered, secret);
+}
+
+/**
+ * The whole-event LIVE budget, in dollars. **Julian's call, 2026-08-16.**
+ *
+ * `04` §5's own target is "single-digit dollars for the whole hackathon and judging period",
+ * and this is the number that phrase was resolved to. It is the budget for *reasoning*: the
+ * embedding line, the cluster, Lambda, S3 and CloudFront are all separately measured at
+ * effectively zero at demo volumes and are not charged against it.
+ */
+export const LIVE_BUDGET_USD = 9;
+
+/**
+ * The window the budget has to cover, in days: 2026-08-16 through 2026-09-15 inclusive.
+ *
+ * Rule B4 requires the project to stay available free and unrestricted until 2026-09-15, so
+ * the budget is not "until the deadline", it is "until judging ends". Fixed at the window's
+ * full length rather than recomputed from today's date, deliberately: a number that changed
+ * every morning would be untestable and unreviewable.
+ *
+ * **It does not derive the cap — see `LIVE_RUNS_PER_DAY`.** It is here to quantify what brake 3
+ * has to stop, which is the one honest use a daily counter can put it to.
+ */
+export const LIVE_BUDGET_WINDOW_DAYS = 31;
+
+/**
+ * The Bedrock reasoning rate this account has actually been billed at, per million tokens.
+ *
+ * **Measured, not quoted (V36).** AWS's pricing page failed to render the row twice, and its
+ * machine-readable Price List API does not carry the model at all — re-checked on 2026-08-16,
+ * where the whole `AmazonBedrock` catalogue for `us-east-1` still stops at Claude 3 and the
+ * `AWSMarketplace` catalogue returns nothing for Claude. The rate came from this account's own
+ * Cost Explorer instead, where `Claude Sonnet 4.5 (Amazon Bedrock Edition)` is a **service of
+ * its own**, separate from `Amazon Bedrock`.
+ *
+ * **This is Sonnet 4.5's rate and the fleet runs Haiku 4.5, and that substitution is the one
+ * thing to read carefully here.** Haiku 4.5's own rate is not confirmable today: Cost Explorer
+ * lags roughly a day and 2026-08-16 is this account's first Haiku usage, so there is no billed
+ * line to read. The choice was between writing an estimate into config — which this repository
+ * does not do — and pricing the run at the one reasoning rate this account has been billed at.
+ * Every published rate card puts Haiku below Sonnet, so pricing a Haiku run at Sonnet's rate
+ * makes the derived cap **a floor**: when the Haiku line appears and the rate is lower, the cap
+ * can only rise, and no arrangement of that number can overspend `LIVE_BUDGET_USD`.
+ *
+ * `npm run gate:ladder` re-asks Cost Explorer for the Haiku service line on every run and says
+ * whether this rate is still the best available one, so tightening it is a check rather than a
+ * thing somebody has to remember.
+ */
+export const MEASURED_REASON_RATE_USD_PER_MTOK = { input: 3.3, output: 16.5 } as const;
+
+/** What one LIVE fleet run actually spent at Bedrock, from Bedrock's own `usage`. */
+export interface MeteredRun {
+  /** The day it was run, so a stale measurement is visible rather than inferred. */
+  at: string;
+  /** Model calls the run made. Both arms, every ticket that wrote anything. */
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * THE METERED RUN — U24's done-when, and the only input to the cap that is not a decision.
+ *
+ * "One metered LIVE run exists and the cap is derived from it, not estimated." Design §7.3 put
+ * a run at "≈50 model calls … ≈75k input and 15k output tokens" and labelled that an estimate
+ * from a secondary source. These figures are not that: they are the sum of Bedrock's own
+ * `usage` block over one real two-arm run against the real cluster, collected by
+ * `npm run gate:ladder -- --meter`.
+ *
+ * `null` would mean no such run exists, in which case `LIVE_RUNS_PER_DAY` below is 0 and LIVE
+ * is simply unavailable — design §7.3's own instruction, "until both exist, the config carries
+ * TBD and LIVE stays disabled", expressed as a value rather than as a comment.
+ */
+export const METERED_LIVE_RUN: MeteredRun | null = {
+  at: '2026-08-16',
+  calls: 16,
+  inputTokens: 36892,
+  outputTokens: 10255,
+};
+
+/**
+ * **Two of those sixteen calls are charged rather than reported, and that correction is the
+ * difference between a measurement and a plausible number.**
+ *
+ * `modelAuthor` throws on `stop_reason === 'max_tokens'` — correctly, because half a JSON
+ * object is a broken edit and not a smaller one — but it throws *before* returning Bedrock's
+ * `usage`, so a truncated call is billed by AWS and reported to nobody. Metering a run from
+ * `AuthorResult.usage` alone therefore understates it every time. The first metered run lost
+ * two calls that way and came out at $0.2478 against a true $0.2910: enough to move the derived
+ * cap.
+ *
+ * They are charged in `scripts/gate-ladder.mts` at a bound rather than an estimate — output at
+ * exactly `FLEET_MAX_OUTPUT_TOKENS`, which is *why* the call stopped, and input at the largest
+ * prompt any call in the run reported. The figures above are the charged totals.
+ *
+ * **Two runs, taken minutes apart, reported the same 30,506 measured input tokens, the same 16
+ * calls and the same 2 truncations.** The prompt is the corpus and the ticket, so the input
+ * side is deterministic; only the output side moves — 7,455 and 8,915 measured — which is the
+ * model writing. The figures above are the second run's, the one taken with the instrumentation
+ * that can charge a truncation, so **this is not a worst case**: the first run's output was
+ * about a fifth higher. It is nonetheless conservative overall, because the rate it is priced
+ * at is a dearer model's (see `MEASURED_REASON_RATE_USD_PER_MTOK`) by roughly threefold, which
+ * swamps a fifth either way. Re-derive it if the corpus, the ticket set or the prompt changes.
+ */
+
+/** What a run of that size costs at the rate above. */
+export function liveRunCostUsd(run: MeteredRun): number {
+  return (
+    (run.inputTokens / 1_000_000) * MEASURED_REASON_RATE_USD_PER_MTOK.input +
+    (run.outputTokens / 1_000_000) * MEASURED_REASON_RATE_USD_PER_MTOK.output
+  );
+}
+
+/**
+ * LIVE runs the demo will pay for in one day, globally — **derived, never written**.
+ *
+ * `04` §5 says 40. Julian's call on 2026-08-12 made it 10, against the *old* five-agent
+ * scenario, and `docs/UNITS.md` recorded that the number was wrong for this workload by
+ * roughly an order of magnitude and gated nothing, because no route called
+ * `authoriseLiveRun`. Both halves of that are now closed: the route calls it, and the number
+ * below is computed from design §7.3's formula rather than chosen.
+ *
+ *     cap = LIVE budget ÷ measured cost of one metered run
+ *
+ * At $0.2910 a metered run that is **30**, and its meaning is exactly one sentence: *no single
+ * day may spend more than the entire LIVE budget.*
+ *
+ * ── THE QUESTION `docs/UNITS.md` REFUSED TO GUESS AT, AND WHAT MEASURING IT ANSWERED ──
+ *
+ * "Consider whether a whole-event budget is honestly enforced by a per-UTC-day counter." It is
+ * not, and the measurement is what proves it rather than the argument. The obvious construction
+ * is to make the daily cap small enough that spending it every day of the window still fits —
+ * `cap = budget ÷ (days × cost)`. Run the numbers that were actually measured and it comes out
+ * at **0.9978**, which floors to zero. There is no daily integer that means "thirty runs over
+ * thirty-one days": the granularity of a daily counter cannot express a cumulative budget, and
+ * at this budget and this cost it quantises to *nothing at all* or to *the whole thing*.
+ *
+ * So the counter is given the job it can actually do — bound the day — and the cumulative bound
+ * is left where `04` §5 put it in the first place. §5's three brakes divide the work: brake 2 is
+ * "a run counter … N LIVE runs per day", a **rate**, and brake 3 is "an AWS Budget alarm …
+ * above a low-double-digit threshold", the only one of the three §5 gives a *monetary* limit to.
+ * Trying to make brake 2 do brake 3's job is what produced the zero.
+ *
+ * **Brake 3 is built, and `LIVE_UNBRAKED_WINDOW_USD` below is what it prevents.** This paragraph
+ * read "specified and NOT BUILT" until 2026-08-16, and the figure it named — thirty-one
+ * consecutive maxed days at **$270.58** — is exactly why it did not stay that way. The stack now
+ * carries an ANNUAL $9 cost budget filtered on the two `(Amazon Bedrock Edition)` services, whose
+ * action attaches a Deny on `bedrock:InvokeModel` to the runner's role. So the cumulative bound
+ * `04` §5 assigns to brake 3 exists, and the day-rate bound above is brake 2's alone, which is
+ * the division §5 intended.
+ *
+ * **The residual that replaces it, because there is always one.** AWS Budgets evaluate against
+ * cost data that refreshes a few times a day, not continuously — so the brake is a *bound*, not
+ * an interlock, and spend can overshoot within one refresh window before the Deny lands. Two
+ * things keep that overshoot small and neither is a substitute for knowing about it: LIVE is
+ * reachable only by a holder of the capability token, which goes into the Devpost submission and
+ * nowhere else, and the rate below is a **dearer model's** — the metered run is priced at Sonnet's
+ * confirmed rate because Haiku's had not yet appeared in Cost Explorer, so thirty runs of actual
+ * Haiku spend is nearer $3 than $9. When the Haiku line lands, one constant tightens this.
+ *
+ * Deliberately not clamped to at least 1. A run this project cannot afford once is a run it
+ * cannot offer, and the honest expression of that is a cap of zero and a REPLAY demo.
+ *
+ * **One source, like every other closed constant in this project.** There is deliberately no
+ * environment variable: `05` §6 removed `CORTEX_DEDUPE_THRESHOLD` for the reason that applies
+ * here too — a deployment running a number the published evidence does not describe has
+ * un-closed the decision without a commit.
  *
  * The deviation from §5's published 40 is recorded in `docs/SPEC-DELTA.md`. It is a cap and
  * not a floor: nothing degrades below REPLAY when it is reached, and REPLAY is fully live
  * database behaviour.
- *
- * **One source, like every other closed constant in this project.** There is deliberately
- * no environment variable: `05` §6 removed `CORTEX_DEDUPE_THRESHOLD` for the reason that
- * applies here too — a deployment running a number the published evidence does not describe
- * has un-closed the decision without a commit.
  */
-export const LIVE_RUNS_PER_DAY = 10;
+export const LIVE_RUNS_PER_DAY: number =
+  // A run that cost nothing is a run in which no call reached Bedrock — every author fell back
+  // — and dividing by it would produce an unbounded cap out of a failed measurement. That is
+  // the same class of mistake as `06` §6's "a count over an empty list renders exactly like a
+  // count over real work", and it is refused here rather than rendered.
+  METERED_LIVE_RUN === null || liveRunCostUsd(METERED_LIVE_RUN) <= 0
+    ? 0
+    : Math.floor(LIVE_BUDGET_USD / liveRunCostUsd(METERED_LIVE_RUN));
+
+/**
+ * What a full window of maxed days would cost, at the cap above and the rate above.
+ *
+ * Exported because it is the number brake 3 exists to stop, and a specification for a brake
+ * that does not say what it is stopping is a specification nobody can check. `04` §5 calls for
+ * an action "above a low-double-digit threshold"; this is what that threshold is protecting
+ * against.
+ */
+export const LIVE_UNBRAKED_WINDOW_USD: number =
+  METERED_LIVE_RUN === null
+    ? 0
+    : LIVE_RUNS_PER_DAY * LIVE_BUDGET_WINDOW_DAYS * liveRunCostUsd(METERED_LIVE_RUN);
 
 /**
  * The check and the increment, in one statement.
@@ -171,6 +384,37 @@ function grantedReason(cap: number, used: number): string {
   );
 }
 
+/**
+ * What every ordinary visitor's run is, and the only thing said about it.
+ *
+ * `07` §4 prescribes "replay mode: agent reasoning is cached, all database behaviour is live",
+ * and this is that sentence made accurate for what actually happens: the cache is a reviewed
+ * patch set rather than a cassette, and the database half is unqualified. **It names no quota
+ * and no capability**, because design §7.1 requires the page to render exactly as the public
+ * page does when no token is presented — a REPLAY notice that mentioned a live budget would be
+ * the hint that a gate exists.
+ */
+export const PUBLIC_REPLAY_REASON =
+  'Replay mode: each agent applies a reviewed patch instead of calling a model. Everything ' +
+  'else is live — every row on this page was committed by CockroachDB just now, and the ' +
+  'arbitration, the dedupe distances, the retries and the change stream all happened.';
+
+/**
+ * The sentence for a deployment that has no LIVE capability configured at all.
+ *
+ * Distinct from exhaustion because it is a different fact: nothing was spent and nothing is
+ * left to spend. Reached only by a caller that already presented a valid token, so it can name
+ * the capability without hinting at one to anybody else.
+ */
+function unconfiguredReason(): string {
+  return (
+    'Live agent reasoning is not available on this deployment, so this run replays reviewed ' +
+    'patches. Everything else is unchanged: every row on this page was committed by ' +
+    'CockroachDB just now, and the arbitration, the dedupe distances and the change stream ' +
+    'are all live.'
+  );
+}
+
 /** Reads today's counter inside `client`'s transaction. */
 async function readUsed(client: PoolClient): Promise<number> {
   const { rows } = await client.query<{ runs_used: string }>(LIVE_BUDGET_READ_SQL);
@@ -189,6 +433,20 @@ export async function authoriseLiveRun(
   options: LiveBudgetOptions = {},
 ): Promise<LiveAuthorisation> {
   const cap = options.cap ?? LIVE_RUNS_PER_DAY;
+
+  /**
+   * A cap of zero is not exhaustion and the statement below cannot express it.
+   *
+   * `LIVE_BUDGET_CLAIM_SQL`'s `WHERE` guards the *conflict* branch only, so on the first call
+   * of a day there is no row, the INSERT lands `runs_used = 1`, and the cap is never consulted
+   * — which is correct for every positive cap and wrong for zero. That is reachable: the cap is
+   * derived, and it is zero whenever no metered run exists or one run costs more than the
+   * window can afford. Refusing here rather than adding a second predicate keeps the claim a
+   * single round trip and keeps the reason honest: nothing was spent, so nothing was counted.
+   */
+  if (cap <= 0) {
+    return { mode: 'replay' as const, reason: unconfiguredReason(), used: 0, cap, remaining: 0 };
+  }
 
   return withRetry(async (client) => {
     const { rows } = await client.query<{ runs_used: string }>(LIVE_BUDGET_CLAIM_SQL, [cap]);

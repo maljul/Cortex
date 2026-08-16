@@ -717,9 +717,51 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
 
     const informed = known.informing !== null && task.informedPatches !== undefined;
     const applied = await applyAndSave(task, agent, informed, known.findings);
-    // Unreachable in this lane — a second agent on the same file is deduped before it reads —
-    // and asserted rather than assumed, because "cannot happen" in a comment is how it happens.
-    if (applied === null) throw new Error(`${task.id}: arbitration let two agents patch one file`);
+    if (applied === null) {
+      /**
+       * **"Cannot happen" in a comment is how it happens, and this is the second time.**
+       *
+       * This was an unconditional throw, on the reasoning that a second cortex agent on the same
+       * file is deduped before it ever reads. That is true — while dedupe runs. `04` §5 rung 2
+       * turns every embedding into a hash vector and **skips dedupe entirely** rather than run it
+       * at a meaningless threshold, and the moment it does, the second half of a dedupe pair
+       * proceeds exactly as the naive lane's does: it reads, it works, and its anchor is gone by
+       * the time it writes.
+       *
+       * `npm run gate:ladder` caught it — the rung §5 singles out as the one most likely to fire
+       * unnoticed produced a *throw* behind the run button, which is `04` §5 invariant 1's own
+       * failure. The assertion was right about arbitration and wrong about what else could put a
+       * null here.
+       *
+       * So the invariant is kept where it still holds and dropped where it never did: with a real
+       * embedding this is still an arbitration failure and still throws. With a degraded one it is
+       * the documented cost of the rung, reported the way the naive lane reports the same event.
+       */
+      if (!embedded.degraded) {
+        throw new Error(`${task.id}: arbitration let two agents patch one file`);
+      }
+
+      // It did the work and none of it landed, which is what skipping dedupe buys. Counted as
+      // work done in this lane too, because it was — `duplicateWorkDone` is a measurement of the
+      // run, not a property of the arm.
+      workDone.push({ key: task.id, statement: task.statement, embedding: embedded.embedding });
+      steps.push({ taskId: task.id, agent, intentId: decision.intentId, reported: 'contended' });
+      await close({
+        repoId: options.sessionId,
+        intentId: decision.intentId,
+        result: 'done',
+        idempotencyKey: `wl-${task.id}-${decision.intentId}`,
+        tokensSpent: tokensSpentOn(task.id, agent),
+        ...scope,
+      });
+      emit(agent, task.id, 'contended', {
+        intentId: decision.intentId,
+        note:
+          'dedupe was skipped because this intent could not be embedded (04 §5 rung 2), so this ' +
+          'agent repeated work another had already done; nothing of its own landed',
+      });
+      return 'settled';
+    }
     const touched = applied;
 
     if (task.result === 'abandoned') {

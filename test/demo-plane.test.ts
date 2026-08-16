@@ -19,12 +19,17 @@
  * - **8 — no credential field on any demo surface.** `05` §5 requires a request carrying
  *   one to be *rejected* rather than ignored, so it is asserted as a refusal.
  */
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import { Client } from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { handleDemoRequest, useEmbedder, useRunStarter } from '../src/demo/api.js';
+import {
+  handleDemoRequest,
+  useEmbedder,
+  useRunStarter,
+  type RunJob,
+} from '../src/demo/api.js';
 import { Embedder } from '../src/embed/titan.js';
 import { saveFiles } from '../src/memory/shared-state.js';
 import { closePool, getPool } from '../src/db/pool.js';
@@ -35,6 +40,8 @@ import {
   DEMO_INTENTS_SQL,
   DEMO_LEDGER_SQL,
   DEMO_ROW_COUNT_SQL,
+  DEMO_SESSION_ROW_CAP,
+  FLEET_RUN_ROW_COST,
   createDemoSession,
   demoState,
 } from '../src/memory/demo.js';
@@ -242,11 +249,14 @@ describe('reading a session — invariant 5', () => {
       expect(state?.mode.name).toBeTruthy();
       expect(state?.mode.reason).toBeTruthy();
       // `07` §4's prescribed line is "agent reasoning is cached, all database behaviour is
-      // live". The first half is false here — this scenario performs no model reasoning —
-      // so the assertion is that the page never claims it, not that the word is absent:
-      // the honest wording says reasoning is *not* replayed, and must be free to say so.
+      // live". The first half is still false for what this route describes — an ordinary
+      // visitor's run applies a reviewed patch, which is not cached model output — so the
+      // assertion is that the page never claims it, not that the word is absent.
       expect(state?.mode.reason).not.toMatch(/reasoning is cached/i);
       expect(state?.mode.reason).toMatch(/no model reasoning/i);
+      // And since U24 it must not hint that a LIVE gate exists. Design §7.1: without the
+      // capability, the page renders exactly as the public page does.
+      expect(state?.mode.reason).not.toMatch(/quota|budget|capability|token/i);
     } finally {
       await purge(session.sessionId);
     }
@@ -659,4 +669,311 @@ describe('the fleet run is asynchronous, and the beats route is untouched — U2
       await session.purge();
     }
   }, 120_000);
+});
+
+/**
+ * U24 — THE CAPABILITY LINK, RUNG 1 AND RUNG 3, ON THE ROUTE SURFACE.
+ *
+ * `04` §5's ladder says every limit MUST resolve to a working page, and `05` §5 adds that every
+ * rung MUST be expressible "through these routes without an error status". Both are about this
+ * file's subject rather than the runner's, so both are asserted here — the gate
+ * (`npm run gate:ladder`) forces the limits end to end, and these hold the route's half of the
+ * contract where a gate cannot: on the exact shape of what a caller without the capability sees.
+ *
+ * **No token is written down.** Each case mints one, installs it in the environment for the
+ * duration, and restores whatever was there. Only lengths and outcomes are ever asserted.
+ */
+describe('the LIVE capability, and the rungs the routes own — U24', () => {
+  const embedder = new Embedder();
+  useEmbedder((text) => embedder.embed(text));
+
+  const originalToken = process.env['LIVE_TOKEN'];
+
+  afterEach(() => {
+    if (originalToken === undefined) delete process.env['LIVE_TOKEN'];
+    else process.env['LIVE_TOKEN'] = originalToken;
+  });
+
+  /**
+   * **These tests spend the real counter, because there is only one and its day is the
+   * cluster's.** A capability-holding call to `POST /demo/run` takes a LIVE slot, and it takes
+   * it whether or not a run follows — that is `authoriseLiveRun`'s stated ordering, "a slot is
+   * spent when it is granted rather than when the run succeeds".
+   *
+   * So the day's value is captured and put back. Without this the suite quietly eats the
+   * demo's LIVE budget: no model call is made here, so nothing is spent at Bedrock, but a
+   * judge arriving after a few suite runs would find the quota gone for a reason that never
+   * cost anybody anything. `test/live-budget.test.ts` takes the same precaution for the same
+   * reason.
+   */
+  let originalCounter: number | null = null;
+
+  async function counter(): Promise<Client> {
+    const client = new Client({
+      connectionString: process.env.CORTEX_DSN,
+      connectionTimeoutMillis: 10_000,
+    });
+    await client.connect();
+    return client;
+  }
+
+  beforeAll(async () => {
+    const client = await counter();
+    try {
+      const { rows } = await client.query<{ runs_used: string }>(
+        'SELECT runs_used FROM live_run_budget WHERE day = current_date',
+      );
+      originalCounter = rows[0] ? Number(rows[0].runs_used) : null;
+    } finally {
+      await client.end();
+    }
+  });
+
+  afterAll(async () => {
+    const client = await counter();
+    try {
+      if (originalCounter === null) {
+        await client.query('DELETE FROM live_run_budget WHERE day = current_date');
+      } else {
+        await client.query(
+          `INSERT INTO live_run_budget (day, runs_used) VALUES (current_date, $1)
+           ON CONFLICT (day) DO UPDATE SET runs_used = $1`,
+          [originalCounter],
+        );
+      }
+    } finally {
+      await client.end();
+    }
+  });
+
+  async function pair(): Promise<{
+    scopes: { cortex: string; naive: string };
+    purge: () => Promise<void>;
+  }> {
+    const created = await handleDemoRequest({ method: 'POST', path: '/demo/session' });
+    const body = JSON.parse(created.body) as { scopes: { cortex: string; naive: string } };
+    return {
+      scopes: body.scopes,
+      purge: async () => {
+        await purge(body.scopes.cortex);
+        await purge(body.scopes.naive);
+      },
+    };
+  }
+
+  function token(): string {
+    const value = randomBytes(32).toString('base64url');
+    process.env['LIVE_TOKEN'] = value;
+    return value;
+  }
+
+  /**
+   * THE NON-VACUITY PAIR THIS UNIT TURNS ON.
+   *
+   * V45 made the query string a scanned field, and `CREDENTIAL_KEY` matches `token`, `auth`,
+   * `secret` and `key` among others. Design §7.1 puts the LIVE capability on a query parameter.
+   * If that parameter had been named for what it is, the refusal that protects this surface
+   * would have refused the capability — 400 on every LIVE link, with nothing failing anywhere
+   * else. So the two halves are asserted together: `?live=` routes, `?dsn=` is still refused.
+   */
+  it('routes a valid ?live= while still refusing a credential on the query string', async () => {
+    const value = token();
+    const session = await pair();
+
+    try {
+      const allowed = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        query: { session: session.scopes.cortex, live: value },
+      });
+      expect(allowed.statusCode).toBe(200);
+      expect(allowed.body).not.toMatch(/credential/i);
+
+      const refused = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        // The fixture `scripts/gate-mechanical.sh` already blesses and the cases above already
+        // use. Reused rather than varied: a fresh one would be a new credential-shaped literal
+        // in this repository's history, which is the rule that has been broken four times.
+        query: { session: session.scopes.cortex, dsn: 'postgresql://user:pw@host/db' },
+      });
+      expect(refused.statusCode).toBe(400);
+      expect(JSON.parse(refused.body)).toMatchObject({ field: 'query.dsn' });
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('never echoes the capability back, and shows the live budget only to a holder', async () => {
+    const value = token();
+    const session = await pair();
+
+    try {
+      const held = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        query: { session: session.scopes.cortex, live: value },
+      });
+      const withCapability = JSON.parse(held.body) as { live?: { cap: number; remaining: number } };
+
+      // `05` §5: the current mode and the session's remaining budget MUST be readable by the
+      // SPA. The page that can offer a LIVE run is the one that needs rung 1 before the click.
+      expect(withCapability.live).toBeDefined();
+      expect(typeof withCapability.live?.cap).toBe('number');
+      // Compared and forgotten. A capability echoed into a response is a capability in every
+      // proxy log between here and the browser.
+      expect(held.body).not.toContain(value);
+
+      const anonymous = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        query: { session: session.scopes.cortex },
+      });
+      const wrong = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        query: { session: session.scopes.cortex, live: randomBytes(32).toString('base64url') },
+      });
+
+      // Design §7.1: "no error, no hint that a gate exists". A `live` block in every response
+      // is that hint, so it is absent — and absent identically for a wrong token, or the block
+      // itself would be an oracle telling an attacker when they had guessed right.
+      expect(JSON.parse(anonymous.body).live).toBeUndefined();
+      expect(JSON.parse(wrong.body).live).toBeUndefined();
+      expect(wrong.statusCode).toBe(anonymous.statusCode);
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('authorises LIVE for a holder and hands the runner the capability to re-check', async () => {
+    const value = token();
+    const session = await pair();
+    const jobs: RunJob[] = [];
+    useRunStarter(async (job) => void jobs.push(job));
+
+    try {
+      const response = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        query: { live: value },
+        body: { session: session.scopes.cortex, mode: 'fleet', naive: session.scopes.naive },
+      });
+      const body = JSON.parse(response.body) as {
+        reasoning: { mode: string; reason: string; live?: { cap: number } };
+      };
+
+      // The cap is derived and can be 0 when no metered run exists, in which case the honest
+      // answer is REPLAY. Either way the route answers, names its mode, and gives a reason.
+      expect(response.statusCode).toBe(202);
+      expect(['live', 'replay']).toContain(body.reasoning.mode);
+      expect(body.reasoning.reason).toBeTruthy();
+      expect(body.reasoning.live).toBeDefined();
+
+      // The runner receives an asynchronous invoke it cannot authenticate, so what it is given
+      // is the capability itself and not a `live: true` flag — a claim it can turn into a proof
+      // by comparing against its own copy of the secret.
+      expect(jobs).toHaveLength(1);
+      if (body.reasoning.mode === 'live') {
+        expect(jobs[0]?.live?.capability).toBe(value);
+      } else {
+        expect(jobs[0]?.live).toBeUndefined();
+      }
+    } finally {
+      await session.purge();
+    }
+  });
+
+  it('serves an anonymous caller and a wrong-token caller identically', async () => {
+    token();
+    const session = await pair();
+    useRunStarter(async () => {});
+
+    try {
+      const body = { session: session.scopes.cortex, mode: 'fleet', naive: session.scopes.naive };
+      const anonymous = await handleDemoRequest({ method: 'POST', path: '/demo/run', body });
+      const wrong = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        query: { live: randomBytes(32).toString('base64url') },
+        body,
+      });
+
+      const a = JSON.parse(anonymous.body) as { reasoning: Record<string, unknown> };
+      const w = JSON.parse(wrong.body) as { reasoning: Record<string, unknown> };
+
+      expect(a.reasoning).toEqual(w.reasoning);
+      expect(a.reasoning['mode']).toBe('replay');
+      // No rung is named, because none fired: an ordinary visitor's run is not a degradation.
+      expect(a.reasoning['rung']).toBeUndefined();
+      expect(a.reasoning['live']).toBeUndefined();
+      expect(JSON.stringify(a.reasoning)).not.toMatch(/quota|budget|token|capability/i);
+    } finally {
+      await session.purge();
+    }
+  });
+
+  /**
+   * RUNG 3 — `04` §5: "session becomes read-only; its rows, counters and SQL log stay
+   * inspectable; a new session is one click", and `05` §5: without an error status.
+   *
+   * Enforced as a preflight rather than at write time. A cap that fires mid-run leaves a page
+   * that was working a second ago showing half a fleet, which is invariant 1's failure wearing
+   * a 200.
+   */
+  it('refuses to start a run a session cannot afford, and leaves it inspectable', async () => {
+    const session = await pair();
+    useRunStarter(async () => {
+      throw new Error('a capped session must not reach the runner');
+    });
+
+    try {
+      const fill = DEMO_SESSION_ROW_CAP - FLEET_RUN_ROW_COST + 1;
+      const admin = new Client({
+        connectionString: process.env.CORTEX_DSN,
+        connectionTimeoutMillis: 10_000,
+      });
+      await admin.connect();
+      try {
+        await admin.query(
+          `INSERT INTO findings (repo_id, fact, embedding)
+           SELECT $1, 'row budget filler ' || g, $2::VECTOR
+             FROM generate_series(1, $3) AS g`,
+          [session.scopes.cortex, `[${new Array(1024).fill(0).join(',')}]`, fill],
+        );
+      } finally {
+        await admin.end();
+      }
+
+      const refused = await handleDemoRequest({
+        method: 'POST',
+        path: '/demo/run',
+        body: { session: session.scopes.cortex, mode: 'fleet', naive: session.scopes.naive },
+      });
+      const body = JSON.parse(refused.body) as Record<string, unknown>;
+
+      expect(refused.statusCode).toBe(200);
+      expect(body['started']).toBe(false);
+      expect(body['rung']).toBe(3);
+      expect(String(body['reason'])).toMatch(/one click/i);
+
+      // Everything that made the session worth looking at is still there.
+      const state = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/state',
+        query: { session: session.scopes.cortex },
+      });
+      expect(state.statusCode).toBe(200);
+      expect((JSON.parse(state.body) as { rows: { used: number } }).rows.used).toBeGreaterThanOrEqual(fill);
+
+      const log = await handleDemoRequest({
+        method: 'GET',
+        path: '/demo/sql-log',
+        query: { session: session.scopes.cortex },
+      });
+      expect(log.statusCode).toBe(200);
+    } finally {
+      await session.purge();
+    }
+  }, 60_000);
 });
