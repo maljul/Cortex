@@ -47,7 +47,11 @@ const DIST = path.join(__dirname, '..', '..', 'lambda-dist');
  * about what is expected to be in flight rather than a limit any of them can exceed:
  *
  *   demo        — the visitor-facing route. Every panel refresh is one invocation.
- *   runner      — one per fleet run, held for 6–9s (V51). The expensive one; see below.
+ *   runner      — one per fleet run, held for 6–9s in REPLAY (V51). The expensive one; see
+ *                 below. A LIVE run holds its slot for as long as the model takes, which is
+ *                 not yet measured end to end — what bounds the number of them is the global
+ *                 run counter (`04` §5 brake 2), not concurrency, of which there is none to
+ *                 be had on this account.
  *   changefeed  — one at a time in practice; the sink posts batches, not rows.
  *   connections — $connect / $disconnect only, and both are sub-millisecond.
  *   identity    — a curl target for the README and the video. Effectively idle.
@@ -92,6 +96,61 @@ const CONCURRENCY = {
 const bedrockRegion = 'us-east-1';
 const embedModel = 'amazon.titan-embed-text-v2:0';
 
+/**
+ * The fleet's reasoning model — the one a LIVE agent authors its patch with, and the only
+ * reasoning model any deployed function here may invoke.
+ *
+ * **Pinned to `src/demo/author.ts`'s `FLEET_REASON_MODEL` by `test/infra-stack.test.ts`**, and
+ * that pin is the point rather than tidiness: the grant below is scoped by ARN, so an author
+ * that repointed its model without this following would fail at run time with an
+ * `AccessDeniedException` — which reads exactly like a missing Bedrock entitlement and sends
+ * whoever is debugging it to the wrong account page.
+ *
+ * **It is reachable only as a cross-region inference profile.** Invoked on this account on
+ * 2026-08-16: the `us.`-prefixed id below answers in ~1470ms, and the bare foundation-model id
+ * is refused with `ValidationException` — invocation "with on-demand throughput isn't
+ * supported". So this is a *profile* id, not a model id, and a grant on it needs two kinds of
+ * ARN rather than one. `inferenceProfileGrant` is where that is spelled out.
+ *
+ * Not Sonnet 4.5, which `.env`'s `BEDROCK_REASON_MODEL` names and which `bench/reason.ts`
+ * calls: that path runs from a laptop under a developer's credentials and never from a Lambda,
+ * so granting it here would authorise something no deployed code does.
+ */
+const fleetReasonModel = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+
+/**
+ * Where a `us.` profile actually routes. Read off the profile rather than assumed:
+ *
+ *   $ aws bedrock get-inference-profile --inference-profile-identifier <the profile id>
+ *   "Routes requests to Anthropic Claude Haiku 4.5 in us-east-1, us-east-2 and us-west-2."
+ *
+ * The three `modelArn`s it returns are the three below. A grant that names only the region the
+ * caller is in is the failure this list exists to prevent: Bedrock routes the request to a
+ * region the caller never named, and the denial arrives from there.
+ */
+const reasonRoutedRegions = ['us-east-1', 'us-east-2', 'us-west-2'];
+
+/**
+ * The ARNs one cross-region inference profile needs, which is **both kinds and not either**.
+ *
+ * - the inference profile, which is an *account* resource and so carries an account id;
+ * - the foundation model behind it, in every region the profile routes to, which is an
+ *   AWS-owned resource and so carries an empty account field.
+ *
+ * The profile id carries a routing prefix the foundation model does not — `us.anthropic.…` is
+ * the profile, `anthropic.…` is the model it routes to — so the second set is derived by
+ * stripping it rather than by writing the id out twice, where the two could drift.
+ */
+function inferenceProfileGrant(account: string, profileId: string): string[] {
+  const foundationModel = profileId.replace(/^[a-z]{2}\./, '');
+  return [
+    `arn:aws:bedrock:${bedrockRegion}:${account}:inference-profile/${profileId}`,
+    ...reasonRoutedRegions.map(
+      (region) => `arn:aws:bedrock:${region}::foundation-model/${foundationModel}`,
+    ),
+  ];
+}
+
 export class CortexStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -112,6 +171,20 @@ export class CortexStack extends cdk.Stack {
     // values pass from the shell to Secrets Manager without touching this repository.
     const demoDsn = cdk.SecretValue.secretsManager('cortex/demo-dsn').unsafeUnwrap();
     const changefeedToken = cdk.SecretValue.secretsManager('cortex/changefeed-token').unsafeUnwrap();
+
+    // The LIVE capability token — design §7.1's `/?live=<token>`, the thing that distinguishes a
+    // judge who was sent the link from an anonymous visitor. It is here under exactly the same
+    // arrangement as the two above, and for a stronger reason: §7.1 names three homes it must
+    // never have, and one of them is this file. It is never a literal in `infra/`, never injected
+    // into `infra/site/index.html` by `scripts/deploy-site.mts`, and never a template value —
+    // the first DSN arrangement leaked one into `cdk.out/` and that is the whole reason the
+    // dynamic-reference rule exists. A demo access token is the same class of thing.
+    //
+    // Created out of band like the other two. A deploy against a secret that was never created
+    // fails at CloudFormation with an unresolvable-reference error, which is the message that
+    // means "the secret is missing", not "the stack is wrong" — and the tempting fix in that
+    // moment is to paste the value here, which is what this comment exists to refuse.
+    const liveToken = cdk.SecretValue.secretsManager('cortex/live-token').unsafeUnwrap();
 
     // Connection ids for the live view, and nothing else. Deployment bookkeeping with a
     // lifetime of minutes — deliberately not a seventh table in `03` §2's memory model.
@@ -164,6 +237,11 @@ export class CortexStack extends cdk.Stack {
         SQL_LOG_TABLE: sqlLog.tableName,
         BEDROCK_REGION: bedrockRegion,
         BEDROCK_EMBED_MODEL: embedModel,
+        // The route handler is where `?live=<token>` arrives, so it is where the comparison
+        // belongs. §7.1: compared server-side, constant-time, and **compared rather than
+        // interpolated** — a URL parameter is the most agent-reachable path there is
+        // (invariant 7), and the page carries no field for it (invariant 8).
+        LIVE_TOKEN: liveToken,
       },
     });
     sqlLog.grantReadWriteData(demoFn);
@@ -255,12 +333,31 @@ export class CortexStack extends cdk.Stack {
      * demo and because U24's LIVE mode will exceed the ceiling; the argument lives in
      * `src/demo/run.ts`'s header, next to the code it governs.
      *
-     * 180s is roughly 20× the longest run measured, and the margin is not slack: what it buys
-     * is that `src/demo/run.ts`'s watchdog — which publishes the terminal event when a run
-     * outlives its budget — fires on a run that has genuinely stalled rather than on one that
-     * was merely slow. A terminal event that fires on healthy runs is worse than none, because
-     * a page would learn to ignore it. It also leaves room for LIVE without a redeploy of the
-     * shape.
+     * **900s, which is Lambda's hard maximum, and the arithmetic is why.**
+     *
+     * The 180s this replaced was sized for a run that makes no model call at all: both arms
+     * against the cluster and nothing else, measured at 6–9s in region (V51). That is the REPLAY
+     * run, it still takes 6–9s, and 180s was roughly 20× its longest measurement.
+     *
+     * LIVE is a different shape. The budget it is sized against, as a target rather than a
+     * measurement — no LIVE fleet run has been timed end to end at the time of writing:
+     *
+     *   ~60s of model time per worked ticket
+     *   × eleven tickets spread across five agents that run concurrently within an arm
+     *     ≈ three tickets deep on the longest agent  ≈ 180s per arm
+     *   + the arms overlapping rather than queueing  ≈ 250s on the critical path
+     *
+     * 900s is not that number rounded up; it is the ceiling, chosen because everything between
+     * 250s and it is headroom for a slow model and there is nothing to spend it on. Note that
+     * `src/demo/run.ts` runs the two arms **sequentially** today, which doubles the middle line
+     * of that arithmetic to roughly 500s — still inside 900s, which is the point of taking the
+     * maximum rather than a tight fit.
+     *
+     * Raising it is safe in the one way that matters: `infra/lambda/runner.ts` derives the
+     * watchdog budget from `getRemainingTimeInMillis()`, so the terminal event still fires
+     * before the sandbox is killed, and it fires on a run that has genuinely stalled rather
+     * than on one that was merely slow. A terminal event that fires on healthy runs is worse
+     * than none, because a page would learn to ignore it.
      *
      * 1024MB rather than 512: Lambda scales CPU with memory, five agents run concurrently
      * inside one sandbox, and a run that finishes sooner holds one of ten account-wide
@@ -269,7 +366,7 @@ export class CortexStack extends cdk.Stack {
      */
     const runnerFn = new lambda.Function(this, 'RunnerFn', {
       ...runtime,
-      timeout: cdk.Duration.seconds(180),
+      timeout: cdk.Duration.seconds(900),
       memorySize: 1024,
       code: lambda.Code.fromAsset(path.join(DIST, 'runner')),
       environment: {
@@ -283,13 +380,22 @@ export class CortexStack extends cdk.Stack {
         // `/var/task`, so the corpus sits beside the handler rather than two directories above
         // it, and `src/demo/patches.ts` has no repository to resolve itself against.
         CORTEX_CORPUS_ROOT: '/var/task',
+        // The runner gets the token too, because the function that spends the money is the one
+        // that has to be able to refuse. `POST /demo/run` authorises, and then invokes this
+        // function with a payload it cannot authenticate — so LIVE mode arriving as a field in
+        // that payload is a claim, not a proof, and re-checking it here is what makes it one.
+        // At the time of writing the runner does not read this variable; it is present so that
+        // wiring the check is a code change rather than a redeploy.
+        LIVE_TOKEN: liveToken,
       },
     });
     connections.grantReadWriteData(runnerFn);
     sqlLog.grantReadWriteData(runnerFn);
-    // Embeddings only. Like the changefeed sink, this function has no business invoking a
-    // reasoning model — and it makes no model call at all today (`RUNNER_MAKES_MODEL_CALLS`),
-    // so a grant wider than this would be authorising something nothing does.
+    // Embeddings, and **deliberately in a different policy from reasoning**. This is the
+    // runner's own inline role policy: dedupe, recall and consolidation all embed, and none of
+    // them is LIVE-only, so this grant must survive the LIVE brake being pulled. The reasoning
+    // grant is a separate managed policy further down for exactly that reason — see
+    // `LiveReasoningPolicy`.
     runnerFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
@@ -311,6 +417,81 @@ export class CortexStack extends cdk.Stack {
         ],
       }),
     );
+
+    /**
+     * **THE LIVE BRAKE.** `04` §5 brake 3 asks for an action that "MUST target the LIVE
+     * reasoning function and nothing else", and says in the same breath that a brake wired to
+     * disable the API, the SPA, the read path or the cluster converts a cost control into a
+     * **rules violation**, because B4 requires this project to stay available, free and
+     * unrestricted, until 2026-09-15. So the brake cannot be "turn the function off".
+     *
+     * It is this policy, and the only thing it can take away is the ability to invoke a
+     * reasoning model.
+     *
+     * **This is the action, not the whole of brake 3.** §5 wants an AWS Budget that fires it
+     * automatically above a low-double-digit threshold, and there is no Budget resource in this
+     * stack — firing it is a human decision today. When one is added it must filter on `Claude
+     * Sonnet 4.5 (Amazon Bedrock Edition)`, or whatever the fleet model's equivalent service
+     * name turns out to be: Cost Explorer bills reasoning under a service distinct from
+     * `Amazon Bedrock`, which carries only the Titan embedding line (V36). A Budget watching
+     * `Amazon Bedrock` would never fire.
+     *
+     * **How an operator fires it.** Both `RunnerRoleName` and `LiveReasoningPolicyArn` are
+     * stack outputs so the command can be assembled without reading this file:
+     *
+     *   $ aws iam detach-role-policy --role-name <RunnerRoleName> \
+     *       --policy-arn <LiveReasoningPolicyArn>
+     *
+     * It takes effect on the next invocation, needs no deploy and no bundle. Re-attaching it
+     * with `attach-role-policy` restores LIVE. **A later `cdk deploy` re-attaches it too** —
+     * that is CloudFormation doing its job, not a bug, and it is why there is a second, durable
+     * form of the same brake: `cdk deploy -c liveReasoning=false` synthesizes a stack with no
+     * such policy at all. Use the detach for a spike, the context flag for the rest of the
+     * event.
+     *
+     * **What a visitor sees.** Everything they saw before, minus authored code. `modelAuthor`
+     * (`src/demo/author.ts`) falls back to `committedAuthor` on every path where a call cannot
+     * be made or its result cannot be trusted, and an `AccessDeniedException` is one of those
+     * paths — `test/author.test.ts` is the guard on that fallback. So the run still runs, both
+     * arms still contend, the changefeed still fires, and the content of each patch comes from
+     * committed text instead of from a model: `04` §5 rung 1, LIVE degrading to REPLAY, no
+     * error page and no credential prompt. Nothing else on this account loses a permission —
+     * the embedding grant above is in a different policy, and no other function is attached to
+     * this one.
+     */
+    const liveReasoningEnabled = String(this.node.tryGetContext('liveReasoning') ?? 'true') !== 'false';
+    const runnerRole = runnerFn.role;
+    if (!runnerRole) {
+      throw new Error('the runner has no execution role, so the LIVE brake has nothing to attach to');
+    }
+
+    if (liveReasoningEnabled) {
+      const liveReasoningPolicy = new iam.ManagedPolicy(this, 'LiveReasoningPolicy', {
+        description:
+          'LIVE reasoning for the fleet runner. Detach to stop LIVE model calls without taking ' +
+          'any other capability with it (04 section 5, rule B4).',
+        statements: [
+          new iam.PolicyStatement({
+            actions: ['bedrock:InvokeModel'],
+            resources: inferenceProfileGrant(this.account, fleetReasonModel),
+          }),
+        ],
+        // The runner and nothing else. The demo router, the changefeed sink, the connections
+        // handler and the identity probe have no business authoring code, and a grant they do
+        // not hold is one nobody has to remember to revoke.
+        roles: [runnerRole],
+      });
+
+      new cdk.CfnOutput(this, 'LiveReasoningPolicyArn', {
+        value: liveReasoningPolicy.managedPolicyArn,
+        description: 'Detach this from RunnerRoleName to stop LIVE reasoning and nothing else.',
+      });
+    }
+
+    new cdk.CfnOutput(this, 'RunnerRoleName', {
+      value: runnerRole.roleName,
+      description: 'The role LiveReasoningPolicyArn attaches to.',
+    });
 
     // Named after the fact rather than at construction because the runner needs the WebSocket
     // stage, which needs the connections function — and the route handler needs the runner. One

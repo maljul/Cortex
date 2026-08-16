@@ -4,15 +4,17 @@
  *
  *   npx tsx scripts/deploy-secrets.mts
  *
- * Two secrets:
+ * Three secrets:
  *
  *   cortex/demo-dsn          the `cortex_demo` connection string, from .env
+ *   cortex/live-token        the capability token that enables a LIVE (model-authored) run,
+ *                            compared server-side and never echoed into the DOM
  *   cortex/changefeed-token  the `webhook_auth_header` the changefeed presents to the
  *                            sink, generated here on first run and reused after
  *
  * **Why this is a script and not a note in a README.** V22's finding was a credential
  * that reached `cdk.out/` because the arrangement that put it there looked correct. The
- * stack now takes both of these as `{{resolve:secretsmanager:...}}` dynamic references,
+ * stack now takes each of these as a `{{resolve:secretsmanager:...}}` dynamic reference,
  * which means CloudFormation resolves them at deploy time and neither value is ever in
  * the template — but only if the secrets exist under exactly these names. A deploy
  * against a missing secret fails at CloudFormation with a message about a resolve
@@ -31,6 +33,7 @@ if (existsSync(ENV_PATH)) process.loadEnvFile(ENV_PATH);
 
 const DEMO_DSN_SECRET = 'cortex/demo-dsn';
 const CHANGEFEED_TOKEN_SECRET = 'cortex/changefeed-token';
+const LIVE_TOKEN_SECRET = 'cortex/live-token';
 
 interface CommandResult {
   code: number;
@@ -109,16 +112,40 @@ async function main(): Promise<void> {
 
   // Reused rather than rotated on every run: rotating it here would silently invalidate
   // the header on a changefeed job that is already running, and the job would keep
-  // retrying against a sink that had started refusing it.
-  const existing = await currentValue(CHANGEFEED_TOKEN_SECRET);
+  // retrying against a sink that had started refusing it. The same argument applies to the
+  // LIVE token for a different reason, so both go through one helper rather than two blocks
+  // that could drift on the half that matters.
+  await keepOrCreate(CHANGEFEED_TOKEN_SECRET, () => `Bearer ${randomBytes(32).toString('base64url')}`);
+
+  /**
+   * The LIVE capability token, `04` §5 brake 2 and design §7.1.
+   *
+   * **No `Bearer ` prefix, and that is not cosmetic.** The changefeed's token is an HTTP header;
+   * this one travels in a URL as `/?live=<token>`, so it must survive being a query parameter.
+   * `base64url` is the alphabet that does — a space and a `+` do not.
+   *
+   * **Never rotated once it exists**, and the reason is sharper than the changefeed's: this value
+   * goes in the link pasted into the Devpost submission. Rotating it would silently turn a judge's
+   * LIVE link into a REPLAY one, with no error anywhere — which is precisely the class of failure
+   * `04` §5 invariant 1 forbids, arriving by way of a deploy script.
+   *
+   * It is never printed. Julian retrieves it once, deliberately, with an explicit
+   * `aws secretsmanager get-secret-value`, when he builds the link.
+   */
+  await keepOrCreate(LIVE_TOKEN_SECRET, () => randomBytes(32).toString('base64url'));
+}
+
+/** Create a secret if it is absent; keep — and never print — whatever is already there. */
+async function keepOrCreate(name: string, make: () => string): Promise<void> {
+  const existing = await currentValue(name);
   if (existing) {
-    console.log(`${CHANGEFEED_TOKEN_SECRET.padEnd(24)} kept     (${existing.length} chars, not printed)`);
+    console.log(`${name.padEnd(24)} kept     (${existing.length} chars, not printed)`);
     return;
   }
 
-  const token = `Bearer ${randomBytes(32).toString('base64url')}`;
-  const outcome = await put(CHANGEFEED_TOKEN_SECRET, token);
-  console.log(`${CHANGEFEED_TOKEN_SECRET.padEnd(24)} ${outcome}  (${token.length} chars, not printed)`);
+  const value = make();
+  const outcome = await put(name, value);
+  console.log(`${name.padEnd(24)} ${outcome}  (${value.length} chars, not printed)`);
 }
 
 await main();
