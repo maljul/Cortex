@@ -88,7 +88,7 @@ import { DEMO_TASKS, factOf, taskById, type DemoTask } from '../../bench/demo-wo
 import { APP_FILES } from './app-bundle.js';
 import { committedAuthor, type PatchAuthor } from './author.js';
 import { conflictingEdits, fileCollisions, spanOf, type WorkSpan } from './conflicts.js';
-import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, PatchError, type FileTree } from './patches.js';
+import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, PatchError, type FileTree, type Patch } from './patches.js';
 import type { WorkStep } from './attribution.js';
 
 export type DemoArm = 'cortex' | 'naive';
@@ -398,7 +398,24 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    * `writes lost 2` for the cortex lane, which had lost nothing. A number that is wrong in the
    * arm's own favour would be worse; this one was wrong against it, and it was still wrong.
    */
-  const reportedDone: { taskId: string; files: string[]; informed: boolean }[] = [];
+  /**
+   * What each agent that reported `done` actually wrote.
+   *
+   * **`hunks` is the patches that were applied, not the ticket's committed ones**, and the
+   * difference is the whole correctness of `lostWrites`. It read the committed text back until
+   * 2026-08-17 — see the readback below for what that cost on a LIVE run.
+   */
+  const reportedDone: { taskId: string; files: string[]; informed: boolean; hunks: Patch[] }[] = [];
+
+  /**
+   * The hunks each agent actually applied, keyed by ticket and agent.
+   *
+   * Recorded by `applyAndSave` because that is the only place that knows: under REPLAY it is the
+   * ticket's reviewed patch, and under LIVE it is whatever the model authored and validation
+   * accepted. Every readback below reads this rather than re-deriving from the ticket.
+   */
+  const writtenByTicket = new Map<string, Patch[]>();
+  const writtenKey = (taskId: string, agent: string): string => `${taskId}::${agent}`;
 
   /**
    * Where each applied hunk landed and when its ticket was open, for `06` §3's `conflicting_edits`
@@ -603,6 +620,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
 
     const patches = authored.patches;
     if (patches.length === 0) return [];
+    writtenByTicket.set(writtenKey(task.id, agent), patches);
 
     let mine: FileTree = before;
     try {
@@ -795,7 +813,12 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     });
 
     workDone.push({ key: task.id, statement: task.statement, embedding: embedded.embedding });
-    reportedDone.push({ taskId: task.id, files: touched, informed });
+    reportedDone.push({
+      taskId: task.id,
+      files: touched,
+      informed,
+      hunks: writtenByTicket.get(writtenKey(task.id, agent)) ?? [],
+    });
     steps.push({ taskId: task.id, agent, intentId: decision.intentId, reported: 'done' });
     emit(agent, task.id, 'patched', {
       intentId: decision.intentId,
@@ -935,7 +958,12 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     workDone.push({ key: task.id, statement: task.statement, embedding: embedded.embedding });
     // `informed: false` always in this lane, and not as a default: it has no findings tier, so
     // there is nothing that could have informed it. See `whatIsKnown`.
-    reportedDone.push({ taskId: task.id, files: touched, informed: false });
+    reportedDone.push({
+      taskId: task.id,
+      files: touched,
+      informed: false,
+      hunks: writtenByTicket.get(writtenKey(task.id, agent)) ?? [],
+    });
     steps.push({ taskId: task.id, agent, intentId: decision.intentId, reported: 'done' });
     emit(agent, task.id, 'patched', { intentId: decision.intentId, files: touched });
     return 'settled';
@@ -1007,10 +1035,28 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
   // ---- The readback, and the meters derived from it --------------------------------
   const tree = await loadFiles(options.sessionId, scope);
 
-  // `lostWrites` is a subtraction over two counted quantities: hunks an agent was told it had
-  // saved, and hunks that are in the tree now. Neither is predictable before the race resolves,
-  // and neither is a literal — `test/workload.test.ts` fails if any meter figure becomes one.
-  const acknowledgedHunks = reportedDone.flatMap((done) => appliedPatches(taskById(done.taskId), done.informed));
+  /**
+   * `lostWrites` is a subtraction over two counted quantities: hunks an agent was told it had
+   * saved, and hunks that are in the tree now. Neither is predictable before the race resolves,
+   * and neither is a literal — `test/workload.test.ts` fails if any meter figure becomes one.
+   *
+   * **It read back the ticket's *committed* text until 2026-08-17, and on a LIVE run that made
+   * this figure a lie in the worst possible direction.** `appliedPatches(taskById(...))` returns
+   * the reviewed patch; a model authors different text; so every model-authored hunk failed
+   * `tree[file].includes(patch.replace)` and was counted as lost. The arm that used the model
+   * *more* accrued more phantom losses, and the first real LIVE run on the deployed page reported
+   * **CORTEX 8 lost writes against the naive lane's 6** — the headline claim, inverted, by a
+   * measurement bug.
+   *
+   * It is the same text-matching mistake `src/demo/attribution.ts` and `scripts/gate-workload.mts`
+   * were moved off, still living in the meter, and it survived because REPLAY makes the two
+   * quantities identical: under the default path the committed text *is* what was written, so the
+   * bug is invisible in every test and every gate run that does not call a model.
+   *
+   * So the readback compares against what each agent **actually wrote** — recorded by
+   * `applyAndSave`, the only place that knows.
+   */
+  const acknowledgedHunks = reportedDone.flatMap((done) => done.hunks);
   const survivingHunks = acknowledgedHunks.filter((patch) =>
     tree[patch.file]?.includes(patch.replace),
   );

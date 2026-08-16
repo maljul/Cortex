@@ -187,6 +187,35 @@ describe('every meter figure is measured, not asserted — `07` §1', () => {
    * every close has to carry one. A close added later without it would leave a row reading zero
    * beside an agent that spent a thousand tokens, and nothing else in the system could tell.
    */
+  /**
+   * **The readback must compare against what was written, not against what the ticket says.**
+   *
+   * `lostWrites` derived its "acknowledged" side from `appliedPatches(taskById(...))` — the
+   * ticket's *reviewed* text — and filtered it by whether that text is in the final tree. Under
+   * REPLAY those two are the same string, so the bug is invisible to every test and every gate
+   * run that calls no model. Under LIVE the model writes different text, every authored hunk
+   * fails the `includes` check, and the arm that used the model **more** accrues more phantom
+   * losses: the first real LIVE run on the deployed page reported CORTEX at 8 lost writes against
+   * the naive lane's 6, which is the project's headline claim inverted by an accounting error.
+   *
+   * A behavioural test cannot see this without spending money on a model, so the guard is on the
+   * source: the acknowledged side comes from recorded hunks, and `appliedPatches` is not what the
+   * readback consults.
+   */
+  it('measures lost writes against the hunks that were actually written', () => {
+    const readback = code.slice(code.indexOf('const acknowledgedHunks'));
+    const line = readback.slice(0, readback.indexOf(';') + 1);
+
+    expect(line, 'the acknowledged side must come from recorded hunks').toContain('done.hunks');
+    expect(
+      line,
+      're-deriving from the ticket counts model-authored work as lost',
+    ).not.toContain('appliedPatches');
+
+    // Non-vacuous: the recording site exists and is the one place that knows what was applied.
+    expect(code).toContain('writtenByTicket.set(');
+  });
+
   it('tells the cluster what every closed intent cost', () => {
     const closes: string[] = [];
     for (let at = code.indexOf('close({'); at !== -1; at = code.indexOf('close({', at + 1)) {
