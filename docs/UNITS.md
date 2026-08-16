@@ -1454,7 +1454,31 @@ the video to show the project **functioning**, and A7 requires it to function as
   `-d '{"dsn":"postgresql://u:p@h/db"}'` comes back 400 with the reason. `02` B3 is a
   rule most submissions can only assert; this shows it being enforced.
 
-### U20 — Devpost description, B10 and B11 answers, feedback field ⬜
+### U20 — Devpost description, B10 and B11 answers, feedback field ✅ 2026-08-16
+**Closed by `docs/submission-devpost.md`** — the description, the B10 and B11 answers, the
+B13 feedback field, and `02` §F walked item by item: **7 ready, 3 partial, 5 blocked, 1
+act.** Rules re-fetched 2026-08-13 and again read against `02`: **no change detected**, with
+B4, A11, B2 and the amendment clause (still §11.5) re-pulled verbatim.
+
+**The named silent break was worse than written, and it is the unit's finding.** `02` §C
+cannot ship for four reasons, not one. Items 1, 3 and 4 route reads through the managed MCP
+server (V17). Item 3 also claims `cortex init` provisions clusters through the ccloud CLI —
+`grep -rn ccloud src scripts package.json skills infra` returns **nothing**; U2 is not built.
+Item 4 claims the agent consumes `cockroachlabs/cockroachdb-skills`, a string that appears
+**only under `spec/`**. So **`02` A4's "4 of 4 tools used" is false; it is 2 of 4** —
+Distributed Vector Indexing and Agent Skills. That still clears the rules' minimum of two,
+and B10 now says so outright rather than being caught saying otherwise. **`02` §D cannot
+ship either:** EventBridge is not in the stack and AWS Budgets is not built, while DynamoDB
+and Secrets Manager are deployed and §D omits both.
+
+**Revised 2026-08-16, and the revision is the reason this unit is not a write-once.** The
+first draft was correct on 2026-08-13 and *understated the submission* by 2026-08-16: it
+said the ten-ticket two-arm workload was designed and unbuilt, which U21–U23 and the
+deployed judge page (V56) had already made false. Understating is the same class of error as
+overstating, so §1 now describes the real workload — both lanes, the streamed agent steps,
+the two running applications — and says plainly that the patch bodies are committed and no
+model wrote them. **The measured lane figures carry the caveat that they are races:** the
+direction reproduces, the digits are whatever the run reports.
 **Done when:** "walk the checklist in `02` §F." *(08 §5, 58–60h, verbatim)*
 **Specs:** `07` §6, `02` §C, `02` §D
 **Verify live first:** re-fetch the rules and diff them. `08` §7 lists "rules amended" as
