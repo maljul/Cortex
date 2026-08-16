@@ -1232,7 +1232,7 @@ renders them yet. The naive lane's `fileCollisions` is the number that makes its
 as evidence rather than as bad luck, and `conflicting_edits` must be labelled as the benchmark's
 metric or a reader will take its 0 as a contradiction.
 
-### U24 — LIVE: the run counter, the capability link, the metered cap ⬜
+### U24 — LIVE: the run counter, the capability link, the metered cap 🔶 **prerequisite re-verified 2026-08-16; LIVE runner still open**
 **Done when:** "one metered LIVE run exists and the cap is derived from it, not estimated."
 *(design §11, verbatim)*
 **Specs:** `04` §5, `05` §5, `07` §4
@@ -1248,6 +1248,20 @@ run`, and the metered run is this unit's job. Julian's call on 2026-08-12 was to
 constant at 10 until then, because it gates nothing — no route calls `authoriseLiveRun`.
 **Verify live first:** `npm run probe:reason` — entitlement is an account fact that can change
 without this repository knowing — and then the metered run's own Bedrock `usage` figures.
+**V54 re-verified that first prerequisite:** the live probe reached the entitled Sonnet 4.5
+model in 2104ms and returned Bedrock usage (31 input, 14 output tokens). It did **not** satisfy
+this unit's done-when. The fleet runner still exports `RUNNER_MAKES_MODEL_CALLS = false`, returns
+`wastedTokens: null`, and has IAM permission for Titan embeddings only; there is therefore no
+LIVE fleet run whose cost can be measured. The route still never calls `authoriseLiveRun`, and
+the stack contains neither the capability secret nor a Budget resource. The old cap stays at 10
+because changing it before the metered run would put another estimate into config.
+
+**The implementation boundary is now explicit rather than guessed.** Completing U24 needs one
+reasoning contract for the design's read → decide → patch calls, a LIVE-only execution boundary
+that brake 3 can stop without disabling public replay, and a decision about how the whole-event
+budget produced by §7.3 is enforced by the already-chosen per-UTC-day counter. None is supplied
+by the current runner, and silently choosing among them would be an architecture change rather
+than finishing a wired path.
 **Silent break:** the capability token. Three ways it goes wrong and each has cost this
 project or a sibling of it real time: it reaches an input element (invariant 8, and
 `test/site.test.ts` is the guard); it is interpolated into SQL or a template rather than

@@ -5569,3 +5569,43 @@ from `window.CORTEX_API_URL` and `window.CORTEX_STREAM_URL`; no deployment hostn
 
 **Still open:** a visual cold read and deployment. The first is U25's remaining judgment; the
 second belongs to U26 and still requires a fresh bundle before the stack changes.
+
+---
+
+## V54 — U24 prerequisite passes; there is still no LIVE fleet run to meter
+
+**2026-08-16.** `npm run probe:reason` invoked
+`us.anthropic.claude-sonnet-4-5-20250929-v1:0` in `us-east-1` successfully:
+
+```
+latency        2104 ms
+input tokens   31
+output tokens  14
+stop reason    end_turn
+```
+
+That re-establishes entitlement and one-call usage accounting. It is deliberately not recorded
+as U24's metered run: the probe is one tiny fixed prompt, while design §7.3 requires the fleet's
+roughly fifty reasoning calls and the unit's done-when requires the cap to come from that run.
+
+### The source audit found no hidden LIVE path
+
+- `src/demo/workload.ts` exports `RUNNER_MAKES_MODEL_CALLS = false` and sets
+  `wastedTokens: null`; its own comment assigns LIVE reasoning to U24.
+- `infra/lambda/runner.ts` installs an `Embedder`, not a reasoner.
+- `infra/cdk/lib/cortex-stack.ts` grants `RunnerFn` only the Titan embedding model. It contains
+  no capability secret and no AWS Budget resource.
+- `src/memory/live-budget.ts` contains the banked atomic counter, but the only callers of
+  `authoriseLiveRun` are its tests. No demo route consumes a run.
+
+So `LIVE_RUNS_PER_DAY = 10` remains the intentionally inert old-workload value. Replacing it with
+18, 1/day, or any other derived-looking number now would still be an estimate: there is no fleet
+usage envelope to multiply by the measured $3.30/$16.50 rates.
+
+### Why implementation stopped here
+
+Three choices affect the architecture and are not implemented anywhere to copy safely: the exact
+read → decide → patch reasoning contract and usage aggregation; the LIVE-only execution boundary
+that brake 3 can disable without taking public replay down with it; and how §7.3's whole-event
+budget is enforced by the banked per-UTC-day counter. U24 remains partial until those are decided,
+implemented test-first, deployed, and exercised as one metered run.
