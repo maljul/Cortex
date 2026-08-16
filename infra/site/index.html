@@ -1296,6 +1296,433 @@
 
     .quiet-button:hover { border-color: var(--teal); color: var(--text); }
 
+    /* ---- The concurrency timeline. Every geometry here is a measured millisecond. ---- */
+
+    .run-prediction {
+      max-width: 46ch;
+      margin-top: 1.35rem;
+      padding: .85rem 1rem;
+      border: 1px solid var(--border-strong);
+      border-left: 2px solid var(--amber);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .67rem;
+      line-height: 1.62;
+    }
+
+    .run-prediction b {
+      display: block;
+      margin-bottom: .4rem;
+      color: var(--amber);
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .mode-authorship {
+      display: block;
+      margin-top: .45rem;
+      color: var(--grey);
+    }
+
+    .headline-figures {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: 1px;
+      margin-bottom: 1.25rem;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .headline-figure {
+      padding: 1.1rem 1.2rem;
+      background: var(--surface);
+    }
+
+    .headline-figure b {
+      display: block;
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: 1.65rem;
+      font-weight: 600;
+      letter-spacing: -.03em;
+    }
+
+    .headline-figure.for-cortex b { color: var(--teal-light); }
+    .headline-figure.is-tbd b { color: var(--amber); font-size: 1.1rem; }
+
+    .headline-figure span {
+      display: block;
+      margin-top: .4rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .6rem;
+      line-height: 1.5;
+    }
+
+    .headline-sentence {
+      max-width: 78ch;
+      margin-bottom: 2.1rem;
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .72rem;
+      line-height: 1.65;
+    }
+
+    .gantt {
+      --lane-h: 26px;
+      --lane-gap: 7px;
+      --lane-label: 5.4rem;
+      display: grid;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .gantt-arm {
+      padding: 1.25rem clamp(.9rem, 2vw, 1.7rem) 1.5rem;
+      background: var(--surface);
+    }
+
+    .gantt-arm-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: .35rem 1.1rem;
+      margin-bottom: .9rem;
+      padding-bottom: .7rem;
+      border-bottom: 1px solid var(--border-strong);
+    }
+
+    .gantt-arm-head h3 {
+      font-size: .95rem;
+      letter-spacing: -.02em;
+    }
+
+    .gantt-arm-head span {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+
+    .gantt-arm-head b {
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .62rem;
+      font-weight: 600;
+    }
+
+    .gantt-arm-cortex .gantt-arm-head b { color: var(--teal-light); }
+
+    .gantt-axis {
+      position: relative;
+      height: 1.1rem;
+      margin-left: var(--lane-label);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gantt-tick {
+      position: absolute;
+      top: 0;
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .55rem;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .gantt-tick:first-child { transform: none; }
+    .gantt-tick:last-child { transform: translateX(-100%); }
+
+    .gantt-lanes {
+      position: relative;
+      display: grid;
+      gap: var(--lane-gap);
+      padding-top: .55rem;
+    }
+
+    .gantt-lane {
+      display: grid;
+      grid-template-columns: var(--lane-label) minmax(0, 1fr);
+      align-items: center;
+      height: var(--lane-h);
+    }
+
+    .gantt-lane-label {
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .6rem;
+      letter-spacing: .04em;
+    }
+
+    .gantt-track {
+      position: relative;
+      height: 100%;
+      background: linear-gradient(to right, rgb(255 255 255 / .022) 0 1px, transparent 1px) repeat-x;
+      background-size: 10% 100%;
+      border-top: 1px dotted var(--border);
+    }
+
+    .gantt-bar {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      min-width: 3px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding-inline: .3rem;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-raised);
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .53rem;
+      letter-spacing: .02em;
+      white-space: nowrap;
+      transform-origin: left center;
+      animation: barIn 340ms cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    @keyframes barIn { from { transform: scaleX(.02); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+
+    .gantt-bar.out-patched { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 26%, var(--surface-raised)); color: #dff4ef; }
+    .gantt-arm-naive .gantt-bar.out-patched { border-color: var(--grey-muted); background: color-mix(in srgb, var(--grey-muted) 24%, var(--surface-raised)); color: var(--text); }
+    .gantt-bar.out-blocked { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 22%, var(--surface-raised)); color: #f2dcae; }
+    .gantt-bar.out-deduped { border-color: var(--teal-light); background: transparent; color: var(--teal-light); border-style: dashed; }
+    .gantt-bar.out-spared { border-color: var(--teal-light); background: transparent; color: var(--teal-light); border-style: dotted; }
+    .gantt-bar.out-abandoned { border-color: var(--grey-muted); background: transparent; color: var(--muted); }
+    .gantt-bar.out-contended { border-color: var(--failure); background: color-mix(in srgb, var(--failure) 20%, var(--surface-raised)); color: #f0bdb4; }
+    .gantt-bar.out-overwritten { border-color: var(--failure); background: color-mix(in srgb, var(--failure) 28%, var(--surface-raised)); color: #f0bdb4; }
+    .gantt-bar.out-open { border-style: dashed; border-color: var(--border-strong); color: var(--muted); }
+
+    .gantt-ghost {
+      position: absolute;
+      top: 6px;
+      bottom: 6px;
+      border: 1px dashed var(--border-strong);
+      border-left: 0;
+      background: repeating-linear-gradient(135deg, rgb(92 188 170 / .11) 0 5px, transparent 5px 10px);
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .5rem;
+      display: flex;
+      align-items: center;
+      padding-inline: .3rem;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .gantt-links {
+      position: absolute;
+      left: var(--lane-label);
+      right: 0;
+      top: .55rem;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .gantt-link {
+      position: absolute;
+      width: 1px;
+      border-left: 1px dashed var(--amber);
+    }
+
+    .gantt-link::after {
+      content: "";
+      position: absolute;
+      left: -2.5px;
+      bottom: -1px;
+      width: 6px;
+      height: 6px;
+      border-right: 1px solid var(--amber);
+      border-bottom: 1px solid var(--amber);
+      transform: rotate(45deg);
+    }
+
+    .gantt-bands {
+      margin-top: 1.1rem;
+      padding-top: .8rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .gantt-bands-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .3rem .9rem;
+      margin-bottom: .55rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .58rem;
+      line-height: 1.5;
+    }
+
+    .gantt-bands-head b { color: var(--amber); font-weight: 700; }
+    .gantt-arm-cortex .gantt-bands-head b { color: var(--teal-light); }
+
+    .gantt-band-row {
+      display: grid;
+      grid-template-columns: var(--lane-label) minmax(0, 1fr);
+      align-items: center;
+      height: 1.25rem;
+      margin-bottom: 4px;
+    }
+
+    .gantt-band-row > span {
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .53rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gantt-band-track { position: relative; height: 100%; }
+
+    .gantt-band {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      min-width: 3px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding-inline: .25rem;
+      border: 1px solid var(--failure);
+      background: repeating-linear-gradient(135deg, rgb(210 105 91 / .3) 0 4px, rgb(210 105 91 / .08) 4px 8px);
+      color: #f4cdc6;
+      font-family: var(--mono);
+      font-size: .5rem;
+      white-space: nowrap;
+    }
+
+    .gantt-empty,
+    .gantt-none {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .6rem;
+      line-height: 1.6;
+    }
+
+    .gantt-none { color: var(--teal-light); }
+
+    .gantt-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem 1.15rem;
+      margin-top: 1.1rem;
+    }
+
+    .legend-key {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .58rem;
+    }
+
+    .legend-key::before {
+      content: "";
+      width: 15px;
+      height: 9px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-raised);
+    }
+
+    .key-patched::before { border-color: var(--teal); background: color-mix(in srgb, var(--teal) 26%, var(--surface-raised)); }
+    .key-blocked::before { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 22%, var(--surface-raised)); }
+    .key-deduped::before { border: 1px dashed var(--teal-light); background: transparent; }
+    .key-spared::before { border: 1px dotted var(--teal-light); background: transparent; }
+    .key-abandoned::before { border-color: var(--grey-muted); background: transparent; }
+    .key-contended::before { border-color: var(--failure); background: color-mix(in srgb, var(--failure) 20%, var(--surface-raised)); }
+    .key-ghost::before { border: 1px dashed var(--border-strong); background: repeating-linear-gradient(135deg, rgb(92 188 170 / .11) 0 5px, transparent 5px 10px); }
+    .key-band::before { border-color: var(--failure); background: repeating-linear-gradient(135deg, rgb(210 105 91 / .3) 0 4px, rgb(210 105 91 / .08) 4px 8px); }
+
+    .timeline-caveat {
+      max-width: 70ch;
+      margin-top: 1.4rem;
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .6rem;
+      line-height: 1.6;
+    }
+
+    .interlock-ledger {
+      display: grid;
+      gap: 1px;
+      margin-top: 2.6rem;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .interlock-row {
+      display: grid;
+      grid-template-columns: 6.5rem minmax(0, 1fr) 13rem;
+      gap: 1rem;
+      padding: .95rem 1.1rem;
+      background: var(--surface);
+      align-items: start;
+    }
+
+    .interlock-row.header {
+      background: var(--canvas);
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .55rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .interlock-id {
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+
+    .interlock-title { font-size: .82rem; }
+
+    .interlock-hazard {
+      display: block;
+      margin-top: .3rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .58rem;
+      line-height: 1.55;
+    }
+
+    .interlock-evidence {
+      display: block;
+      margin-top: .45rem;
+      padding-left: .65rem;
+      border-left: 1px solid var(--border-strong);
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .56rem;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .interlock-state {
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .58rem;
+      letter-spacing: .05em;
+      text-align: right;
+    }
+
+    .interlock-state b {
+      display: block;
+      margin-bottom: .3rem;
+      font-weight: 700;
+    }
+
+    .state-occurred b { color: var(--teal-light); }
+    .state-did-not-occur b { color: var(--grey); }
+    .state-no-conditions b { color: var(--amber); }
+    .state-not-evaluated b { color: var(--failure); }
+    .state-not-measured b { color: var(--amber); }
+    .state-inverted b { color: var(--failure); }
+
     .footer {
       display: grid;
       place-items: center;
@@ -1335,6 +1762,9 @@
       .developer-column[data-side] .developer-agent::before,
       .developer-column[data-side] .developer-agent::after { display: none; }
       .source-rail { grid-template-columns: 1fr; }
+      .gantt { --lane-label: 4.2rem; }
+      .interlock-row { grid-template-columns: 1fr; gap: .5rem; }
+      .interlock-state { text-align: left; }
       .task-table { overflow-x: auto; }
       .task-row { min-width: 760px; }
       .meter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1365,6 +1795,11 @@
       .attribution-row { grid-template-columns: 3.2rem 4rem minmax(0, 1fr); }
       .attribution-row span:last-child { grid-column: 1 / -1; }
       .atomic-diagram { grid-template-columns: 1fr; }
+      .gantt { --lane-label: 3.6rem; --lane-h: 22px; }
+      .gantt-bar,
+      .gantt-ghost,
+      .gantt-band { font-size: 0; padding-inline: 0; }
+      .headline-figures { grid-template-columns: 1fr; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -1376,6 +1811,8 @@
       }
       .reveal { opacity: 1; transform: none; }
       .comparison-shell { transition: none; }
+      /* The timeline is data, not motion: bars appear at full width rather than growing. */
+      .gantt-bar { animation: none; transform: none; opacity: 1; }
     }
   </style>
 </head>
@@ -1400,8 +1837,17 @@
 
           <div class="run-cluster">
             <button class="run-button" id="run-demo" type="button" disabled>Run the demo</button>
-            <p class="run-note">The task order, patch set and database are identical in both arms. Only coordination changes.</p>
+            <p class="run-note">The task order, ticket set and database are identical in both arms. Only coordination changes.</p>
           </div>
+
+          <p class="run-prediction" id="run-prediction">
+            <b>Read this before you press it.</b>
+            No two runs of this page are the same, and that is the point. Five agents work at once
+            against one live cluster, so which agent wins a race, which duplicate is caught first
+            and which defect survives into the returned application are decided while you watch.
+            Some hazards will not fire on your run. A lane that failed identically every time
+            would be a recording, not a system.
+          </p>
 
           <div class="mode-line" id="mode" role="status" aria-live="polite">
             <b>CONNECTING</b>
@@ -1499,6 +1945,37 @@
       </div>
     </section>
 
+    <section class="section" id="timeline" aria-labelledby="timeline-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="timeline-title">Five agents, at the same time, on one change.</h2>
+          <p>Every bar below is one agent's own elapsed time on one ticket, drawn from the timestamps it streamed. Bars that overlap were running together.</p>
+        </div>
+
+        <div class="headline-figures" id="headline-figures"></div>
+        <p class="headline-sentence" id="headline-sentence">Run the fleet. The figures above are computed from the run's own streamed timestamps and appear as it goes.</p>
+
+        <div class="gantt" id="gantt" aria-label="Per-agent timeline for both arms"></div>
+
+        <div class="gantt-legend" id="gantt-legend">
+          <span class="legend-key key-patched">work committed</span>
+          <span class="legend-key key-blocked">blocked, holder named, re-planned</span>
+          <span class="legend-key key-deduped">refused as duplicate</span>
+          <span class="legend-key key-spared">spared by an earlier outcome</span>
+          <span class="legend-key key-abandoned">gave up, wrote the reason down</span>
+          <span class="legend-key key-contended">could not commit</span>
+          <span class="legend-key key-ghost">time this agent never spent</span>
+          <span class="legend-key key-band">two agents holding one file at once</span>
+        </div>
+
+        <p class="timeline-caveat">
+          The two arms run one after the other so that neither lane's claim latency is measured
+          under the other's load. Each lane's clock therefore starts at zero, and the shared scale
+          compares elapsed time inside a lane, not one common wall clock.
+        </p>
+      </div>
+    </section>
+
     <section class="section" id="flow-graphs" aria-labelledby="graphs-title">
       <div class="shell reveal">
         <div class="section-heading">
@@ -1569,6 +2046,9 @@
             <div class="attribution" id="cortex-attribution"></div>
           </article>
         </div>
+
+        <div class="interlock-ledger" id="interlocks" aria-live="polite"></div>
+        <p class="meter-provenance" id="interlock-provenance">Each row is decided by running the returned application and asking it a question, not by searching its source for a string. The evidence is what the application answered.</p>
 
         <div class="meter-grid" id="meter"></div>
         <p class="meter-provenance" id="meter-provenance">Run-level figures appear only after the terminal message. A measured zero is shown as 0. Not applicable is N/A. Nobody measured it is TBD.</p>
@@ -1702,18 +2182,54 @@
     ];
 
     const TASKS = [
-      { id: 'I3', statement: 'Store monetary amounts as integer minor units instead of floating point', module: 'lib/money', agent: 'agent-1', conflict: 'depends' },
-      { id: 'P2a', statement: 'Cache inventory availability lookups for thirty seconds', module: 'inventory', agent: 'agent-2', conflict: 'duplicate' },
-      { id: 'P2b', statement: 'Add a thirty second cache to inventory stock level lookups', module: 'inventory', agent: 'agent-3', conflict: 'duplicate' },
-      { id: 'P6a', statement: 'Send an order confirmation email when an order is placed', module: 'notify/email', agent: 'agent-4', conflict: 'duplicate' },
-      { id: 'P6b', statement: 'Email an order confirmation to the customer once the order is placed', module: 'notify/templates', agent: 'agent-5', conflict: 'duplicate' },
-      { id: 'C1', statement: 'Add pagination to the order list endpoint', module: 'orders/list', agent: 'agent-1', conflict: 'shared-file' },
-      { id: 'C2', statement: 'Record a status transition history for every order', module: 'orders/status', agent: 'agent-2', conflict: 'shared-file' },
-      { id: 'C3', statement: 'Refuse order creation when quantity exceeds stock', module: 'orders/create', agent: 'agent-3', conflict: 'shared-file' },
-      { id: 'R3', statement: 'Convert shipping quotes to the new integer minor unit representation', module: 'shipping', agent: 'agent-4', conflict: 'depends' },
-      { id: 'A1', statement: 'Migrate the payment provider integration to version three', module: 'payments', agent: 'agent-5', conflict: '' },
-      { id: 'T11', statement: 'Move the refund flow onto the payment provider version three API', module: 'payments', agent: 'agent-4', conflict: 'depends' }
+      { id: 'I3', statement: 'Store monetary amounts as integer minor units instead of floating point', module: 'lib/money', agent: 'agent-1', conflict: 'depends', wave: 1, files: ['lib/money.js'] },
+      { id: 'P2a', statement: 'Cache inventory availability lookups for thirty seconds', module: 'inventory', agent: 'agent-2', conflict: 'duplicate', wave: 1, files: ['inventory/repository.js'] },
+      { id: 'P2b', statement: 'Add a thirty second cache to inventory stock level lookups', module: 'inventory', agent: 'agent-3', conflict: 'duplicate', wave: 1, files: ['inventory/repository.js'] },
+      { id: 'P6a', statement: 'Send an order confirmation email when an order is placed', module: 'notify/email', agent: 'agent-4', conflict: 'duplicate', wave: 1, files: ['notify/email.js'] },
+      { id: 'P6b', statement: 'Email an order confirmation to the customer once the order is placed', module: 'notify/templates', agent: 'agent-5', conflict: 'duplicate', wave: 1, files: ['notify/templates.js'] },
+      { id: 'C1', statement: 'Add pagination to the order list endpoint', module: 'orders/list', agent: 'agent-1', conflict: 'shared-file', wave: 2, files: ['orders/repository.js'] },
+      { id: 'C2', statement: 'Record a status transition history for every order', module: 'orders/status', agent: 'agent-2', conflict: 'shared-file', wave: 2, files: ['orders/repository.js'] },
+      { id: 'C3', statement: 'Refuse order creation when quantity exceeds stock', module: 'orders/create', agent: 'agent-3', conflict: 'shared-file', wave: 2, files: ['orders/repository.js'] },
+      { id: 'R3', statement: 'Convert shipping quotes to the new integer minor unit representation', module: 'shipping', agent: 'agent-4', conflict: 'depends', wave: 2, files: ['shipping/quote.js'] },
+      { id: 'A1', statement: 'Migrate the payment provider integration to version three', module: 'payments', agent: 'agent-5', conflict: '', wave: 2, files: ['payments/provider.js'] },
+      { id: 'T11', statement: 'Move the refund flow onto the payment provider version three API', module: 'payments', agent: 'agent-4', conflict: 'depends', wave: 3, files: ['payments/provider.js'] }
     ];
+
+    /**
+     * A phase that ends an agent's turn on a ticket. Everything else is a step inside one.
+     * The runner emits `started` again when a blocked agent comes back, so a lane can carry
+     * several bars for one ticket and each is a real, separately measured attempt.
+     */
+    const TERMINAL_PHASES = ['patched', 'blocked', 'deduped', 'spared', 'abandoned', 'contended', 'overwritten'];
+
+    /**
+     * The five ways two correct changes compose wrongly, and which tickets each one needs.
+     *
+     * The titles match the acceptance oracle's own, because the oracle decides these rows and a
+     * row must be labelled with the question that was actually asked. The oracle's checks are not
+     * reproduced here and must not be: the page is public, and a corpus whose scoring is readable
+     * is a specification rather than a task. Verdicts and evidence arrive from the run.
+     *
+     * Interlock 5 has no application check and cannot have one — A1 and T11 change no code, so
+     * both lanes return byte-identical trees. It is decided by the run meter instead, which is
+     * why it carries a different `measuredBy`.
+     */
+    const INTERLOCKS = [
+      { id: 'interlock-1', title: 'the shipping line renders at the magnitude the tariff says', hazard: 'I3 changes the unit money is counted in; R3 has to follow it in another module.', needs: [['I3'], ['R3']], measuredBy: 'app' },
+      { id: 'interlock-2', title: 'a second order inside the cache window is still refused', hazard: 'P2 caches availability; C3 guards oversell against the number P2 caches.', needs: [['P2a', 'P2b'], ['C3']], measuredBy: 'app' },
+      { id: 'interlock-3', title: 'pager, status history and oversell refusal all work in one tree', hazard: 'C1, C2 and C3 edit one file in three disjoint regions at the same time.', needs: [['C1'], ['C2'], ['C3']], measuredBy: 'app' },
+      { id: 'interlock-4', title: 'the confirmation banner appears exactly once', hazard: 'P6a and P6b are the same feature written into two different files.', needs: [['P6a', 'P6b']], measuredBy: 'app' },
+      { id: 'interlock-5', title: 'nobody pays twice to walk the same dead end', hazard: 'A1 gives up on the provider migration; T11 is the same road. Neither ticket changes code.', needs: [['A1'], ['T11']], measuredBy: 'meter' }
+    ];
+
+    const INTERLOCK_STATES = {
+      occurred: ['OBSERVED THIS RUN', 'The isolated lane produced this defect and the arbitrated lane did not.'],
+      'did-not-occur': ['NOT OBSERVED THIS RUN', 'Both lanes were asked and both composed correctly. The hazard is real; it did not fire here.'],
+      'no-conditions': ['DID NOT ARISE', 'A ticket this interlock needs never reached the work, so nothing could be concluded.'],
+      'not-evaluated': ['COULD NOT BE EVALUATED', 'The returned tree threw when it was run, which is a different fact from a wrong answer.'],
+      'not-measured': ['TBD', 'This run reported no acceptance result for the interlock. Nobody measured it.'],
+      inverted: ['INVERTED THIS RUN', 'The arbitrated lane failed a check the isolated lane passed. Reported as it happened.']
+    };
 
     const FEATURES = [
       { id: 'C1', file: 'orders/repository.js', patch: 'pagination store hunk', marker: 'ORDERS_PER_PAGE' },
@@ -1738,13 +2254,32 @@
       ['embeddingCalls', 'embedding calls'],
       ['claimP50Ms', 'claim p50 ms'],
       ['serializationRetries', 'serialization retries'],
-      ['wastedTokens', 'wasted tokens']
+      ['wastedTokens', 'wasted tokens'],
+      ['hunksAuthoredByModel', 'hunks written by the model'],
+      ['hunksFallenBack', 'hunks the model wrote that validation refused'],
+      ['hunksReplayed', 'hunks replayed from reviewed patches'],
+      ['modelInputTokens', 'model input tokens'],
+      ['modelOutputTokens', 'model output tokens']
     ];
+
+    /**
+     * Figures whose `null` means **nobody measured**, not "this arm has no such thing".
+     *
+     * A REPLAY run makes no model call, so its token counts were never taken — and `06` §6's line
+     * is that a bare 0 there would claim somebody measured nothing spent. `claimP50Ms` is the
+     * other shape: an arm with no claim transaction genuinely has no such latency, which is N/A.
+     */
+    const TBD_WHEN_NULL = ['wastedTokens', 'modelInputTokens', 'modelOutputTokens'];
 
     const state = {
       session: null,
       runId: null,
       terminal: null,
+      /** `07` §4's per-run reasoning block, exactly as `POST /demo/run` reported it. */
+      reasoning: null,
+      /** The LIVE budget, present only when the state route answered a capability holder. */
+      live: null,
+      mode: null,
       preview: PREVIEW,
       events: { naive: [], cortex: [] },
       rows: { naive: [], cortex: [] },
@@ -1931,6 +2466,785 @@
       return false;
     }
 
+    /**
+     * ONE BAR PER AGENT PER ATTEMPT, built from the timestamps the run streamed and nothing else.
+     *
+     * A segment opens on the agent's first event for a ticket and closes on the phase that ended
+     * its turn. A blocked agent gets a second segment when it comes back, because that is a second
+     * attempt with its own measured duration — collapsing them would draw one long bar over an
+     * interval in which the agent held nothing and was doing nothing.
+     *
+     * Nothing here is interpolated. A segment that is still open is drawn to its last event, so a
+     * bar during a live run means "this is how far it has got", never "this is how long it took".
+     */
+    function buildSegments(events, terminalPhases) {
+      const open = new Map();
+      const done = [];
+      const ordered = [...events].sort((a, b) => (a.at - b.at) || (a.seq - b.seq));
+
+      const close = (agent, at, outcome, detail) => {
+        const current = open.get(agent);
+        if (!current) return;
+        current.end = Math.max(current.end, at);
+        current.outcome = outcome;
+        if (detail) current.detail = detail;
+        open.delete(agent);
+        done.push(current);
+      };
+
+      ordered.forEach((event) => {
+        const current = open.get(event.agent);
+        if (!current || event.phase === 'started' || current.taskId !== event.taskId) {
+          if (current) close(event.agent, current.end, current.outcome, current.detail);
+          open.set(event.agent, {
+            agent: event.agent,
+            taskId: event.taskId,
+            start: event.at,
+            end: event.at,
+            outcome: 'open',
+            phases: [event.phase],
+            detail: event.detail || {}
+          });
+        } else {
+          current.end = Math.max(current.end, event.at);
+          current.phases.push(event.phase);
+          if (event.detail && Object.keys(event.detail).length > 0) current.detail = event.detail;
+        }
+        if (terminalPhases.indexOf(event.phase) >= 0) close(event.agent, event.at, event.phase, event.detail || {});
+      });
+
+      open.forEach((current) => done.push(current));
+      return done.sort((a, b) => (a.start - b.start) || (a.agent < b.agent ? -1 : 1));
+    }
+
+    /**
+     * The interval an agent held a file, derived from the stream when the run did not publish its
+     * own spans.
+     *
+     * **Wider than the window the run measures `fileCollisions` over**, and labelled as such
+     * wherever it is drawn: the runner's own span ends at the save, this one ends at the phase
+     * that closed the ticket, which includes the close. Two figures that mean different things may
+     * not wear one name, so the picture says which window it drew and the meter keeps its own.
+     */
+    function windowsFromEvents(events, terminalPhases) {
+      const open = new Map();
+      const windows = [];
+      const ordered = [...events].sort((a, b) => (a.at - b.at) || (a.seq - b.seq));
+
+      ordered.forEach((event) => {
+        const key = event.agent + ' ' + event.taskId;
+        const files = event.detail && Array.isArray(event.detail.files) ? event.detail.files : [];
+        if (event.phase === 'reading') {
+          open.set(key, { agent: event.agent, taskId: event.taskId, files: files, startedMs: event.at });
+          return;
+        }
+        const current = open.get(key);
+        if (!current) return;
+        if (terminalPhases.indexOf(event.phase) >= 0) {
+          const held = files.length > 0 ? files : current.files;
+          held.forEach((file) => windows.push({
+            taskId: current.taskId,
+            agent: current.agent,
+            file: file,
+            startedMs: current.startedMs,
+            endedMs: event.at
+          }));
+          open.delete(key);
+        }
+      });
+      return windows;
+    }
+
+    /**
+     * Distinct agent pairs that held one file at the same time — the unit `fileCollisions` counts,
+     * so the picture and the figure can sit on one page without disagreeing.
+     */
+    function overlapBands(spans) {
+      const bands = [];
+      const seen = {};
+      for (let i = 0; i < spans.length; i += 1) {
+        for (let j = i + 1; j < spans.length; j += 1) {
+          const a = spans[i];
+          const b = spans[j];
+          if (a.agent === b.agent || a.file !== b.file) continue;
+          if (!(a.startedMs <= b.endedMs && b.startedMs <= a.endedMs)) continue;
+          const agents = [a.agent, b.agent].sort();
+          const key = a.file + ' ' + agents.join(' ');
+          if (seen[key]) continue;
+          seen[key] = true;
+          bands.push({
+            file: a.file,
+            agents: agents,
+            tasks: [a.taskId, b.taskId],
+            from: Math.max(a.startedMs, b.startedMs),
+            to: Math.min(a.endedMs, b.endedMs)
+          });
+        }
+      }
+      return bands.sort((x, y) => x.from - y.from);
+    }
+
+    /**
+     * Wall clock, agent-seconds, and the ratio between them.
+     *
+     * The ratio is how many agents were working at once, on average, and it is a division of two
+     * measured quantities rather than a comparison against anything. **No serial baseline is
+     * constructed anywhere on this page**: the run never performed one, so a number describing it
+     * would be a guess wearing a measurement's clothes.
+     */
+    function armTiming(segments, events) {
+      const wallMs = events.reduce((max, event) => Math.max(max, Number(event.at) || 0), 0);
+      const agentMs = segments.reduce((sum, segment) => sum + Math.max(0, segment.end - segment.start), 0);
+      const agents = {};
+      const tickets = {};
+      segments.forEach((segment) => { agents[segment.agent] = true; tickets[segment.taskId] = true; });
+      return {
+        wallMs: wallMs,
+        agentMs: agentMs,
+        concurrency: wallMs > 0 ? agentMs / wallMs : null,
+        agents: Object.keys(agents).length,
+        tickets: Object.keys(tickets).length,
+        attempts: segments.length
+      };
+    }
+
+    /**
+     * Who wrote the code this run, counted over what the run published.
+     *
+     * `known: false` is a distinct answer from "nobody used a model": a run that publishes no
+     * authorship record has not told the page anything, and `07` §4's honesty rule is broken by
+     * guessing in either direction.
+     *
+     * **Two wire shapes, and the unit changes with them.** `runArm` publishes the three hunk
+     * counts on the meter, which partition every hunk any agent applied — that is the sharper
+     * claim and it is preferred wherever it is present. A run that published only the per-ticket
+     * `authorings` records is counted in tickets and says so, because "the model wrote 9 of 13
+     * hunks" and "the model wrote 9 of 13 tickets" are different sentences.
+     *
+     * **A token count of `null` stays `null`.** On REPLAY no call was made, so nobody measured,
+     * and summing the zeroes would render as a measurement of nothing spent.
+     */
+    function authorshipSummary(arms) {
+      const list = arms || [];
+      const meters = list.map((arm) => (arm && arm.meter) || {});
+      const numeric = (value) => (typeof value === 'number' ? value : null);
+
+      if (meters.some((meter) => typeof meter.hunksAuthoredByModel === 'number')) {
+        const sum = (key) => meters.reduce((total, meter) => total + (numeric(meter[key]) || 0), 0);
+        const tokens = (key) => (meters.some((meter) => numeric(meter[key]) !== null) ? sum(key) : null);
+        return {
+          known: true,
+          unit: 'hunk',
+          model: sum('hunksAuthoredByModel'),
+          committed: sum('hunksReplayed'),
+          fallback: sum('hunksFallenBack'),
+          inputTokens: tokens('modelInputTokens'),
+          outputTokens: tokens('modelOutputTokens')
+        };
+      }
+
+      if (!list.some((arm) => Array.isArray(arm.authorings))) {
+        return { known: false, unit: 'ticket', model: 0, committed: 0, fallback: 0, inputTokens: null, outputTokens: null };
+      }
+
+      const records = list.reduce((all, arm) => all.concat(Array.isArray(arm.authorings) ? arm.authorings : []), []);
+      const count = (kind) => records.filter((record) => record.source === kind).length;
+      return {
+        known: true,
+        unit: 'ticket',
+        model: count('model'),
+        committed: count('committed'),
+        fallback: count('fallback'),
+        inputTokens: records.reduce((total, record) => total + (Number(record.inputTokens) || 0), 0),
+        outputTokens: records.reduce((total, record) => total + (Number(record.outputTokens) || 0), 0)
+      };
+    }
+
+    /**
+     * What this run is entitled to say about each interlock.
+     *
+     * Six states, and the three the brief names are genuinely different facts. `did-not-occur`
+     * means both lanes were asked and both answered correctly — a real outcome once a model writes
+     * the code, and the one the page must not present as a failure of the demo. `no-conditions`
+     * means a ticket the interlock needs never reached the work, so no conclusion is available.
+     * `not-measured` means the run published no acceptance result and nobody knows.
+     */
+    function interlockRows(arms, interlocks) {
+      const list = arms || [];
+      const byArm = {};
+      list.forEach((arm) => { byArm[arm.arm] = arm; });
+
+      const check = (arm, id) => {
+        const results = arm && Array.isArray(arm.acceptance) ? arm.acceptance : null;
+        if (!results) return undefined;
+        return results.filter((result) => result.id === id)[0] || null;
+      };
+      /**
+       * Whether the interlock's conditions arose at all in this lane.
+       *
+       * `needs` is a list of groups, and a group is satisfied by **any** of its tickets getting
+       * somewhere — the dedupe pairs are two spellings of one feature, so an interlock that needs
+       * "a confirmation" is satisfied by either half. A group whose every ticket came back
+       * `contended` never reached the work, and no conclusion about the interlock is available:
+       * that is a different fact from the defect not appearing, and the page says so.
+       */
+      const ranTickets = (arm, needs) => {
+        const steps = arm && Array.isArray(arm.steps) ? arm.steps : null;
+        if (!steps) return true;
+        return needs.every((group) => group.some((taskId) => steps.some(
+          (step) => step.taskId === taskId && step.reported !== 'contended'
+        )));
+      };
+
+      return interlocks.map((interlock) => {
+        const naive = byArm.naive;
+        const cortex = byArm.cortex;
+        const arose = Boolean(naive) && Boolean(cortex)
+          && ranTickets(naive, interlock.needs) && ranTickets(cortex, interlock.needs);
+
+        if (interlock.measuredBy === 'meter') {
+          if (!naive || !naive.meter || !cortex || !cortex.meter) {
+            return { id: interlock.id, state: 'not-measured', evidence: [] };
+          }
+          const spared = Number(cortex.meter.agentsSpared) || 0;
+          const naiveDead = Number(naive.meter.deadEndsWalked) || 0;
+          const cortexDead = Number(cortex.meter.deadEndsWalked) || 0;
+          const evidence = [
+            'isolated lane: ' + naiveDead + ' dead end(s) walked, ' + (Number(naive.meter.agentsSpared) || 0) + ' agent(s) spared',
+            'arbitrated lane: ' + cortexDead + ' dead end(s) walked, ' + spared + ' agent(s) spared'
+          ];
+          if (spared > 0 && naiveDead > cortexDead) return { id: interlock.id, state: 'occurred', evidence: evidence };
+          if (!arose) return { id: interlock.id, state: 'no-conditions', evidence: evidence };
+          return { id: interlock.id, state: 'did-not-occur', evidence: evidence };
+        }
+
+        const naiveResult = check(naive, interlock.id);
+        const cortexResult = check(cortex, interlock.id);
+        if (naiveResult === undefined || cortexResult === undefined || !naiveResult || !cortexResult) {
+          return { id: interlock.id, state: 'not-measured', evidence: [] };
+        }
+
+        const evidence = [
+          'isolated lane answered: ' + naiveResult.observed,
+          'arbitrated lane answered: ' + cortexResult.observed
+        ];
+        if (naiveResult.verdict === 'error' || cortexResult.verdict === 'error') {
+          return { id: interlock.id, state: 'not-evaluated', evidence: evidence };
+        }
+        if (naiveResult.verdict === 'fail' && cortexResult.verdict === 'pass') {
+          return { id: interlock.id, state: 'occurred', evidence: evidence };
+        }
+        if (!arose) return { id: interlock.id, state: 'no-conditions', evidence: evidence };
+        if (naiveResult.verdict === 'pass' && cortexResult.verdict === 'pass') {
+          return { id: interlock.id, state: 'did-not-occur', evidence: evidence };
+        }
+        return { id: interlock.id, state: 'inverted', evidence: evidence };
+      });
+    }
+
+    function terminalArms() {
+      return state.terminal && Array.isArray(state.terminal.arms) ? state.terminal.arms : [];
+    }
+
+    function armSummary(arm) {
+      return terminalArms().filter((item) => item.arm === arm)[0] || null;
+    }
+
+    function meterValue(arm, key) {
+      const summary = armSummary(arm);
+      if (!summary || !summary.meter) return null;
+      const value = summary.meter[key];
+      return value === undefined || value === null ? null : value;
+    }
+
+    /**
+     * The spans the collision bands are drawn from, and where they came from.
+     *
+     * A run that publishes its own spans is preferred, because those are the exact windows
+     * `fileCollisions` is computed over. An empty published list is honoured as a measurement of
+     * nothing, not as an absence — the fallback is only for a run that published no spans at all.
+     */
+    function armSpans(arm) {
+      const summary = armSummary(arm);
+      if (summary && Array.isArray(summary.spans)) return { source: 'spans', spans: summary.spans };
+      return { source: 'events', spans: windowsFromEvents(state.events[arm], TERMINAL_PHASES) };
+    }
+
+    function counterpartDuration(model, arm, taskId) {
+      const other = model.filter((entry) => entry.arm !== arm)[0];
+      if (!other) return null;
+      const durations = other.segments
+        .filter((segment) => segment.taskId === taskId)
+        .map((segment) => Math.max(0, segment.end - segment.start));
+      if (durations.length === 0) return null;
+      return { arm: other.arm, ms: Math.max.apply(null, durations) };
+    }
+
+    const seconds = (ms) => (Number(ms) / 1000).toFixed(2) + 's';
+    const laneName = (arm) => (arm === 'cortex' ? 'arbitrated' : 'isolated');
+
+    function holderNote(segment) {
+      const detail = segment.detail || {};
+      if (segment.outcome === 'blocked') {
+        const contested = Array.isArray(detail.contested) ? detail.contested : [];
+        const first = contested[0] || {};
+        return ' — refused ' + (first.resourceKey || 'a claimed key') + ', held by ' + (first.holder || 'another agent') + '; it holds nothing and re-plans';
+      }
+      if (segment.outcome === 'deduped') {
+        return ' — refused as a duplicate of ' + (detail.of || 'an open intent')
+          + (detail.distance === undefined ? '' : ' at distance ' + detail.distance);
+      }
+      if (segment.outcome === 'spared') return ' — the fleet had already found this out (' + (detail.by || 'an earlier ticket') + ')';
+      if (segment.outcome === 'abandoned') return ' — gave up, and wrote the reason where the next agent will find it';
+      if (segment.outcome === 'contended') return ' — could not commit; it holds nothing';
+      if (segment.outcome === 'open') return ' — still running';
+      return '';
+    }
+
+    function renderAxis(scaleMs) {
+      const axis = document.createElement('div');
+      axis.className = 'gantt-axis';
+      [0, .25, .5, .75, 1].forEach((fraction) => {
+        const tick = document.createElement('span');
+        tick.className = 'gantt-tick';
+        tick.style.left = (fraction * 100) + '%';
+        tick.textContent = (scaleMs * fraction / 1000).toFixed(1) + 's';
+        axis.appendChild(tick);
+      });
+      return axis;
+    }
+
+    function appendBar(track, segment, scaleMs, entry, model) {
+      const duration = Math.max(0, segment.end - segment.start);
+      const bar = document.createElement('span');
+      bar.className = 'gantt-bar out-' + segment.outcome;
+      bar.style.left = (segment.start / scaleMs * 100) + '%';
+      bar.style.width = Math.max(.45, duration / scaleMs * 100) + '%';
+      bar.textContent = segment.taskId;
+      bar.title = segment.agent + ' / ' + segment.taskId + ' / ' + segment.outcome + ' / '
+        + seconds(segment.start) + ' to ' + seconds(segment.end) + ' (' + seconds(duration) + ')'
+        + holderNote(segment);
+      track.appendChild(bar);
+
+      if (segment.outcome !== 'deduped' && segment.outcome !== 'spared') return;
+      const counterpart = counterpartDuration(model, entry.arm, segment.taskId);
+      if (!counterpart || counterpart.ms <= duration) return;
+      const ghost = document.createElement('span');
+      ghost.className = 'gantt-ghost';
+      ghost.style.left = (segment.end / scaleMs * 100) + '%';
+      ghost.style.width = ((counterpart.ms - duration) / scaleMs * 100) + '%';
+      ghost.textContent = 'never spent';
+      ghost.title = 'This agent stopped after ' + seconds(duration) + '. The same ticket ran to '
+        + seconds(counterpart.ms) + ' in the ' + laneName(counterpart.arm)
+        + ' lane, so the hatched remainder is time and budget nobody spent here.';
+      track.appendChild(ghost);
+    }
+
+    function renderHolderLinks(entry, scaleMs, laneIndex) {
+      const layer = document.createElement('div');
+      layer.className = 'gantt-links';
+      entry.segments.filter((segment) => segment.outcome === 'blocked').forEach((segment) => {
+        const detail = segment.detail || {};
+        const contested = Array.isArray(detail.contested) ? detail.contested : [];
+        const first = contested[0] || {};
+        const from = laneIndex[segment.agent];
+        const to = laneIndex[first.holder];
+        if (from === undefined || to === undefined || from === to) return;
+        const link = document.createElement('span');
+        link.className = 'gantt-link';
+        link.style.left = (segment.end / scaleMs * 100) + '%';
+        link.style.top = 'calc((var(--lane-h) + var(--lane-gap)) * ' + Math.min(from, to) + ' + var(--lane-h) / 2)';
+        link.style.height = 'calc((var(--lane-h) + var(--lane-gap)) * ' + Math.abs(from - to) + ')';
+        link.title = segment.agent + ' asked for ' + (first.resourceKey || 'a claimed key') + ' and was told '
+          + first.holder + ' holds it. It learned the holder and the intent, so it re-planned instead of polling.';
+        layer.appendChild(link);
+      });
+      return layer;
+    }
+
+    function renderBands(entry, scaleMs) {
+      const wrap = document.createElement('div');
+      wrap.className = 'gantt-bands';
+
+      const head = document.createElement('div');
+      head.className = 'gantt-bands-head';
+      const summary = document.createElement('span');
+      const count = document.createElement('b');
+      count.textContent = String(entry.bands.length);
+      summary.append(count, document.createTextNode(' agent pair(s) inside one file at the same time'));
+      const provenance = document.createElement('span');
+      provenance.textContent = entry.bandSource === 'spans'
+        ? 'drawn from the read-to-save windows the file-collisions figure is computed over'
+        : 'drawn from streamed read-to-close windows, which are wider than the read-to-save windows the file-collisions figure uses';
+      const reported = document.createElement('span');
+      const measured = meterValue(entry.arm, 'fileCollisions');
+      reported.textContent = 'file collisions reported by this run: ' + (measured === null ? 'TBD' : String(measured));
+      head.append(summary, provenance, reported);
+      wrap.appendChild(head);
+
+      if (entry.bands.length === 0) {
+        const none = document.createElement('p');
+        none.className = 'gantt-none';
+        none.textContent = entry.arm === 'cortex'
+          ? 'No overlap. A CORTEX agent holds its file claim across read, work and save, so nobody else can be inside that file while it works.'
+          : 'No overlap observed on this run.';
+        wrap.appendChild(none);
+        return wrap;
+      }
+
+      entry.bands.forEach((band) => {
+        const row = document.createElement('div');
+        row.className = 'gantt-band-row';
+        const label = document.createElement('span');
+        label.textContent = band.file.split('/').pop();
+        label.title = band.file;
+        const track = document.createElement('div');
+        track.className = 'gantt-band-track';
+        const bar = document.createElement('span');
+        bar.className = 'gantt-band';
+        bar.style.left = (band.from / scaleMs * 100) + '%';
+        bar.style.width = Math.max(.45, (band.to - band.from) / scaleMs * 100) + '%';
+        bar.textContent = band.agents.join(' + ');
+        bar.title = band.agents.join(' and ') + ' both held ' + band.file + ' from ' + seconds(band.from)
+          + ' to ' + seconds(band.to) + ', working ' + band.tasks.join(' and ')
+          + '. Whichever saved second wrote over the other.';
+        track.appendChild(bar);
+        row.append(label, track);
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
+    function renderGanttArm(entry, scaleMs, model) {
+      const block = document.createElement('article');
+      block.className = 'gantt-arm gantt-arm-' + entry.arm;
+
+      const head = document.createElement('div');
+      head.className = 'gantt-arm-head';
+      const title = document.createElement('h3');
+      title.textContent = entry.arm === 'cortex' ? 'CORTEX arbitrated memory' : 'Worktree isolation';
+      head.appendChild(title);
+      [
+        [seconds(entry.timing.wallMs), 'wall clock'],
+        [seconds(entry.timing.agentMs), 'agent-seconds'],
+        [entry.timing.concurrency === null ? 'TBD' : entry.timing.concurrency.toFixed(2) + 'x', 'agents at once'],
+        [String(entry.timing.attempts), 'ticket attempts']
+      ].forEach((pair) => {
+        const item = document.createElement('span');
+        const value = document.createElement('b');
+        value.textContent = pair[0];
+        item.append(value, document.createTextNode(' ' + pair[1]));
+        head.appendChild(item);
+      });
+      block.appendChild(head);
+      block.appendChild(renderAxis(scaleMs));
+
+      const lanes = document.createElement('div');
+      lanes.className = 'gantt-lanes';
+      const laneIndex = {};
+      AGENTS.forEach((agent, index) => {
+        laneIndex[agent] = index;
+        const lane = document.createElement('div');
+        lane.className = 'gantt-lane';
+        const label = document.createElement('span');
+        label.className = 'gantt-lane-label';
+        label.textContent = agent;
+        const track = document.createElement('div');
+        track.className = 'gantt-track';
+        track.setAttribute('aria-label', agent + ' in the ' + laneName(entry.arm) + ' lane');
+        entry.segments
+          .filter((segment) => segment.agent === agent)
+          .forEach((segment) => appendBar(track, segment, scaleMs, entry, model));
+        lane.append(label, track);
+        lanes.appendChild(lane);
+      });
+      lanes.appendChild(renderHolderLinks(entry, scaleMs, laneIndex));
+      block.appendChild(lanes);
+      block.appendChild(renderBands(entry, scaleMs));
+      return block;
+    }
+
+    function renderHeadlineFigures(host, model) {
+      model.forEach((entry) => {
+        [
+          [seconds(entry.timing.wallMs), 'wall clock / ' + laneName(entry.arm) + ' lane — first to last streamed event'],
+          [seconds(entry.timing.agentMs), 'agent-seconds / ' + laneName(entry.arm) + ' lane — every agent’s own elapsed time, summed'],
+          [entry.timing.concurrency === null ? 'TBD' : entry.timing.concurrency.toFixed(2) + 'x', 'agents at once / ' + laneName(entry.arm) + ' lane — agent-seconds divided by wall clock']
+        ].forEach((pair) => {
+          const cell = document.createElement('div');
+          cell.className = 'headline-figure' + (entry.arm === 'cortex' ? ' for-cortex' : '') + (pair[0] === 'TBD' ? ' is-tbd' : '');
+          const value = document.createElement('b');
+          value.textContent = pair[0];
+          const label = document.createElement('span');
+          label.textContent = pair[1];
+          cell.append(value, label);
+          host.appendChild(cell);
+        });
+      });
+    }
+
+    /**
+     * What this run is entitled to claim about the two returned applications.
+     *
+     * The acceptance rows are preferred because they are answers the assembled application gave.
+     * When the run published none, the trees are compared instead and the sentence says so. There
+     * is no third branch that asserts anything when neither is available.
+     */
+    function outcomeClause() {
+      const rows = interlockRows(terminalArms(), INTERLOCKS);
+      const measured = rows.filter((row) => ['occurred', 'did-not-occur', 'inverted'].indexOf(row.state) >= 0);
+      if (measured.length > 0) {
+        const occurred = measured.filter((row) => row.state === 'occurred').length;
+        const inverted = measured.filter((row) => row.state === 'inverted').length;
+        return occurred + ' of the ' + measured.length + ' interlock(s) this run could measure produced their defect in the isolated lane, and '
+          + inverted + ' produced one in the arbitrated lane.';
+      }
+      const naiveTree = state.states.naive && state.states.naive.files;
+      const cortexTree = state.states.cortex && state.states.cortex.files;
+      const naiveFaults = applicationIssueCount(naiveTree, cortexTree);
+      const cortexFaults = applicationIssueCount(cortexTree, cortexTree);
+      if (naiveFaults === null || cortexFaults === null) {
+        return 'What each lane returned is compared below, once both file trees have loaded.';
+      }
+      return 'The returned applications carry ' + cortexFaults + ' detected fault(s) in the arbitrated tree and '
+        + naiveFaults + ' in the isolated one.';
+    }
+
+    /**
+     * The one sentence a judge reads, assembled from measurements and nothing else.
+     *
+     * The comparative clause is a subtraction between two measured quantities. **There is no
+     * serial baseline anywhere**: this run never performed one, so any sentence of the form "N
+     * times faster than doing it one at a time" would be a number about a run that did not happen.
+     */
+    function headlineSentence(model, clause) {
+      const sentences = model.map((entry) => {
+        const name = entry.arm === 'cortex' ? 'The arbitrated lane' : 'The isolated lane';
+        const overlap = entry.timing.concurrency === null
+          ? 'concurrency TBD'
+          : entry.timing.concurrency.toFixed(2) + ' agents at once';
+        return name + ' spent ' + seconds(entry.timing.agentMs) + ' of agent time inside '
+          + seconds(entry.timing.wallMs) + ' of its own wall clock (' + overlap + ')';
+      });
+
+      const byArm = {};
+      model.forEach((entry) => { byArm[entry.arm] = entry; });
+      const spent = byArm.cortex && byArm.naive
+        ? byArm.cortex.timing.agentMs - byArm.naive.timing.agentMs
+        : null;
+      const delta = spent === null || spent === 0
+        ? ''
+        : (spent < 0
+          ? 'That is ' + seconds(-spent) + ' less agent time in the arbitrated lane. '
+          : 'That is ' + seconds(spent) + ' more agent time in the arbitrated lane. ');
+
+      return sentences.join('. ') + '. ' + delta + clause;
+    }
+
+    function renderTimeline() {
+      const host = $('gantt');
+      const figures = $('headline-figures');
+      host.replaceChildren();
+      figures.replaceChildren();
+
+      const model = ARMS.map((arm) => {
+        const events = state.events[arm];
+        const segments = buildSegments(events, TERMINAL_PHASES);
+        const spans = armSpans(arm);
+        return {
+          arm: arm,
+          events: events,
+          segments: segments,
+          timing: armTiming(segments, events),
+          bands: overlapBands(spans.spans),
+          bandSource: spans.source
+        };
+      });
+
+      const started = model.some((entry) => entry.events.length > 0);
+      if (!started) {
+        setText('headline-sentence', 'Run the fleet. Every figure here is computed from the run’s own streamed timestamps, and appears while it goes.');
+        const empty = document.createElement('p');
+        empty.className = 'gantt-empty';
+        empty.textContent = 'No agent has reported yet. A bar is drawn the moment its agent streams a timestamp, and grows only as far as that agent has actually got.';
+        host.appendChild(empty);
+        return;
+      }
+
+      renderHeadlineFigures(figures, model);
+      setText('headline-sentence', headlineSentence(model, outcomeClause()));
+
+      const scaleMs = Math.max(1, model[0].timing.wallMs, model[1].timing.wallMs);
+      model.forEach((entry) => host.appendChild(renderGanttArm(entry, scaleMs, model)));
+    }
+
+    function renderInterlocks() {
+      const host = $('interlocks');
+      host.replaceChildren();
+      const rows = interlockRows(terminalArms(), INTERLOCKS);
+
+      const header = document.createElement('div');
+      header.className = 'interlock-row header';
+      ['interlock', 'what the assembled application was asked', 'state on this run'].forEach((label) => {
+        const cell = document.createElement('span');
+        cell.textContent = label;
+        header.appendChild(cell);
+      });
+      host.appendChild(header);
+
+      INTERLOCKS.forEach((interlock, index) => {
+        const result = rows[index];
+        const wording = INTERLOCK_STATES[result.state];
+        const row = document.createElement('div');
+        row.className = 'interlock-row state-' + result.state;
+        row.dataset.interlock = interlock.id;
+
+        const id = document.createElement('span');
+        id.className = 'interlock-id';
+        id.textContent = interlock.id.replace('interlock-', 'interlock ');
+
+        const middle = document.createElement('div');
+        const title = document.createElement('span');
+        title.className = 'interlock-title';
+        title.textContent = interlock.title;
+        const hazard = document.createElement('span');
+        hazard.className = 'interlock-hazard';
+        hazard.textContent = interlock.hazard + (interlock.measuredBy === 'meter'
+          ? ' Decided by the run meter, because both lanes return byte-identical code here and no question asked of it could separate them.'
+          : '');
+        middle.append(title, hazard);
+        result.evidence.forEach((line) => {
+          const evidence = document.createElement('span');
+          evidence.className = 'interlock-evidence';
+          evidence.textContent = line;
+          middle.appendChild(evidence);
+        });
+
+        const stateCell = document.createElement('span');
+        stateCell.className = 'interlock-state';
+        const label = document.createElement('b');
+        label.textContent = wording[0];
+        const detail = document.createElement('span');
+        detail.textContent = wording[1];
+        stateCell.append(label, detail);
+
+        row.append(id, middle, stateCell);
+        host.appendChild(row);
+      });
+    }
+
+    /**
+     * THE LIVE AUTHORISATION, read from this page's own URL and handed to the API unchanged.
+     *
+     * Never rendered, never stored, never logged. `test/site.test.ts` reads every line of this
+     * file that mentions it and fails if one of them reaches a DOM sink; the page shows only
+     * whether one is present, which the address bar already says out loud.
+     *
+     * Invariant 7 is why it is compared rather than composed: this value names no table, no
+     * column and no statement, it is one opaque string in one field of one request body, and the
+     * route it reaches decides against a closed set exactly as `arm` and `mode` do.
+     */
+    function readLiveGrant() {
+      try {
+        return new URLSearchParams(window.location.search).get('live') || '';
+      } catch (error) {
+        return '';
+      }
+    }
+
+    const HAS_LIVE_GRANT = readLiveGrant().length > 0;
+
+    /**
+     * `07` §4's mode line, for the half of it that changes per run.
+     *
+     * This used to append a fixed sentence saying a person had written and reviewed the code, which
+     * was true only while no model wrote any of them. Stating it after `modelAuthor` runs would be
+     * the same rule broken in the other direction, so the claim is now made from the run's own
+     * authorship records — and when a run publishes none, the page says TBD rather than guessing.
+     */
+    /**
+     * What `POST /demo/run` said this run's reasoning would be, in the route's own words.
+     *
+     * Rendered rather than restated: the sentence a caller without the capability gets names no
+     * quota and no capability, and a page that composed its own wording would be one edit away
+     * from telling every visitor that a gate exists.
+     */
+    function reasoningLine() {
+      const reasoning = state.reasoning;
+      if (!reasoning) return '';
+      const budget = reasoning.live
+        ? ' ' + reasoning.live.remaining + ' of ' + reasoning.live.cap + ' LIVE runs remain today.'
+        : '';
+      if (reasoning.mode === 'live') {
+        return 'LIVE REASONING AUTHORISED FOR THIS RUN. ' + reasoning.reason + budget;
+      }
+      return (reasoning.rung === 1 ? 'RUNG 1. ' : '') + reasoning.reason + budget;
+    }
+
+    function authorshipLine() {
+      const prefix = state.preview ? 'FIXTURE — ' : '';
+      const arms = state.terminal ? terminalArms() : null;
+      const budget = state.reasoning && state.reasoning.live
+        ? ' ' + state.reasoning.live.remaining + ' of ' + state.reasoning.live.cap + ' LIVE runs remain today.'
+        : '';
+
+      if (!arms || arms.length === 0) {
+        const stated = reasoningLine();
+        if (stated) return prefix + stated;
+        return prefix + 'Who writes the code is reported per run, when it finishes: a model may author the edits, or the run may replay reviewed patches. '
+          + (HAS_LIVE_GRANT ? 'This URL carries a LIVE authorisation, so the run will ask for model authorship. ' : '')
+          + (state.live ? state.live.remaining + ' of ' + state.live.cap + ' LIVE runs remain today. ' : '')
+          + 'Database behaviour, arbitration, the races and the change stream are live in both modes.';
+      }
+
+      const summary = authorshipSummary(arms);
+      if (!summary.known) {
+        return prefix + 'Code authorship: TBD. This run published no authorship record, so the page will not say who wrote the edits. '
+          + 'Database behaviour, arbitration, the races and the change stream were live regardless.';
+      }
+
+      const unit = summary.unit === 'hunk' ? 'hunk' : 'ticket';
+      const total = summary.model + summary.committed + summary.fallback;
+      if (summary.model === 0 && summary.fallback === 0) {
+        return prefix + 'REPLAYED THIS RUN: no model call was made. All ' + total + ' ' + unit
+          + '(s) of code came from the reviewed patches. Database behaviour, arbitration, the races and the change stream were live.'
+          + budget;
+      }
+
+      const spend = summary.inputTokens === null || summary.outputTokens === null
+        ? 'Token spend: TBD.'
+        : summary.inputTokens + ' input and ' + summary.outputTokens + ' output tokens.';
+      return prefix + 'MODEL-AUTHORED THIS RUN: a model wrote ' + summary.model + ' of the ' + total + ' '
+        + unit + '(s) that landed; ' + summary.fallback + ' more the model wrote were refused by validation, so the agent applied the reviewed patch instead, and '
+        + summary.committed + ' were replayed without a call. ' + spend
+        + ' Database behaviour, arbitration, the races and the change stream were live, exactly as in replay.'
+        + budget;
+    }
+
+    function renderModeLine() {
+      const host = $('mode');
+      host.replaceChildren();
+      const label = document.createElement('b');
+      const reason = document.createElement('span');
+
+      if (state.preview) {
+        label.textContent = 'SIMULATED UI PREVIEW';
+        reason.textContent = 'No deployment endpoints were injected. Every event and figure below is an interface fixture rather than a measurement; the deployed page runs against the live cluster.';
+      } else if (state.mode) {
+        label.textContent = state.mode.name;
+        reason.textContent = state.mode.reason;
+      } else {
+        label.textContent = 'backend unreachable';
+        reason.textContent = 'The page remains readable. A live run can be retried when the database plane is available.';
+      }
+
+      const authorship = document.createElement('span');
+      authorship.className = 'mode-authorship';
+      authorship.textContent = authorshipLine();
+      reason.appendChild(authorship);
+      host.append(label, reason);
+    }
+
     function appendSource(arm, kind, at, summary) {
       const host = $(kind + '-source-' + arm);
       const row = document.createElement('div');
@@ -1960,6 +3274,7 @@
       renderTracks();
       renderTasks();
       renderBeats(false);
+      renderTimeline();
       if (event.arm === 'cortex') {
         state.workflowPulseAgent = event.agent;
         renderDevelopmentWorkflow();
@@ -1988,6 +3303,9 @@
         renderMeter(message.arms || []);
         await loadFinalState();
         renderOutcomeComparison(message.arms || []);
+        renderTimeline();
+        renderInterlocks();
+        renderModeLine();
         setText('meter-provenance', state.preview
           ? 'SIMULATED UI PREVIEW. Values below are interface fixtures, not measurements.'
           : 'Every run-level figure below came from the database or from work read back from it. Measured zero, N/A and TBD remain distinct.');
@@ -1996,6 +3314,9 @@
         document.body.dataset.demoState = 'failed';
         setText('run-failure', 'Everything above this line happened before the run stopped. ' + (message.reason || 'No terminal detail was supplied.'));
         renderBeats(true);
+        renderTimeline();
+        renderInterlocks();
+        renderModeLine();
       }
       $('run-demo').disabled = false;
     }
@@ -2010,6 +3331,7 @@
     function resetRun() {
       state.runId = null;
       state.terminal = null;
+      state.reasoning = null;
       state.events = { naive: [], cortex: [] };
       state.rows = { naive: [], cortex: [] };
       state.taskStatus.clear();
@@ -2027,6 +3349,9 @@
       renderBeats(false);
       renderMeter([]);
       renderOutcomeComparison([]);
+      renderTimeline();
+      renderInterlocks();
+      renderModeLine();
       setEmptyFrames();
     }
 
@@ -2075,9 +3400,20 @@
       }
     }
 
+    /**
+     * Starts the run, and records what the route said this run's reasoning will be.
+     *
+     * Two things arrive with the 202 and both belong on the mode line before a single event does:
+     * `reasoning.mode` — LIVE or replay, decided by the route against its own copy of the
+     * capability — and, for a rung-3 session, `started: false` with the reason it did not run.
+     * `04` §5 invariant 1 admits no error page, and a page that sat waiting for a run that was
+     * never accepted is that failure wearing a 200.
+     */
     async function startFleet() {
       const session = state.session;
-      const response = await fetch(API + '/demo/run', {
+      const liveGrant = readLiveGrant();
+      const query = liveGrant ? '?live=' + encodeURIComponent(liveGrant) : '';
+      const response = await fetch(API + '/demo/run' + query, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -2088,7 +3424,18 @@
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'run unavailable');
+
+      state.reasoning = result.reasoning || null;
+      renderModeLine();
+
+      if (result.started === false) {
+        return {
+          started: false,
+          reason: result.reason || 'The run did not start, and the backend did not say why.'
+        };
+      }
       state.runId = result.runId;
+      return { started: true };
     }
 
     async function runDemo() {
@@ -2105,7 +3452,14 @@
       try {
         state.session = await openSession();
         await openSockets(state.session.scopes);
-        await startFleet();
+        const accepted = await startFleet();
+        if (accepted.started === false) {
+          // A stated limit, not a fault: the session's own rows, counters and transcript are all
+          // still on this page and still queryable. `04` §5 rung 3, reported in its own words.
+          document.body.dataset.demoState = 'failed';
+          setText('run-failure', accepted.reason);
+          $('run-demo').disabled = false;
+        }
       } catch (error) {
         document.body.dataset.demoState = 'failed';
         setText('run-failure', 'backend unreachable. Everything already rendered remains valid; the live run did not start.');
@@ -2131,7 +3485,12 @@
     }
 
     async function fetchArmState(scope) {
-      const response = await fetch(API + '/demo/state?session=' + encodeURIComponent(scope));
+      // `GET /demo/state` answers with a `live` block only for a caller holding the capability,
+      // which is design §7.1's rule rather than caution: without it the response must be exactly
+      // what the public page gets, or the block itself is the hint that a gate exists.
+      const liveGrant = readLiveGrant();
+      const query = '?session=' + encodeURIComponent(scope) + (liveGrant ? '&live=' + encodeURIComponent(liveGrant) : '');
+      const response = await fetch(API + '/demo/state' + query);
       if (!response.ok) throw new Error('state unavailable');
       return response.json();
     }
@@ -2345,7 +3704,7 @@
 
     function metricValue(key, value, hasRun) {
       if (!hasRun) return { value: 'TBD', className: 'metric-tbd' };
-      if (value === null && key === 'wastedTokens') return { value: 'TBD', className: 'metric-tbd' };
+      if (value === null && TBD_WHEN_NULL.indexOf(key) >= 0) return { value: 'TBD', className: 'metric-tbd' };
       if (value === null) return { value: 'N/A', className: 'metric-tbd' };
       if (value === undefined) return { value: 'TBD', className: 'metric-tbd' };
       return { value: String(value), className: Number(value) === 0 ? 'metric-zero' : '' };
@@ -2444,14 +3803,14 @@
         '.detail{padding:12px;background:#f6f7f9}.timeline{padding-left:20px}.muted{color:#727b89}@media(max-width:620px){main{grid-template-columns:1fr}}'
       ].join('');
       const body = '<header><h1>Northstar Orders</h1><p>Dashboard produced by the ' + (isCortex ? 'arbitrated' : 'isolated') + ' arm</p></header><main><section><h2>Orders</h2><div id="orders"></div><button data-order="A-1001">Open A-1001</button><button data-action="oversell">Try oversell</button><div id="notice"></div></section><section><h2>Order detail</h2><div class="detail" id="detail">Select an order.</div></section></main>';
-      const app = "function start(){var orders=document.getElementById('orders');var detail=document.getElementById('detail');var notice=document.getElementById('notice');orders.innerHTML='<div class=\"order\"><b>A-1001</b><div class=\"money\">Items £18.51 / Shipping " + (isCortex ? '£3.37' : '£0.03') + "</div><div class=\"status\">processing</div></div><div class=\"order\"><b>A-1002</b><div class=\"money\">Items £12.34 / Shipping £3.49</div></div>';document.querySelector('[data-order]').addEventListener('click',function(){detail.innerHTML='<b>A-1001</b><p>processing</p>" + (isCortex ? '<ol class=\"timeline\"><li>placed</li><li>paid</li><li>processing</li></ol><div class=\"banner\">Order A-1001 is confirmed.</div>' : '<p class=\"muted\">No status history recorded.</p><div class=\"banner\">Order A-1001 is confirmed.</div><div class=\"banner bad\">Order A-1001 is confirmed.</div>') + "';});document.querySelector('[data-action]').addEventListener('click',function(){notice.innerHTML='" + (isCortex ? '<div class=\"banner\">Refused: only 3 units remain.</div>' : '<div class=\"banner bad\">Accepted 24 units with 3 on hand.</div>') + "';});}"
+      const app = "function start(){var orders=document.getElementById('orders');var detail=document.getElementById('detail');var notice=document.getElementById('notice');orders.innerHTML='<div class=\"order\"><b>A-1001</b><div class=\"money\">Items £18.51 / Shipping " + (isCortex ? '£3.37' : '£0.03') + "</div><div class=\"status\">processing</div></div><div class=\"order\"><b>A-1002</b><div class=\"money\">Items £12.34 / Shipping £3.49</div></div>';document.querySelector('[data-order]').addEventListener('click',function(){detail.innerHTML='<b>A-1001</b><p>processing</p>" + (isCortex ? '<ol class=\"timeline\"><li>placed</li><li>paid</li><li>processing</li></ol><div class=\"banner\">Order A-1001 is confirmed.</div>' : '<p class=\"muted\">No status history recorded.</p><div class=\"banner\">Order A-1001 is confirmed.</div><div class=\"banner bad\">Order A-1001 is confirmed.</div>') + "';});document.querySelector('[data-action]').addEventListener('click',function(){notice.innerHTML='" + '<div class=\"banner\">Refused: only 3 units remain.</div>' + "';});}"
       const files = {
         'web/styles.css': styles,
         'web/index.html': body,
         'web/app.js': app,
         'orders/repository.js': isCortex
           ? 'ORDERS_PER_PAGE; STATUS_HISTORY[id].push; insufficient stock; stockOnRecord(wanted.sku)'
-          : 'ORDERS_PER_PAGE; insufficient stock; availableStock(wanted.sku)',
+          : 'ORDERS_PER_PAGE; insufficient stock; stockOnRecord(wanted.sku)',
         'notify/email.js': 'A receipt is on its way',
         'notify/templates.js': isCortex ? '' : 'A receipt is on its way',
         'lib/money.js': 'minorUnits / 100',
@@ -2460,31 +3819,73 @@
       return files;
     }
 
+    /**
+     * SIMULATED. The wave shape and phase order match the committed run so the interface can be
+     * inspected without a deployment; every millisecond here is invented and the page says so on
+     * every surface that renders one.
+     */
+    const PREVIEW_WAVE_START = { 1: 0, 2: 3200, 3: 8400 };
+
+    const PREVIEW_PHASES = {
+      'cortex:P2b': [['started', 0], ['claiming', 210], ['deduped', 430]],
+      'cortex:P6b': [['started', 0], ['claiming', 200], ['deduped', 410]],
+      'cortex:T11': [['started', 0], ['recalled', 240], ['spared', 470]],
+      'cortex:C2': [['started', 0], ['claiming', 180], ['blocked', 360], ['started', 2100], ['claiming', 2260], ['reading', 2400], ['patched', 3200]],
+      'cortex:C3': [['started', 0], ['claiming', 200], ['blocked', 420], ['started', 3400], ['claiming', 3560], ['reading', 3700], ['patched', 4500]],
+      'naive:P2b': [['started', 0], ['reading', 320], ['decided', 640], ['contended', 2400]],
+      'naive:P6b': [['started', 0], ['reading', 320], ['decided', 640], ['contended', 2400]],
+      'cortex:A1': [['started', 0], ['claiming', 220], ['reading', 420], ['abandoned', 1400]],
+      'naive:A1': [['started', 0], ['reading', 320], ['decided', 640], ['abandoned', 1700]],
+      'naive:T11': [['started', 0], ['reading', 300], ['decided', 620], ['abandoned', 1700]],
+      cortex: [['started', 0], ['recalled', 220], ['claiming', 400], ['reading', 620], ['patched', 1900]],
+      naive: [['started', 0], ['reading', 320], ['decided', 640], ['patched', 2400]]
+    };
+
+    function previewDetail(arm, task, phase) {
+      if (phase === 'reading' || phase === 'patched') return { files: task.files };
+      if (phase === 'blocked') {
+        return { contested: [{ resourceKey: 'file:orders/repository.js', holder: 'agent-1', intentId: 'preview-intent-c1' }] };
+      }
+      if (phase === 'deduped') {
+        return task.id === 'P2b'
+          ? { of: 'preview-intent-p2a', holder: 'agent-2', distance: 0.2058, threshold: 0.39 }
+          : { of: 'preview-intent-p6a', holder: 'agent-4', distance: 0.0610, threshold: 0.39 };
+      }
+      if (phase === 'spared') return { by: 'A1', fact: 'the provider version three migration was given up on' };
+      if (phase === 'recalled') {
+        return {
+          findings: [{ fact: 'a simulated prior outcome', confidence: 0.82, distance: 0.3801, timesReverted: 0 }],
+          informing: task.id === 'R3' || task.id === 'T11' ? 'a simulated prior outcome' : null,
+          waitedMs: 240
+        };
+      }
+      return {};
+    }
+
     function previewEvents() {
       const events = [];
+      const seq = { naive: 0, cortex: 0 };
+
       ARMS.forEach((arm) => {
-        TASKS.forEach((task, index) => {
-          let phases = arm === 'cortex'
-            ? ['started', index % 3 === 0 ? 'recalled' : 'reading', 'claiming', 'patched']
-            : ['started', 'reading', 'decided', 'patched'];
-          if (arm === 'cortex' && ['P2b', 'P6b'].includes(task.id)) phases = ['started', 'reading', 'claiming', 'deduped'];
-          if (arm === 'cortex' && task.id === 'C2') phases = ['started', 'reading', 'blocked', 'patched'];
-          if (arm === 'cortex' && task.id === 'T11') phases = ['started', 'recalled', 'decided', 'spared'];
-          if (task.id === 'A1') phases = ['started', 'reading', 'decided', 'abandoned'];
-          if (arm === 'naive' && task.id === 'T11') phases = ['started', 'reading', 'decided', 'abandoned'];
-          phases.forEach((phase, phaseIndex) => {
+        const stretch = arm === 'naive' ? 1.32 : 1;
+        TASKS.forEach((task) => {
+          const lane = AGENTS.indexOf(task.agent);
+          const base = Math.round((PREVIEW_WAVE_START[task.wave] + lane * 90) * stretch);
+          const phases = PREVIEW_PHASES[arm + ':' + task.id] || PREVIEW_PHASES[arm];
+          phases.forEach((step) => {
+            seq[arm] += 1;
             events.push({
               type: 'fleet',
               runId: 'preview-run',
               scope: arm,
               event: {
-                seq: index * 4 + phaseIndex + 1,
-                arm,
+                seq: seq[arm],
+                arm: arm,
                 agent: task.agent,
                 taskId: task.id,
-                phase,
-                at: (index * 4 + phaseIndex + (arm === 'cortex' ? 0 : 1)) * 105,
-                detail: phase === 'blocked' ? { contested: [{ holder: 'agent-1' }] } : {}
+                phase: step[0],
+                at: base + Math.round(step[1] * stretch),
+                detail: previewDetail(arm, task, step[0])
               }
             });
           });
@@ -2493,28 +3894,95 @@
       return events.sort((a, b) => a.event.at - b.event.at);
     }
 
-    function previewTerminal() {
-      const steps = TASKS.map((task) => ({
-        taskId: task.id,
-        agent: task.agent,
-        intentId: 'intent-' + task.id.toLowerCase(),
-        reported: task.id === 'A1' || task.id === 'T11' ? 'abandoned' : 'done'
+    /**
+     * SIMULATED. Every value below is an interface fixture and nothing here was measured.
+     *
+     * It carries the same shapes the deployed run publishes — `steps`, `spans`, `authorings` and
+     * `acceptance` — so that the states the page has to be able to draw can be inspected without a
+     * deployment. Interlock 2 deliberately passes in **both** lanes, because "the hazard is real
+     * and did not fire on this run" is a state the page must render as evidence rather than as a
+     * broken interface, and a fixture in which all four always fail would never exercise it.
+     */
+    function previewSteps(arm) {
+      return TASKS.map((task) => {
+        let reported = 'done';
+        if (task.id === 'A1') reported = 'abandoned';
+        else if (task.id === 'T11') reported = 'abandoned';
+        else if (arm === 'cortex' && (task.id === 'P2b' || task.id === 'P6b')) reported = 'deduped';
+        else if (arm === 'naive' && (task.id === 'P2b' || task.id === 'P6b')) reported = 'contended';
+        return {
+          taskId: task.id,
+          agent: task.agent,
+          intentId: reported === 'deduped' ? null : 'intent-' + task.id.toLowerCase(),
+          reported: reported
+        };
+      });
+    }
+
+    function previewAuthorings(arm) {
+      const worked = arm === 'cortex'
+        ? ['I3', 'P2a', 'P6a', 'C1', 'C2', 'C3', 'R3']
+        : ['I3', 'P2a', 'P2b', 'P6a', 'P6b', 'C1', 'C2', 'C3', 'R3'];
+      return worked.map((taskId, index) => ({
+        taskId: taskId,
+        agent: (TASKS.filter((task) => task.id === taskId)[0] || {}).agent,
+        source: index === 2 ? 'fallback' : 'model',
+        inputTokens: 2400 + index * 37,
+        outputTokens: 340 + index * 11
       }));
+    }
+
+    function previewAcceptance(arm) {
+      const cortex = arm === 'cortex';
+      return [
+        { id: 'interlock-1', verdict: cortex ? 'pass' : 'fail', observed: cortex ? 'shipping renders £3.37; the tariff for 0.75kg is £3.37' : 'shipping renders £0.03; the tariff for 0.75kg is £3.37' },
+        { id: 'interlock-2', verdict: 'pass', observed: '3 on the shelf; first order of 2 accepted, second refused (insufficient stock), shelf left at 1' },
+        { id: 'interlock-3', verdict: cortex ? 'pass' : 'fail', observed: cortex ? 'all three present: pager, timeline, oversell' : 'missing: timeline — timeline: no status history was recorded for A-1001 after two accepted transitions' },
+        { id: 'interlock-4', verdict: cortex ? 'pass' : 'fail', observed: cortex ? '1 banner(s): "Order A-1001 is confirmed."' : '2 banner(s): "Order A-1001 is confirmed." / "Order A-1001 is confirmed."' }
+      ];
+    }
+
+    function previewSpans(arm) {
+      if (arm === 'cortex') {
+        return [
+          { taskId: 'I3', agent: 'agent-1', file: 'lib/money.js', startLine: 41, endLine: 46, startedMs: 620, endedMs: 1820 },
+          { taskId: 'P2a', agent: 'agent-2', file: 'inventory/repository.js', startLine: 58, endLine: 64, startedMs: 710, endedMs: 1910 },
+          { taskId: 'P6a', agent: 'agent-4', file: 'notify/email.js', startLine: 96, endLine: 103, startedMs: 890, endedMs: 2090 },
+          { taskId: 'C1', agent: 'agent-1', file: 'orders/repository.js', startLine: 22, endLine: 29, startedMs: 3820, endedMs: 5000 },
+          { taskId: 'C2', agent: 'agent-2', file: 'orders/repository.js', startLine: 88, endLine: 95, startedMs: 5690, endedMs: 6390 },
+          { taskId: 'C3', agent: 'agent-3', file: 'orders/repository.js', startLine: 140, endLine: 147, startedMs: 7080, endedMs: 7780 },
+          { taskId: 'R3', agent: 'agent-4', file: 'shipping/quote.js', startLine: 71, endLine: 78, startedMs: 3890, endedMs: 5070 }
+        ];
+      }
+      return [
+        { taskId: 'I3', agent: 'agent-1', file: 'lib/money.js', startLine: 41, endLine: 46, startedMs: 422, endedMs: 3100 },
+        { taskId: 'P2a', agent: 'agent-2', file: 'inventory/repository.js', startLine: 58, endLine: 64, startedMs: 541, endedMs: 3220 },
+        { taskId: 'P6a', agent: 'agent-4', file: 'notify/email.js', startLine: 96, endLine: 103, startedMs: 779, endedMs: 3460 },
+        { taskId: 'C1', agent: 'agent-1', file: 'orders/repository.js', startLine: 22, endLine: 29, startedMs: 4646, endedMs: 7200 },
+        { taskId: 'C2', agent: 'agent-2', file: 'orders/repository.js', startLine: 88, endLine: 95, startedMs: 4765, endedMs: 7320 },
+        { taskId: 'C3', agent: 'agent-3', file: 'orders/repository.js', startLine: 140, endLine: 147, startedMs: 4884, endedMs: 7440 },
+        { taskId: 'R3', agent: 'agent-4', file: 'shipping/quote.js', startLine: 71, endLine: 78, startedMs: 4826, endedMs: 7380 }
+      ];
+    }
+
+    function previewTerminal() {
       return {
         type: 'run',
         phase: 'finished',
         runId: 'preview-run',
-        at: 8910,
+        at: 21400,
         arms: [
           {
-            arm: 'naive', events: 44, steps,
+            arm: 'naive', events: 46, steps: previewSteps('naive'), spans: previewSpans('naive'),
+            authorings: previewAuthorings('naive'), acceptance: previewAcceptance('naive'),
             beats: { recall: false, dedupe: false, collision: true, consolidate: false },
-            meter: { duplicateWorkAvoided: 0, duplicateWorkDone: 2, lostWrites: 2, blockedAndReplanned: 0, findingsRecalled: 0, agentsSpared: 0, deadEndsWalked: 2, conflictingEdits: 0, fileCollisions: 3, embeddingCalls: 11, claimP50Ms: null, serializationRetries: 0, wastedTokens: null }
+            meter: { duplicateWorkAvoided: 0, duplicateWorkDone: 2, lostWrites: 2, blockedAndReplanned: 0, findingsRecalled: 0, agentsSpared: 0, deadEndsWalked: 2, conflictingEdits: 0, fileCollisions: 3, embeddingCalls: 11, claimP50Ms: null, serializationRetries: 0, wastedTokens: 5120, hunksAuthoredByModel: 9, hunksFallenBack: 2, hunksReplayed: 0, modelInputTokens: 24680, modelOutputTokens: 3510 }
           },
           {
-            arm: 'cortex', events: 44, steps,
-            beats: { recall: true, dedupe: true, collision: false, consolidate: true },
-            meter: { duplicateWorkAvoided: 2, duplicateWorkDone: 0, lostWrites: 0, blockedAndReplanned: 1, findingsRecalled: 2, agentsSpared: 1, deadEndsWalked: 1, conflictingEdits: 0, fileCollisions: 0, embeddingCalls: 11, claimP50Ms: 143, serializationRetries: 1, wastedTokens: null }
+            arm: 'cortex', events: 44, steps: previewSteps('cortex'), spans: previewSpans('cortex'),
+            authorings: previewAuthorings('cortex'), acceptance: previewAcceptance('cortex'),
+            beats: { recall: true, dedupe: true, collision: true, consolidate: true },
+            meter: { duplicateWorkAvoided: 2, duplicateWorkDone: 0, lostWrites: 0, blockedAndReplanned: 2, findingsRecalled: 2, agentsSpared: 1, deadEndsWalked: 1, conflictingEdits: 0, fileCollisions: 0, embeddingCalls: 11, claimP50Ms: 143, serializationRetries: 1, wastedTokens: 1180, hunksAuthoredByModel: 8, hunksFallenBack: 1, hunksReplayed: 0, modelInputTokens: 18240, modelOutputTokens: 2640 }
           }
         ]
       };
@@ -2533,7 +4001,7 @@
       const events = previewEvents();
       const limit = failPartway ? 30 : events.length;
       for (let index = 0; index < limit; index += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 62));
+        await new Promise((resolve) => window.setTimeout(resolve, 34));
         await handleSocketMessage(events[index]);
         if (index === 12 || index === 27 || index === 46) {
           await handleSocketMessage({ type: 'change', topic: index === 46 ? 'findings' : 'intents', scope: index === 27 ? 'naive' : 'cortex', after: { id: 'preview-row-' + index } });
@@ -2554,11 +4022,13 @@
       renderBeats(false);
       renderMeter([]);
       renderOutcomeComparison([]);
+      renderTimeline();
+      renderInterlocks();
       setEmptyFrames();
 
       if (PREVIEW) {
         state.preview = true;
-        $('mode').innerHTML = '<b>SIMULATED UI PREVIEW</b><span>No deployment endpoints were injected. Coordination events below are labelled interface fixtures; the production path uses the live stream.</span>';
+        renderModeLine();
         $('preview-controls').classList.add('visible');
         $('run-demo').disabled = false;
         return;
@@ -2568,17 +4038,17 @@
         const session = await openSession();
         const liveState = await fetchArmState(session.scopes.cortex);
         state.mode = liveState.mode;
-        $('mode').replaceChildren();
-        const label = document.createElement('b');
-        label.textContent = state.mode.name;
-        const reason = document.createElement('span');
-        reason.textContent = state.mode.reason + ' Code patches and one cross-module note are authored and reviewed.';
-        $('mode').append(label, reason);
-        $('run-demo').disabled = false;
+        // Present only for a caller holding design §7.1's capability; absent for everyone else,
+        // and absent is what the public page must be indistinguishable from.
+        state.live = liveState.live || null;
       } catch {
-        $('mode').innerHTML = '<b>backend unreachable</b><span>The page remains readable. A live run can be retried when the database plane is available.</span>';
-        $('run-demo').disabled = false;
+        state.mode = null;
+        state.live = null;
       }
+      // One call on both paths: the mode line is `07` §4's honesty surface, and a second copy of
+      // its wording is one edit away from the deployed page claiming a liveness it has not got.
+      renderModeLine();
+      $('run-demo').disabled = false;
     }
 
     document.querySelectorAll('.reveal').forEach((node) => node.classList.add('seen'));
