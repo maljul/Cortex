@@ -162,10 +162,9 @@ matter yet, and the security boundary does not depend on it.
 ### `08` §4 and `05` §2 name `cortex bench`; the command is `npm run bench` *(2026-08-10)*
 
 U12's done-when is "`cortex bench` runs both arms deterministically", and `05` §2 puts
-`bench` in the `npx cortex <command>` table. **There is no `cortex` binary.** The CLI is
-U2, deferred to day three with the rest of the onboarding surface, so the harness ships
-as `npm run bench` alongside `npm run gate:contend`, `npm run db:check` and the other
-scripts that would each be a `cortex` subcommand.
+`bench` in the `npx cortex <command>` table. The harness ships as `npm run bench`
+alongside `npm run gate:contend`, `npm run db:check` and the other scripts that would
+each be a `cortex` subcommand.
 
 Recorded rather than papered over: adding a `bin` entry to `package.json` pointing at a
 TypeScript file would make `npx cortex bench` work on this machine, where `tsx` is
@@ -173,9 +172,23 @@ installed, and fail on the clean clone `06` §5 is written about. That is a wors
 than a differently-named command, and the flags (`--arm`, `--seed`, `--tasks`,
 `--record`, `--json`) are already the shape `05` §2 asks for, including `--json`.
 
-**Closes when U2 lands.** `cortex bench` should then delegate to the same `runArm`, and
-the README must publish whichever name actually works, because §7.1 requires the exact
-reproducing command.
+**PARTLY CLOSED 2026-08-16, and the remainder is now a decision rather than an absence
+(U2).** There *is* a `cortex` binary — `bin/cortex.mjs`, with `init`, `doctor`, `--help`
+and `--version`. **`bench` is deliberately not among them**, and neither are `link`,
+`serve`, `run`, `claim`, `recall` or `watch`: `cortex bench` exits 1 naming
+`npm run bench`, because a subcommand that silently does nothing is worse than one that
+does not exist. So `05` §2's table is served in part, and every name it lists is either
+implemented or answers with the command that is.
+
+The clean-clone objection above survives and is the reason the shim registers `tsx`'s ESM
+loader at runtime rather than shipping compiled output — and `tsx` was deliberately **not
+moved into `dependencies`**, because the lockfile's root entry mirrors `package.json` and
+`npm ci` compares them, so moving it without regenerating `package-lock.json` would
+desync the clean-clone path U18 verified. `npx cortex` works from a clone that has run
+`npm install`, which is what the README asks for; `bin/cortex.mjs`'s header says so rather
+than leaving it to be discovered.
+
+The README publishes the names that actually work, per §7.1.
 
 ### `06` §3 — two metrics cannot mean what §3 implies under a reproducible harness *(2026-08-10)*
 

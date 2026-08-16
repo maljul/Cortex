@@ -185,8 +185,17 @@ followed the other are all published in the results directory
 
 ## Run it on your own cluster
 
-There is no `npx cortex init`. The commands below are the real ones; `package.json` is
-the authority on their names.
+`npx cortex init` brings a cluster from empty to working, and is safe to run twice. It
+does **not** provision a cluster — you create the cluster, it does everything after that:
+creates the SQL roles `sql/001_init.sql` grants to, writes their connection strings into
+`.env`, applies the schema, and then proves the three privilege planes by *attempting*
+statements against them rather than by reading a catalogue.
+
+`cortex doctor` is the companion: what `.env` carries, which planes connect and as whom,
+which tables exist, and whether a connection string has leaked into any tracked file.
+Neither command ever prints a credential — key names, character counts and verdicts only.
+
+Everything else is an npm script, and `package.json` is the authority on their names.
 
 **Prerequisites**
 
@@ -207,12 +216,12 @@ npm ci
 npx tsc --noEmit          # should exit clean before you touch anything
 ```
 
-Create the cluster, then create three SQL users in the CockroachDB Cloud Console —
-`cortex_reader`, `cortex_writer`, `cortex_demo`. `sql/001_init.sql` grants to them; it
-does not create them.
+Create the cluster in the CockroachDB Cloud Console and copy its connection string.
 
-Copy `.env.example` to `.env` and fill it in. `.env` is gitignored and must stay that
-way. The variables that matter:
+Copy `.env.example` to `.env` and set **`CORTEX_DSN`** to that string — an operator
+credential able to run DDL. That is the only variable you have to fill in by hand;
+`cortex init` derives and writes the three role DSNs below. `.env` is gitignored and must
+stay that way. The variables that matter:
 
 | Variable            | What it is                                                                                       | Needed for                                            |
 | ------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
@@ -228,12 +237,19 @@ at an unquoted `#`, and it will not override a variable your shell already expor
 `npm run env:doctor` diagnoses both — it prints key names, value lengths and structural
 problems, and never prints a value.
 
-Then apply the schema and check connectivity:
+Then bring the cluster up:
 
 ```bash
-npm run db:check                                   # reports DSN shape, never the DSN
-npx tsx scripts/sql.mts sql/001_init.sql --stop-on-error
+npx cortex init      # creates the roles, writes their DSNs, applies the schema,
+                     # and proves each plane by attempting statements against it
+npx cortex doctor    # what connects, as whom, and whether a DSN has leaked into a file
 ```
+
+`init` is safe to run twice: an existing role is reported and left alone, and no password
+is ever rotated. Run it again any time — it is also the fastest way to confirm a cluster
+is still correctly configured. If you would rather drive the migration yourself,
+`npx tsx scripts/sql.mts sql/001_init.sql --stop-on-error` still does exactly that, and
+`npm run db:check` reports DSN shape without printing a DSN.
 
 `001_init.sql` sets `feature.vector_index.enabled`, creates the six memory tables plus
 `live_run_budget`, creates both vector indexes, applies the grants, and enables `FORCE
@@ -264,6 +280,8 @@ published table are committed; reproducing the numbers needs Bedrock and a clust
 
 | Command                                 | What it does                                                              |
 | --------------------------------------- | ------------------------------------------------------------------------- |
+| `npx cortex init`                       | empty cluster → working one: roles, their DSNs, the schema, and each plane proved by attempting statements. Safe to run twice |
+| `npx cortex doctor`                     | what `.env` carries, which planes connect and as whom, and whether a DSN has leaked into a tracked file |
 | `npm test`                              | Vitest, **against the real cluster**. One run takes about ten minutes; do not run two at once, and let the cluster rest between runs. |
 | `npx tsc --noEmit`                      | typecheck; exits clean and must stay that way                             |
 | `npm run db:check`                      | connectivity and DSN shape for both planes                                |
