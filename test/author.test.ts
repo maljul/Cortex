@@ -56,12 +56,13 @@ function request(overrides: Partial<AuthorRequest> = {}): AuthorRequest {
     agent: 'agent-1',
     files: FILES,
     findings: [],
+    committed: COMMITTED,
     ...overrides,
   };
 }
 
 /** The committed author, which is also `modelAuthor`'s fallback on every rejection path. */
-const fallback = committedAuthor(() => [...COMMITTED]);
+const fallback = committedAuthor();
 
 describe('validateEdits — what a model may and may not put into the corpus', () => {
   it('accepts a well-formed edit that anchors uniquely and compiles', () => {
@@ -293,11 +294,11 @@ describe('modelAuthor — authored when it validates, reviewed code when it does
   it('never calls the model for a ticket that has no patches to write', async () => {
     let calls = 0;
     const author = modelAuthor({
-      fallback: committedAuthor(() => []),
+      fallback: committedAuthor(),
       invoke: async () => { calls += 1; return { text: '{}', inputTokens: 0, outputTokens: 0 }; },
     });
 
-    const result = await author(request({ taskId: 'A1' }));
+    const result = await author(request({ taskId: 'A1', committed: [] }));
     expect(calls).toBe(0);
     expect(result.patches).toEqual([]);
     expect(result.usage).toBeNull();

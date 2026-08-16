@@ -120,6 +120,17 @@ export interface AuthorRequest {
   files: FileTree;
   /** What `recall()` returned. Empty for the naive lane, which has no way to ask. */
   findings: readonly Finding[];
+  /**
+   * The reviewed patches this ticket would apply if no model were involved — already resolved to
+   * the right variant by the caller, which is the only place that knows whether recall handed the
+   * agent the *specific* fact this ticket needed. That condition is narrower than "recall returned
+   * something", and deriving it here from `findings.length` instead would silently pick the
+   * uninformed variant for an informed agent and delete two interlocks without failing a test.
+   *
+   * The model never sees this field — `buildPrompt` ignores it. It is the fallback, and on the
+   * REPLAY path it is the whole answer.
+   */
+  committed: readonly Patch[];
 }
 
 export interface AuthorResult {
@@ -144,11 +155,9 @@ export type PatchAuthor = (request: AuthorRequest) => Promise<AuthorResult>;
  * the fact this ticket needed — so the REPLAY path keeps a fully live causal chain (close →
  * changefeed → consolidation → recall) and only the code content is fixed.
  */
-export function committedAuthor(
-  patchesFor: (request: AuthorRequest) => Patch[],
-): PatchAuthor {
+export function committedAuthor(): PatchAuthor {
   return async (request) => ({
-    patches: patchesFor(request),
+    patches: [...request.committed],
     source: 'committed',
     usage: null,
     note: null,
@@ -267,8 +276,9 @@ export function validateEdits(candidate: unknown, files: FileTree): Patch[] | st
 }
 
 export interface ModelAuthorOptions {
-  /** Falls back to this whenever a call cannot be made or its result cannot be trusted. */
-  fallback: PatchAuthor;
+  /** Falls back to this whenever a call cannot be made or its result cannot be trusted.
+   *  Defaults to the reviewed patches the request already carries. */
+  fallback?: PatchAuthor;
   region?: string;
   model?: string;
   /** Injectable so a test can drive validation and fallback without reaching Bedrock. */
@@ -280,6 +290,7 @@ export interface ModelAuthorOptions {
 /** LIVE: the model authors the edit, and everything above validates it. */
 export function modelAuthor(options: ModelAuthorOptions): PatchAuthor {
   const model = options.model ?? FLEET_REASON_MODEL;
+  const fallback = options.fallback ?? committedAuthor();
   let client: BedrockRuntimeClient | null = null;
 
   const invoke = options.invoke ?? (async (prompt: string) => {
@@ -318,7 +329,7 @@ export function modelAuthor(options: ModelAuthorOptions): PatchAuthor {
 
   return async (request) => {
     // A ticket with nothing to write — the abandoned one — must not spend a call to discover it.
-    const fallbackResult = await options.fallback(request);
+    const fallbackResult = await fallback(request);
     if (fallbackResult.patches.length === 0) return fallbackResult;
 
     let usage: { inputTokens: number; outputTokens: number } | null = null;

@@ -82,6 +82,7 @@ import { recall, type Finding } from '../memory/recall.js';
 import { loadFiles, loadSharedState, saveFiles, saveSharedState } from '../memory/shared-state.js';
 import { DEMO_TASKS, factOf, taskById, type DemoTask } from '../../bench/demo-workload.js';
 import { APP_FILES } from './app-bundle.js';
+import { committedAuthor, type PatchAuthor } from './author.js';
 import { conflictingEdits, fileCollisions, spanOf, type WorkSpan } from './conflicts.js';
 import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, PatchError, type FileTree } from './patches.js';
 import type { WorkStep } from './attribution.js';
@@ -233,6 +234,14 @@ export interface ArmOptions {
   recorder?: StatementRecorder;
   /** Called as each event happens, so U22 can stream instead of waiting for the return. */
   onEvent?: (event: FleetEvent) => void;
+  /**
+   * Who writes the code this arm's agents apply. Absent means REPLAY — the reviewed patches the
+   * ticket already carries — which is what an anonymous visitor gets and why rule B4 stays
+   * affordable for a month. LIVE supplies `modelAuthor`. Both arms in a run always get the *same*
+   * author, or the comparison would be between two different systems rather than two coordination
+   * strategies.
+   */
+  author?: PatchAuthor;
 }
 
 type Embedder = (text: string) => Promise<MaybeDegraded>;
@@ -294,6 +303,48 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    * the tree is what survived, and a collision is two agents who both thought they had written it.
    */
   const spans: WorkSpan[] = [];
+
+  /**
+   * One record per ticket that wrote anything: who authored the hunks and what it cost.
+   *
+   * A list rather than a counter, deliberately. `test/workload.test.ts` forbids a meter figure
+   * being incremented at all, because U16b shipped two that were incremented unconditionally and
+   * rendered beside figures the driver had timed. Every figure derived from this is a filter or a
+   * sum over records that exist because work happened, which is the same rule `06` §6 applies to
+   * a count over an empty list.
+   */
+  const authorings: Array<{
+    taskId: string;
+    agent: string;
+    source: 'model' | 'committed' | 'fallback';
+    inputTokens: number;
+    outputTokens: number;
+  }> = [];
+
+  /**
+   * REPLAY unless a caller supplies otherwise, and that default is what keeps rule B4 affordable:
+   * an anonymous visitor's run reaches no model at all, while its coordination — dedupe, claims,
+   * the race, the changefeed — is as live as it has ever been.
+   */
+  const author: PatchAuthor = options.author ?? committedAuthor();
+
+  /**
+   * What an agent may see, and therefore what it may edit.
+   *
+   * The union of the ticket's own patch targets across both variants — the files this ticket is
+   * about. `validateEdits` refuses any file outside what it was handed, so this set is the whole
+   * boundary between a model's output and the corpus, and it is derived from the ticket rather
+   * than from a list someone maintains.
+   */
+  function visibleTo(task: DemoTask, tree: FileTree): FileTree {
+    const wanted = new Set([
+      ...task.patches.map((p) => p.file),
+      ...(task.informedPatches ?? []).map((p) => p.file),
+    ]);
+    const visible: FileTree = {};
+    for (const file of wanted) if (tree[file] !== undefined) visible[file] = tree[file]!;
+    return visible;
+  }
 
   /**
    * Observed, never scripted. `collision` is the one with two honest endings: a loser that
@@ -376,9 +427,15 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    *
    * The cortex lane cannot reach it: its second agent is deduped before it reads anything.
    */
-  async function applyAndSave(task: DemoTask, agent: string, informed: boolean): Promise<string[] | null> {
-    const patches = appliedPatches(task, informed);
-    if (patches.length === 0) return [];
+  async function applyAndSave(
+    task: DemoTask,
+    agent: string,
+    informed: boolean,
+    findings: readonly Finding[],
+  ): Promise<string[] | null> {
+    // A ticket with nothing to write must not read the tree, and must not spend a model call to
+    // discover that. The abandoned ticket is the case: it closes with a reason, not a patch.
+    if (appliedPatches(task, informed).length === 0) return [];
 
     // Read the tree, work, save — three round trips, and the middle one is not a database
     // operation. In the cortex lane a claim is held across all three; in the naive lane nothing
@@ -396,6 +453,43 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
      * waiting counts the mechanism working as though it had failed.
      */
     const readAt = Date.now() - started;
+
+    /**
+     * **The middle round trip is where an agent actually works, and since `src/demo/author.ts`
+     * that can mean a model authoring the edit.**
+     *
+     * What it is handed is the tree *this agent just read* rather than a fresh read, so the text
+     * it anchors against is byte-for-byte the text `applyPatch` will run against. A second read
+     * could have moved underneath it, and an anchor that was true a moment ago is the exact
+     * failure this demo exists to show — it must not also be a bug in this function.
+     *
+     * **The collision window now spans the thinking, and that is correct rather than convenient.**
+     * `readAt` is still taken before the work, so an agent that reads, thinks for twenty seconds
+     * and then writes is counted as holding a snapshot for the whole interval. It was. A cortex
+     * agent holds its claim across all three steps, so nothing can land inside its window; a naive
+     * agent holds a job lock that says nothing about files, so its window is exactly where a
+     * stale write is born — and a slow model widens it, which is the mechanism showing more of
+     * itself rather than less.
+     */
+    const authored = await author({
+      taskId: task.id,
+      statement: task.statement,
+      agent,
+      files: visibleTo(task, before),
+      findings,
+      committed: appliedPatches(task, informed),
+    });
+    authorings.push({
+      taskId: task.id,
+      agent,
+      source: authored.source,
+      inputTokens: authored.usage?.inputTokens ?? 0,
+      outputTokens: authored.usage?.outputTokens ?? 0,
+    });
+
+    const patches = authored.patches;
+    if (patches.length === 0) return [];
+
     let mine: FileTree = before;
     try {
       for (const patch of patches) mine = applyPatch(mine, patch);
@@ -508,7 +602,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     emit(agent, task.id, 'reading', { files: [...new Set(task.patches.map((p) => p.file))] });
 
     const informed = known.informing !== null && task.informedPatches !== undefined;
-    const applied = await applyAndSave(task, agent, informed);
+    const applied = await applyAndSave(task, agent, informed, known.findings);
     // Unreachable in this lane — a second agent on the same file is deduped before it reads —
     // and asserted rather than assumed, because "cannot happen" in a comment is how it happens.
     if (applied === null) throw new Error(`${task.id}: arbitration let two agents patch one file`);
@@ -597,7 +691,10 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
     intentIds.set(task.id, decision.intentId);
     emit(agent, task.id, 'reading', { files: [...new Set(task.patches.map((p) => p.file))] });
 
-    const applied = await applyAndSave(task, agent, false);
+    // Empty findings, and not because this lane is handicapped: `whatIsKnown` returns nothing for
+    // it because that stack has no verb with which to ask. Same model, same statement, same files,
+    // same ceiling — the only missing thing is what the fleet already paid to learn.
+    const applied = await applyAndSave(task, agent, false, []);
     if (applied === null) {
       // It read, it worked, and by the time it wrote, the change was already there. Its budget is
       // spent and it delivered nothing — the sharpest form of the duplicate work this lane does,
