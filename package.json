@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": {
+    "cortex": "bin/cortex.mjs"
+  },
   "directories": {
     "doc": "docs",
     "test": "test"
