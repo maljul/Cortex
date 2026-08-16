@@ -35,8 +35,46 @@ grants confirmed by `SHOW GRANTS` in the verification log.
 **Silent break:** a column type that quietly differs from the spec — the `VECTOR(1024)`
 width, or the `vector_cosine_ops` opclass V1 had to fix.
 
-### U2 — `cortex init` ⬜ **DEFERRED past day two — do not treat as "next"**
+### U2 — `cortex init` ✅ 2026-08-16 *(deferred from day one; the deferral reasoning is kept below)*
 **Done when:** "`cortex init` produces a working cluster twice in a row." *(08 §3, 2–5h, verbatim)*
+
+**Closed by running it twice against the live cluster**, both exit 0, the second creating
+nothing, appending nothing and re-verifying everything. `bin/cortex.mjs`, `src/cli/`,
+`test/cli-init.test.ts` — 45 tests, 166s against the real cluster.
+
+**Provisioning-optional, and it does not pretend otherwise.** `ccloud` is not installed here, so
+`init` takes an existing operator DSN and brings a cluster from empty to working rather than
+claiming to create one. Roles are **derived by parsing `sql/001_init.sql`**, not hardcoded, so a
+fourth role added to the migration cannot escape it. Verification **attempts statements** and
+never reads a catalogue — V9's lesson. Nothing is ever rotated, which is what makes the second
+run safe.
+
+**Three things the brief asserted that measurement falsified.** `scripts/sql.mts` cannot be
+imported (everything below `process.argv.slice(2)` runs at module scope), so `splitStatements` is
+copied and **pinned byte-for-byte** by a test, the `RECALL_SQL` device again; the permanent fix is
+an entrypoint guard in `sql.mts`, after which the copy goes. `tsx` was **not** moved to
+`dependencies` — the lockfile's root entry mirrors `package.json` and `npm ci` compares them, so
+moving it would desync the clean-clone path U18 verified. And the first draft turned the mechanical
+gate's `sql-containment` row **red**; fixed rather than evaded, by moving every statement the CLI
+sends into `src/cli/statements.sql` selected by name, which satisfies `04` §1 more completely than
+the grep asks.
+
+**`bench` is deliberately not a subcommand** — `cortex bench` exits 1 naming `npm run bench`,
+because a subcommand that silently does nothing is worse than one that does not exist.
+`docs/SPEC-DELTA.md`'s entry is corrected in place rather than ticked closed.
+
+**The no-credential test asserts a negative, so the predicate was proved to fire first:** on
+simulated leaked output it catches 12/12 values and 4/4 DSN passwords, with no false positive on
+clean output. No credential-shaped literal is written into the test — the positive case is fed the
+gate script's own declared placeholders at run time.
+
+The cluster was left exactly as found: no leftover probe roles, no leftover rows, `.env`
+byte-identical.
+
+---
+
+*The deferral reasoning, kept because it explains why this sat at the bottom of the list for a
+week and because the rule at the top of this file points here:*
 **Specs:** `05` §2, `03` §2
 **Verify live first:** that `ccloud` can provision and that a second run is a no-op.
 **Silent break:** printing a credential. `05` §2: no command may print one, and
@@ -1350,17 +1388,20 @@ project context, runs it once, and says whether the four beats read.
 
 ---
 
-### U2 — `cortex init` ⬜ *(deferred from day one; see its entry above for why)*
-**Done when:** "`cortex init` produces a working cluster twice in a row." *(08 §3, verbatim)*
-**Specs:** `05` §2, `03` §2
-**Verify live first:** that `ccloud` can provision, and that a second run is a no-op.
-**Silent break:** printing a credential. `05` §2: no command may print one, and `doctor`
-must fail loudly if a DSN appears in a tracked file.
-**Placed here, before U18, on purpose.** `08` §6 does **not** list it as cuttable, so it
-comes before SPA polish rather than after; and `docs/SPEC-DELTA.md`'s "`cortex bench` vs
-`npm run bench`" entry closes when this lands, which the README then has to publish
-correctly. A README documenting a command that does not exist is worse than a README
-documenting a differently-named one.
+### U2 — `cortex init` ✅ 2026-08-16 — **the full entry is at the top of this file, with day one**
+
+Kept as a pointer rather than a second copy: two entries for one unit is exactly the drift this
+file's own header forbids, and the day-one entry is where the deferral reasoning already lived.
+
+Two things recorded here that the day-one entry does not carry, because they were written as
+predictions and both came true:
+
+- **The verify-live-first said "that `ccloud` can provision".** It cannot — `ccloud` is not
+  installed on this machine — and that is what turned the unit provisioning-optional rather than
+  blocking it. The prediction was answered by checking, and the answer changed the shape.
+- **`docs/SPEC-DELTA.md`'s "`cortex bench` vs `npm run bench`" entry does NOT close**, contrary to
+  what this entry predicted. `bench` is deliberately not a subcommand. The entry is corrected in
+  place; the README publishes the names that work, which was the actual requirement.
 
 ### U18 — README, architecture diagram, licence, third-party disclosure ✅ 2026-08-16
 **Done when:** "a clean clone reproduces the benchmark." *(08 §5, 47–52h, verbatim)*
