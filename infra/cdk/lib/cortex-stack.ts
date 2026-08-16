@@ -17,6 +17,7 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
 import * as path from 'node:path';
@@ -117,6 +118,20 @@ const embedModel = 'amazon.titan-embed-text-v2:0';
  * so granting it here would authorise something no deployed code does.
  */
 const fleetReasonModel = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
+
+/**
+ * The whole-event LIVE reasoning budget, in USD. Julian's call, 2026-08-16.
+ *
+ * Written here as a literal for the same reason `fleetReasonModel` is: `cdk synth` runs from
+ * `infra/cdk/` under its own tsconfig and cannot import from `src/`. It is **pinned to
+ * `LIVE_BUDGET_USD` in `src/memory/live-budget.ts` by `test/infra-stack.test.ts`**, because a
+ * brake that fires at a different number from the one the runner budgets against is a brake
+ * nobody can reason about.
+ */
+const liveBudgetUsd = 9;
+
+/** One name, used by the budget and by the action that hangs off it. */
+const liveBudgetName = 'cortex-live-reasoning';
 
 /**
  * Where a `us.` profile actually routes. Read off the profile rather than assumed:
@@ -491,6 +506,130 @@ export class CortexStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'RunnerRoleName', {
       value: runnerRole.roleName,
       description: 'The role LiveReasoningPolicyArn attaches to.',
+    });
+
+    /**
+     * BRAKE 3 — `04` §5's automatic cost brake, and the one that makes the LIVE budget a bound
+     * rather than an intention.
+     *
+     * Until this existed, stopping LIVE was a human noticing. The arithmetic U24 measured is why
+     * that was not good enough: at **$0.2910 per metered LIVE run** and a cap of 30 runs a day,
+     * thirty-one unbraked days is **$270.58** against a $9 budget. `LIVE_UNBRAKED_WINDOW_USD` in
+     * `src/memory/live-budget.ts` prints that figure on every run precisely so it could not be
+     * forgotten, and this is the thing that closes it.
+     *
+     * **The filter is the part that has already gone wrong once for this project, so it is
+     * measured rather than assumed.** V36 found that Anthropic model spend does *not* bill under
+     * `Amazon Bedrock` — that service carries only the Titan embedding line — so a Budget filtered
+     * on it watches an empty meter and never fires. U24 then recommended falling back to an
+     * account-wide filter because the Haiku service name could not be confirmed. It can now:
+     * `aws ce get-dimension-values --dimension SERVICE` returned all three of `Amazon Bedrock`,
+     * `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock Edition)`
+     * on 2026-08-16, so the filter names the two Claude services exactly and watches the meter the
+     * spend actually lands on. Sonnet is included even though the fleet runs Haiku: `bench/reason.ts`
+     * calls Sonnet, and a brake that ignores half the reasoning bill is a brake with a hole in it.
+     *
+     * **ANNUALLY, not MONTHLY, and that is not a detail.** The judging window runs to 2026-09-15,
+     * which spans two calendar months — a $9 monthly budget would permit $9 in August and $9 again
+     * in September, which is $18 against a $9 promise. An annual period bounds the whole event
+     * with one reset far outside it.
+     *
+     * **What firing does, and what it deliberately does not.** The action attaches a customer-managed
+     * **Deny** on `bedrock:InvokeModel` for the fleet model's ARNs to the runner's role. Deny beats
+     * allow, so LIVE reasoning stops on the next invocation. Nothing else moves: the Titan embedding
+     * grant is a different statement on a different ARN, no other function is targeted, and the API,
+     * the SPA, the read path and the cluster are untouched. That distinction is not fastidiousness —
+     * `04` §5 says a budget action that disables any of those converts a cost control into a **rules
+     * violation**, because B4 requires this project to stay available and free until 2026-09-15.
+     *
+     * **What a visitor sees when it has fired: a working demo.** `modelAuthor` falls back to the
+     * reviewed patches on an `AccessDeniedException` like on any other failure — `test/author.test.ts`
+     * is the guard — so the run still runs, both arms still contend, the changefeed still fires, and
+     * the content comes from committed text. That is `04` §5 rung 1, LIVE degrading to REPLAY, with
+     * no error page and no credential prompt.
+     *
+     * **The subscriber address is a dynamic reference, never a literal.** An email in a public
+     * template is a published address, and this repository's rule about template values was written
+     * after a DSN reached `cdk.out/`. `npm run deploy:secrets` creates `cortex/budget-alert-email`
+     * from `.env`.
+     */
+    const denyReasoning = new iam.ManagedPolicy(this, 'LiveReasoningDenyPolicy', {
+      description:
+        'Attached by AWS Budgets when the LIVE reasoning budget is exceeded. Denies fleet model ' +
+        'invocation and nothing else (04 section 5 brake 3, rule B4).',
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.DENY,
+          actions: ['bedrock:InvokeModel'],
+          resources: inferenceProfileGrant(this.account, fleetReasonModel),
+        }),
+      ],
+      // Attached to nobody at deploy time. The Budget action is what puts it on the runner, and
+      // an operator takes it off again with `detach-role-policy` once the window resets.
+    });
+
+    // Budgets assumes this to apply the policy. It can attach exactly one policy to exactly one
+    // role: a brake whose execution role could attach anything to anything would be a larger
+    // hazard than the spend it prevents.
+    const budgetActionRole = new iam.Role(this, 'BudgetActionRole', {
+      assumedBy: new iam.ServicePrincipal('budgets.amazonaws.com'),
+      description: 'Lets AWS Budgets attach the LIVE reasoning deny policy to the runner role.',
+      inlinePolicies: {
+        applyTheDeny: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              actions: ['iam:AttachRolePolicy', 'iam:DetachRolePolicy'],
+              resources: [runnerRole.roleArn],
+              conditions: { ArnEquals: { 'iam:PolicyARN': denyReasoning.managedPolicyArn } },
+            }),
+          ],
+        }),
+      },
+    });
+
+    const budget = new budgets.CfnBudget(this, 'LiveReasoningBudget', {
+      budget: {
+        budgetName: liveBudgetName,
+        budgetType: 'COST',
+        timeUnit: 'ANNUALLY',
+        budgetLimit: { amount: liveBudgetUsd, unit: 'USD' },
+        costFilters: {
+          // Measured 2026-08-16, not guessed. `Amazon Bedrock` is deliberately absent: it carries
+          // only the Titan embedding line, and filtering on it is the V36 failure mode.
+          Service: [
+            'Claude Haiku 4.5 (Amazon Bedrock Edition)',
+            'Claude Sonnet 4.5 (Amazon Bedrock Edition)',
+          ],
+        },
+      },
+    });
+
+    new budgets.CfnBudgetsAction(this, 'LiveReasoningBudgetAction', {
+      budgetName: liveBudgetName,
+      actionType: 'APPLY_IAM_POLICY',
+      // AUTOMATIC: a brake that waits for a human to approve it is the brake this project already
+      // had, and U24's $270.58 is what it is worth.
+      approvalModel: 'AUTOMATIC',
+      notificationType: 'ACTUAL',
+      actionThreshold: { value: 100, type: 'PERCENTAGE' },
+      executionRoleArn: budgetActionRole.roleArn,
+      definition: { iamActionDefinition: { policyArn: denyReasoning.managedPolicyArn, roles: [runnerRole.roleName] } },
+      subscribers: [
+        {
+          // `type`, NOT `subscriptionType`. CDK ships two interfaces called `SubscriberProperty`
+          // — `CfnBudget`'s uses `subscriptionType` and `CfnBudgetsAction`'s uses `type` — and
+          // because the property is typed as a union with `IResolvable`, the wrong one is a
+          // confusing excess-property error rather than an obvious one.
+          type: 'EMAIL',
+          address: cdk.SecretValue.secretsManager('cortex/budget-alert-email').unsafeUnwrap(),
+        } satisfies budgets.CfnBudgetsAction.SubscriberProperty,
+      ],
+    });
+    budget.node.addDependency(denyReasoning);
+
+    new cdk.CfnOutput(this, 'LiveReasoningDenyPolicyArn', {
+      value: denyReasoning.managedPolicyArn,
+      description: 'Brake 3 attaches this to RunnerRoleName. Detach it to restore LIVE.',
     });
 
     // Named after the fact rather than at construction because the runner needs the WebSocket

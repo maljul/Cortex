@@ -130,15 +130,42 @@ describe('the reasoning grant matches the model the fleet actually calls', () =>
   });
 
   /**
-   * One grant, one role. Two occurrences is the function's own definition plus a single call
-   * site; a third would mean some other function had been handed the ability to author code.
+   * One grant, one role.
+   *
+   * **This counted call sites and had to stop.** It asserted `inferenceProfileGrant(` appeared
+   * exactly twice — its definition plus one call — and brake 3 legitimately made that three: the
+   * deny policy must name the *same* ARNs as the allow, or the brake would cover less than the
+   * grant and leave a hole exactly where it matters. Counting was a proxy for the real rule, and
+   * the real rule is about **Allow**: no second function may be handed the ability to author code.
+   * So the assertion now separates the two policies and checks each for what it is.
    */
   it('grants reasoning exactly once, and only to the runner', () => {
-    expect(occurrences(stackSource, 'inferenceProfileGrant(')).toBe(2);
-    expect(stackSource).toMatch(
-      /new iam\.ManagedPolicy\([\s\S]*?inferenceProfileGrant\(this\.account, fleetReasonModel\)/,
-    );
-    expect(stackSource).toMatch(/new iam\.ManagedPolicy\([\s\S]*?roles: \[runnerRole\]/);
+    const allow = /new iam\.ManagedPolicy\(this, 'LiveReasoningPolicy'[\s\S]*?\n      \}\);/.exec(stackSource)?.[0] ?? '';
+    const deny = /new iam\.ManagedPolicy\(this, 'LiveReasoningDenyPolicy'[\s\S]*?\n    \}\);/.exec(stackSource)?.[0] ?? '';
+
+    expect(allow.length, 'the reasoning grant must exist').toBeGreaterThan(0);
+    expect(deny.length, 'the brake-3 deny must exist').toBeGreaterThan(0);
+
+    // Exactly one policy grants it, and only the runner holds that one.
+    expect(allow).not.toContain('iam.Effect.DENY');
+    expect(allow).toContain('inferenceProfileGrant(this.account, fleetReasonModel)');
+    expect(allow).toContain('roles: [runnerRole]');
+
+    /**
+     * **The grant's verb list, which nothing checked until a mutation went unnoticed.** Widening
+     * this policy to `actions: ['*']` left all 25 assertions green — the ARN scope was pinned and
+     * the verb was not, so the runner's role could have been handed every Bedrock action on those
+     * resources with the suite passing. The scope of a grant is both halves.
+     */
+    expect(allow).toContain("actions: ['bedrock:InvokeModel']");
+    expect(allow).not.toContain("'*'");
+
+    // Three call sites and no more: the definition, the allow, the deny. A fourth would mean some
+    // other function had been handed the ability to author code.
+    expect(occurrences(stackSource, 'inferenceProfileGrant(')).toBe(3);
+
+    // The deny must cover exactly what the allow covers — same expression, not a re-typed list.
+    expect(deny).toContain('inferenceProfileGrant(this.account, fleetReasonModel)');
   });
 });
 
@@ -244,5 +271,138 @@ describe('the LIVE capability token is a dynamic reference and never a value', (
   it('leaves the DSN and the changefeed token bound the same way', () => {
     expect([...secretBound.values()]).toContain('cortex/demo-dsn');
     expect([...secretBound.values()]).toContain('cortex/changefeed-token');
+  });
+});
+
+/**
+ * BRAKE 3 — `04` §5's automatic cost brake.
+ *
+ * Until 2026-08-16 stopping LIVE was a human noticing, and U24 measured what that was worth:
+ * at $0.2910 a metered run and a cap of 30 a day, thirty-one unbraked days is $270.58 against
+ * a $9 budget. These assertions are about the two ways a Budget silently does nothing — the
+ * wrong filter and the wrong period — and about the one way it does too much.
+ */
+describe('brake 3 bounds the LIVE budget automatically', () => {
+  it('fires at the same number the runner budgets against', () => {
+    // The stack cannot import from src/ — `cdk synth` runs under its own tsconfig — so the two
+    // constants are separate literals and this is what holds them together. A brake that fires
+    // at a different figure from the one `live-budget.ts` plans against is a brake nobody can
+    // reason about.
+    const budgetSource = readFileSync(
+      fileURLToPath(new URL('../src/memory/live-budget.ts', import.meta.url)),
+      'utf8',
+    );
+    const runtime = /export const LIVE_BUDGET_USD = (\d+(?:\.\d+)?)/.exec(budgetSource)?.[1];
+    const stack = /const liveBudgetUsd = (\d+(?:\.\d+)?)/.exec(stackSource)?.[1];
+
+    expect(runtime, 'src/memory/live-budget.ts must declare LIVE_BUDGET_USD').toBeDefined();
+    expect(stack, 'the stack must declare liveBudgetUsd').toBeDefined();
+    expect(stack).toBe(runtime);
+  });
+
+  /**
+   * **The filter is where a Budget fails silently, and it has already failed here once.** V36
+   * measured that Anthropic model spend does not bill under `Amazon Bedrock` — that service
+   * carries only the Titan embedding line — so a Budget filtered on it watches an empty meter
+   * and never fires. The service names below were read from
+   * `aws ce get-dimension-values --dimension SERVICE` on 2026-08-16 rather than guessed.
+   */
+  it('watches the services the reasoning spend actually lands on', () => {
+    expect(stackSource).toContain('Claude Haiku 4.5 (Amazon Bedrock Edition)');
+    expect(stackSource).toContain('Claude Sonnet 4.5 (Amazon Bedrock Edition)');
+  });
+
+  it('never filters on Amazon Bedrock, which would watch only the Titan line', () => {
+    const filterBlock = /costFilters:\s*\{[\s\S]*?\},/.exec(stackSource)?.[0] ?? '';
+    expect(filterBlock.length, 'the cost filter must exist to be checked').toBeGreaterThan(0);
+    expect(filterBlock).not.toContain("'Amazon Bedrock'");
+  });
+
+  /**
+   * The judging window spans two calendar months. A MONTHLY budget at $9 permits $9 in August
+   * and $9 again in September, which is $18 against a $9 promise.
+   */
+  it('bounds the whole event rather than each calendar month', () => {
+    expect(stackSource).toContain("timeUnit: 'ANNUALLY'");
+    expect(stackSource).not.toContain("timeUnit: 'MONTHLY'");
+  });
+
+  it('fires without waiting for a human to approve it', () => {
+    expect(stackSource).toContain("approvalModel: 'AUTOMATIC'");
+  });
+
+  /**
+   * The action denies reasoning and nothing else. `04` §5 is explicit that a budget action which
+   * disables the API, the SPA, the read path or the cluster converts a cost control into a rules
+   * violation, because B4 requires this project to stay available until 2026-09-15.
+   */
+  it('denies the fleet model and takes no other capability with it', () => {
+    const deny = /new iam\.ManagedPolicy\(this, 'LiveReasoningDenyPolicy'[\s\S]*?\}\);/.exec(stackSource)?.[0] ?? '';
+    expect(deny.length, 'the deny policy must exist').toBeGreaterThan(0);
+    expect(deny).toContain('iam.Effect.DENY');
+    expect(deny).toContain("actions: ['bedrock:InvokeModel']");
+    expect(deny).toContain('inferenceProfileGrant(this.account, fleetReasonModel)');
+    // Anything wider than InvokeModel on the fleet model is out of scope for a cost brake.
+    expect(deny).not.toContain('lambda:');
+    expect(deny).not.toContain('apigateway:');
+    expect(deny).not.toContain("'*'");
+  });
+
+  it('leaves the deny attached to nobody until it fires', () => {
+    const deny = /new iam\.ManagedPolicy\(this, 'LiveReasoningDenyPolicy'[\s\S]*?\}\);/.exec(stackSource)?.[0] ?? '';
+    // `roles:` on the *deny* policy would disable LIVE at deploy time — the brake permanently on.
+    expect(deny).not.toContain('roles:');
+  });
+
+  /**
+   * The Budgets execution role can attach one policy to one role. A brake whose execution role
+   * could attach anything to anything would be a larger hazard than the spend it prevents.
+   */
+  it('gives Budgets only the permission to apply that one policy to that one role', () => {
+    const role = /new iam\.Role\(this, 'BudgetActionRole'[\s\S]*?\n    \}\);/.exec(stackSource)?.[0] ?? '';
+    expect(role.length, 'the budget action role must exist').toBeGreaterThan(0);
+    expect(role).toContain("iam.ServicePrincipal('budgets.amazonaws.com')");
+    expect(role).toContain('resources: [runnerRole.roleArn]');
+    expect(role).toContain("'iam:PolicyARN': denyReasoning.managedPolicyArn");
+    expect(role).not.toContain("resources: ['*']");
+  });
+
+  /** An email in a public template is a published address. Same rule as every DSN. */
+  it('takes the subscriber address as a dynamic reference, never a literal', () => {
+    expect(stackSource).toContain("cdk.SecretValue.secretsManager('cortex/budget-alert-email')");
+    // No address-shaped literal anywhere in the stack.
+    expect(stackSource).not.toMatch(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  });
+});
+
+/**
+ * A rule about the whole stack rather than one policy, found by a mutation that missed its target.
+ *
+ * While mutation-testing brake 3 I replaced the *first* `actions: ['bedrock:InvokeModel']` in the
+ * file — which is a Titan embedding grant, not the reasoning one — and every assertion stayed
+ * green. The reasoning grant was pinned on both scope and verb; the three embedding grants were
+ * pinned on neither, so any of them could have been widened to every Bedrock action on those
+ * resources without a single test noticing.
+ *
+ * This is deliberately a statement about the file rather than about a named policy: a fourth grant
+ * added later is covered without anybody remembering to cover it.
+ */
+describe('no policy in the stack grants a wildcard action', () => {
+  it('every PolicyStatement names its verbs', () => {
+    const wildcards = [...stackSource.matchAll(/actions:\s*\[([^\]]*)\]/g)]
+      .map((match) => match[1]!.trim())
+      .filter((verbs) => verbs.includes("'*'"));
+
+    expect(wildcards, 'a wildcard action grant reached the stack').toEqual([]);
+  });
+
+  it('and that scan is not vacuous — it finds the verb lists that are there', () => {
+    const all = [...stackSource.matchAll(/actions:\s*\[([^\]]*)\]/g)];
+    // Five Bedrock grants (three embedding, one reasoning allow, one reasoning deny) plus the
+    // Budgets execution role's attach/detach pair. A scan finding none would pass the test above
+    // for the wrong reason.
+    expect(all.length).toBeGreaterThanOrEqual(6);
+    expect(all.some((m) => m[1]!.includes('bedrock:InvokeModel'))).toBe(true);
+    expect(all.some((m) => m[1]!.includes('iam:AttachRolePolicy'))).toBe(true);
   });
 });

@@ -4,11 +4,13 @@
  *
  *   npx tsx scripts/deploy-secrets.mts
  *
- * Three secrets:
+ * Four secrets:
  *
  *   cortex/demo-dsn          the `cortex_demo` connection string, from .env
  *   cortex/live-token        the capability token that enables a LIVE (model-authored) run,
  *                            compared server-side and never echoed into the DOM
+ *   cortex/budget-alert-email where brake 3 sends notice when the LIVE budget is exceeded,
+ *                            read from .env's CORTEX_BUDGET_ALERT_EMAIL
  *   cortex/changefeed-token  the `webhook_auth_header` the changefeed presents to the
  *                            sink, generated here on first run and reused after
  *
@@ -34,6 +36,7 @@ if (existsSync(ENV_PATH)) process.loadEnvFile(ENV_PATH);
 const DEMO_DSN_SECRET = 'cortex/demo-dsn';
 const CHANGEFEED_TOKEN_SECRET = 'cortex/changefeed-token';
 const LIVE_TOKEN_SECRET = 'cortex/live-token';
+const BUDGET_EMAIL_SECRET = 'cortex/budget-alert-email';
 
 interface CommandResult {
   code: number;
@@ -133,6 +136,28 @@ async function main(): Promise<void> {
    * `aws secretsmanager get-secret-value`, when he builds the link.
    */
   await keepOrCreate(LIVE_TOKEN_SECRET, () => randomBytes(32).toString('base64url'));
+
+  /**
+   * Where brake 3 sends its notice, `04` §5.
+   *
+   * **Required, and it fails here on purpose.** `AWS::Budgets::BudgetsAction` demands at least one
+   * subscriber, so a missing secret would otherwise surface as a CloudFormation resolve error
+   * halfway through `cdk deploy` — with the tempting fix being to paste the address into the
+   * template, which is the class of mistake the whole of this file exists to prevent. An email in
+   * a public template is a published address.
+   *
+   * Read from `.env` rather than written here for the same reason: this file is tracked.
+   */
+  const alertEmail = process.env['CORTEX_BUDGET_ALERT_EMAIL'];
+  if (!alertEmail) {
+    throw new Error(
+      'CORTEX_BUDGET_ALERT_EMAIL is not set, and brake 3 (the LIVE reasoning budget) cannot ' +
+        'deploy without a subscriber address. Add it to .env — one line, quoted — and run this ' +
+        'again. It is stored in Secrets Manager and referenced by the stack as a dynamic ' +
+        'reference, so it never reaches a template.',
+    );
+  }
+  await keepOrCreate(BUDGET_EMAIL_SECRET, () => alertEmail);
 }
 
 /** Create a secret if it is absent; keep — and never print — whatever is already there. */
