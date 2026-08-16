@@ -38,6 +38,7 @@ import {
 } from '../bench/demo-app/acceptance.js';
 import { DEMO_TASKS, patchesFor } from '../bench/demo-workload.js';
 import { APP_FILES, assembleApp } from '../src/demo/app-bundle.js';
+import { modelAuthor } from '../src/demo/author.js';
 import { EXPORTED_GLOBALS } from '../src/demo/evaluate.js';
 import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, type FileTree } from '../src/demo/patches.js';
 
@@ -132,29 +133,110 @@ describe('the oracle is withheld from the agents', () => {
     expect(html).not.toContain('acceptance');
   });
 
-  it('is referred to by nothing outside test/', () => {
-    // This is the plank that matters *later*. Nothing builds a model prompt today; when
-    // something does, importing the oracle to "check the agent's work" would hand the corpus's
-    // own scoring to the thing being scored, and it would do so silently. This fails instead.
+  /**
+   * **The fence is around the PROMPT, not around the runtime — and it was the other way round
+   * for an afternoon, which is why this comment exists.**
+   *
+   * The first version of this scanned all of `src`, `scripts`, `bench` and `infra/lambda` for any
+   * import of the oracle. That is broader than the rule it enforces, and the cost was immediate
+   * and concrete: `scripts/gate-workload.mts` and `src/demo/attribution.ts` both need to run the
+   * oracle — the whole point of moving interlock detection off text matching is that *something*
+   * executes the app and asks whether it behaves — and the blanket scan forbade it. The gate was
+   * left supplying a text-exact probe and reporting `NOT EVALUATED` for attribution on exactly the
+   * runs where a model authored the code, which is the one case the behavioural probe exists for.
+   *
+   * What actually must never happen is the oracle reaching **the thing being scored**. An agent
+   * that can read the checks it is graded against is not doing the ticket, it is fitting the
+   * tests — and design §2 decision 10 already refused a full tool loop, so this is settled policy
+   * rather than taste. So the fence is placed where the prompt is built, and everything else may
+   * run the oracle freely.
+   */
+  it('is not imported by anything that builds a model prompt', () => {
+    // `src/demo/author.ts` is the only module that composes a prompt. If a second one ever
+    // appears, it belongs in this list — and the runtime assertion below catches it regardless.
     const specifier = /(?:from|import|require)\s*\(?\s*['"][^'"]*acceptance[^'"]*['"]/;
-    const offenders: string[] = [];
+    const promptBuilders = ['src/demo/author.ts'];
 
-    for (const root of ['src', 'scripts', 'bench', 'infra/lambda']) {
-      for (const file of sourceFilesUnder(join(REPO_ROOT, root))) {
-        if (file.endsWith(join('bench', 'demo-app', 'acceptance.ts'))) continue;
-        if (specifier.test(readFileSync(file, 'utf8'))) offenders.push(file);
-      }
+    for (const relative of promptBuilders) {
+      const source = readFileSync(join(REPO_ROOT, relative), 'utf8');
+      expect(specifier.test(source), `${relative} must not import the oracle`).toBe(false);
     }
 
-    expect(offenders).toEqual([]);
+    // Not vacuous: the same regex finds this file importing it.
+    expect(specifier.test(readFileSync(fileURLToPath(import.meta.url), 'utf8'))).toBe(true);
   });
 
-  it('and the scan above is not vacuous — it finds this file importing it', () => {
-    // A regex that matched nothing would make the assertion above an unconditional pass, which
-    // is exactly the shape of guard this repository has been bitten by before.
-    const specifier = /(?:from|import|require)\s*\(?\s*['"][^'"]*acceptance[^'"]*['"]/;
-    const self = readFileSync(fileURLToPath(import.meta.url), 'utf8');
-    expect(specifier.test(self)).toBe(true);
+  /**
+   * The plank that holds whatever anyone imports where.
+   *
+   * A text scan is a statement about today's import graph; this is a statement about the bytes
+   * that actually reach the model. It drives the real `modelAuthor` with an injected `invoke`,
+   * captures the prompt for every ticket in the cut against the real corpus, and asserts the
+   * oracle is not in it — no check id, no title, no `expect`, no function the oracle defines.
+   */
+  it('never appears in the prompt an agent is actually sent, for any ticket in the cut', async () => {
+    const tree = baseline();
+    const oracleSource = readFileSync(join(REPO_ROOT, 'bench/demo-app/acceptance.ts'), 'utf8');
+
+    /**
+     * **A bare identifier is not a fingerprint, and the first version of this learned that the
+     * embarrassing way.** It asserted the prompt contained none of the oracle's exported names,
+     * and went red on every ticket — because the oracle exports a helper called `failed` and the
+     * corpus's own `notify/email.js` has an outbox/failed split. The test was reporting a leak
+     * that was the English language.
+     *
+     * So the fingerprint is structural: the oracle's SCREAMING_CASE exports, which are
+     * distinctive by construction, plus **any forty-character window of the oracle's own source**
+     * appearing verbatim in a prompt. Forty characters of contiguous match is a copy; a shared
+     * word is not.
+     */
+    const shoutyExports = [...oracleSource.matchAll(/export const ([A-Z][A-Z0-9_]{3,})/g)]
+      .map((m) => m[1]!);
+    expect(shoutyExports.length, 'the oracle must export a distinctive constant to fingerprint')
+      .toBeGreaterThan(0);
+
+    const windows: string[] = [];
+    const collapsed = oracleSource.replace(/\s+/g, ' ');
+    for (let i = 0; i + 40 <= collapsed.length; i += 40) windows.push(collapsed.slice(i, i + 40));
+    expect(windows.length, 'the oracle must be long enough to fingerprint').toBeGreaterThan(10);
+
+    for (const task of DEMO_TASKS) {
+      if (task.patches.length === 0) continue;
+
+      const files: Record<string, string> = {};
+      for (const file of new Set([
+        ...task.patches.map((p) => p.file),
+        ...(task.informedPatches ?? []).map((p) => p.file),
+      ])) {
+        if (tree[file] !== undefined) files[file] = tree[file];
+      }
+
+      let prompt = '';
+      const author = modelAuthor({
+        invoke: async (sent) => {
+          prompt = sent;
+          return { text: 'not json', inputTokens: 0, outputTokens: 0 };
+        },
+      });
+      await author({
+        taskId: task.id,
+        statement: task.statement,
+        agent: 'agent-1',
+        files,
+        findings: [],
+        committed: task.patches,
+      });
+
+      expect(prompt.length, `${task.id} must produce a prompt`).toBeGreaterThan(0);
+      expect(prompt, `${task.id}'s prompt must not name the oracle`).not.toContain('acceptance');
+      for (const name of shoutyExports) {
+        expect(prompt, `${task.id}'s prompt must not carry ${name}`).not.toContain(name);
+      }
+
+      const promptCollapsed = prompt.replace(/\s+/g, ' ');
+      const copied = windows.filter((window) => promptCollapsed.includes(window));
+      expect(copied, `${task.id}'s prompt contains oracle source verbatim`).toEqual([]);
+    }
   });
 });
 

@@ -282,7 +282,13 @@ export interface ModelAuthorOptions {
   region?: string;
   model?: string;
   /** Injectable so a test can drive validation and fallback without reaching Bedrock. */
-  invoke?: (prompt: string) => Promise<{ text: string; inputTokens: number; outputTokens: number }>;
+  invoke?: (prompt: string) => Promise<{
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+    /** The model hit `max_tokens`. The answer is refused; the spend is still real. */
+    truncated?: boolean;
+  }>;
   /** Called on every rejection, so a run can report how often the model was overruled. */
   onReject?: (reason: string) => void;
 }
@@ -314,10 +320,18 @@ export function modelAuthor(options: ModelAuthorOptions): PatchAuthor {
       stop_reason?: string;
       usage?: { input_tokens?: number; output_tokens?: number };
     };
-    if (body.stop_reason === 'max_tokens') {
-      throw new Error('model hit max_tokens, so its JSON is truncated');
-    }
     return {
+      /**
+       * **Truncation is reported, not thrown, because AWS bills it either way.**
+       *
+       * This threw here until 2026-08-16, above the `return` — so a call that hit the ceiling
+       * lost its `usage` on the way out and the run's measured cost came back *lower than the
+       * bill*. U24's first metered run read $0.2478 against a true $0.2910, and 2 of its 16
+       * calls were billed to nobody. A cost model that under-reports is worse than one that
+       * estimates, because it looks measured. The answer is still refused — half a JSON object
+       * is not a smaller edit — but the spend is carried out with it.
+       */
+      truncated: body.stop_reason === 'max_tokens',
       text: (body.content ?? [])
         .filter((block) => block.type === 'text')
         .map((block) => block.text ?? '')
@@ -336,7 +350,11 @@ export function modelAuthor(options: ModelAuthorOptions): PatchAuthor {
     let reason: string;
     try {
       const answer = await invoke(buildPrompt(request));
+      // Assigned before anything can reject, so a refused answer still reports what it cost.
       usage = { inputTokens: answer.inputTokens, outputTokens: answer.outputTokens };
+
+      if (answer.truncated) throw new Error('model hit max_tokens, so its JSON is truncated');
+
       const validated = validateEdits(parseJson(answer.text), request.files);
       if (Array.isArray(validated)) {
         const note = (parseJson(answer.text) as { note?: unknown } | null)?.note;

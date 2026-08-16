@@ -2,30 +2,38 @@
  * A BROKEN APP IS AN ACCUSATION UNTIL IT IS ATTRIBUTED.
  *
  * `docs/UNITS.md`'s U21 names this as its third silent break, and it is the sharp one: a
- * naive app with three features missing reads as *"they wrote a broken app"* unless every
- * missing feature carries, on screen, the agent that reported it done, its intent id, its
- * patch, and the file where the change is not. Without that link the naive lane is an
- * assertion rather than evidence, and `02` A7 is not satisfied by a page that is merely
- * correct.
+ * naive app with features missing reads as *"they wrote a broken app"* unless every missing
+ * feature carries, on screen, the agent that reported it done, its intent id, and the file
+ * where the work is not. Without that link the naive lane is an assertion rather than
+ * evidence, and `02` A7 is not satisfied by a page that is merely correct.
  *
- * Until now that requirement existed **only as prose in a document**. Nothing produced the
- * attribution and nothing checked for it — which is the failure mode CLAUDE.md names
- * outright: *"Do not assert in a comment or a doc what the tests do not check. If a comment
- * claims an invariant, there is a test for it or the comment is a lie."*
+ * ## WHAT CHANGED ON 2026-08-16, AND WHY THIS FILE IS THE PROOF
  *
- * Written before U21's runner exists, per `spec/11-SHIP-LOOP.md`: the invariant's test comes
- * first and must fail before the implementation does. What the runner has to hand over is
- * therefore fixed here rather than discovered later — `WorkStep` is the whole contract, and
- * it is three fields plus a verdict.
+ * Presence used to be decided by looking for the committed patch's replacement text in the
+ * tree. `src/demo/author.ts` lets a model write the code instead, and a model implements the
+ * same ticket in its own words — so that rule would have reported every feature absent, every
+ * naive agent as having lost its work, and would have done it **silently**, with the whole
+ * suite green.
  *
- * **The fixtures are the real ones.** `bench/fixtures/src/orders/repository.ts` with C1, C2
- * and C3 applied is the tree arbitration produces; the same three applied to a shared
- * snapshot is the tree last-write-wins produces. `test/patches.test.ts` already proves those
- * two trees differ by exactly two changes. This file proves the difference can be *named*.
+ * `attributeFeatures` now takes a probe and asks it. This file supplies the real one:
+ * `bench/demo-app/acceptance.ts`, which assembles the tree, runs it, and calls the functions a
+ * judge would reach by clicking. A test may import that oracle; `src/`, `scripts/`, `bench/`
+ * and `infra/lambda/` may not, and `test/acceptance.test.ts` fails if they ever do — which is
+ * exactly why `Feature.works` is injected rather than imported.
+ *
+ * The regression that motivated the change has its own test below: a tree carrying the same
+ * work in different bytes. The old rule reports that feature lost; the new one reports it
+ * delivered, and the assertion names both halves so the two cannot be confused later.
+ *
+ * **The fixtures are the real ones.** Three agents edit `orders/repository.js` at once. Under
+ * arbitration all three land; under per-file last-write-wins the file carries only the last
+ * agent's change, and `test/patches.test.ts` and `test/acceptance.test.ts` both pin that shape
+ * from their own angles. This file proves the difference can be *named*.
  */
 import { describe, expect, it } from 'vitest';
 
-import { CONTENDED_FILE, patchesFor } from '../bench/demo-workload.js';
+import { checkById } from '../bench/demo-app/acceptance.js';
+import { patchesFor } from '../bench/demo-workload.js';
 import {
   attributeFeatures,
   unattributableLosses,
@@ -36,12 +44,26 @@ import {
 import { APP_FILES } from '../src/demo/app-bundle.js';
 import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, type FileTree } from '../src/demo/patches.js';
 
+/** The three tickets that want one file at once — interlock 3, the only one of five this covers. */
 const CONTENDERS = ['C1', 'C2', 'C3'] as const;
 
-/** One feature per committed patch — the unit a judge sees present or missing. */
-const FEATURES: Feature[] = CONTENDERS.flatMap((id) =>
-  patchesFor(id).map((patch) => ({ id, patch })),
-);
+/**
+ * One feature per ticket, and the question that decides it is the oracle's own.
+ *
+ * `check.run` is passed unbound on purpose and is safe to: the oracle builds each check as a
+ * closure over its id and body and never reaches for `this`. Passing the whole check would work
+ * too, and would tie this module's `Feature` shape to the oracle's — which is the coupling the
+ * injection exists to avoid.
+ */
+const FEATURES: Feature[] = CONTENDERS.map((id) => {
+  const check = checkById(id);
+  return {
+    id,
+    title: check.title,
+    files: [...new Set(patchesFor(id).map((patch) => patch.file))],
+    works: check.run,
+  };
+});
 
 function baseline(): FileTree {
   return loadFixtureTree(APP_FILES, DEMO_APP_CORPUS);
@@ -58,10 +80,12 @@ function cortexTree(): FileTree {
 
 /**
  * Last-write-wins, per file: every agent reads the *same* snapshot and saves back the files it
- * edited, so the file all three share carries only the last agent's change while the files
- * only one of them touched all survive. `06` §2 defines the arm's shared state this way and
- * `test/patches.test.ts` pins both halves — exactly one of the three features in the shared
- * file, and the view half of each lost ticket still present.
+ * edited, so the file all three share carries only the last agent's change while the files only
+ * one of them touched all survive. `06` §2 defines the arm's shared state this way.
+ *
+ * The shared tree is read **once** and all three agents work from that same object, because
+ * three independent reads cannot share state to corrupt and the test would pass for the wrong
+ * reason.
  */
 function naiveTree(): FileTree {
   const shared = baseline();
@@ -75,6 +99,36 @@ function naiveTree(): FileTree {
 }
 
 /**
+ * The CORTEX tree with C1's hunks **written differently and behaving identically** — a comment
+ * inside each, which is the smallest possible stand-in for a model that implemented the ticket
+ * in its own words.
+ *
+ * The comment goes *inside* the hunk rather than around it, and that is the whole trick: text
+ * appended to a hunk still contains the hunk, so a probe looking for the committed string would
+ * go on finding it and this test would prove nothing. Spliced by index rather than with
+ * `String.replace`, whose `$` sequences would rewrite a hunk that happened to contain one.
+ *
+ * Byte-for-byte the committed replacement is gone. Behaviourally nothing moved — which the
+ * assertions below check both halves of.
+ */
+function reworded(): FileTree {
+  const tree = cortexTree();
+  const next: FileTree = { ...tree };
+
+  for (const patch of patchesFor('C1')) {
+    const body = next[patch.file]!;
+    const at = body.indexOf(patch.replace);
+    expect(at, `${patch.file} does not carry C1's hunk to reword`).toBeGreaterThanOrEqual(0);
+
+    const rewritten =
+      `${patch.replace.slice(0, -1)} /* the same work, in other words */${patch.replace.slice(-1)}`;
+    next[patch.file] = body.slice(0, at) + rewritten + body.slice(at + patch.replace.length);
+  }
+
+  return next;
+}
+
+/**
  * What the naive lane's agents reported. All three say `done`, which is the entire point:
  * nothing in that lane can tell an agent its work was overwritten.
  */
@@ -85,23 +139,80 @@ const STEPS: WorkStep[] = CONTENDERS.map((id, index) => ({
   reported: 'done',
 }));
 
-function records(steps: readonly WorkStep[] = STEPS): FeatureAttribution[] {
-  return attributeFeatures({
-    features: FEATURES,
-    cortex: cortexTree(),
-    naive: naiveTree(),
-    steps,
-  });
+function records(
+  steps: readonly WorkStep[] = STEPS,
+  trees: { cortex: FileTree; naive: FileTree } = { cortex: cortexTree(), naive: naiveTree() },
+): FeatureAttribution[] {
+  return attributeFeatures({ features: FEATURES, ...trees, steps });
 }
 
+describe('presence is decided by running the app, not by finding a string', () => {
+  /**
+   * THE REGRESSION THIS CHANGE EXISTS FOR.
+   *
+   * Both halves are asserted in one test so that neither can be quietly dropped: the committed
+   * text really is gone from the tree (so the old rule would have called the feature lost), and
+   * the feature is still reported delivered (because it still works).
+   */
+  it('finds a feature whose bytes changed and whose behaviour did not', () => {
+    const tree = reworded();
+
+    for (const patch of patchesFor('C1')) {
+      // The old rule was `tree[patch.file].includes(patch.replace)`. It is false here.
+      expect(tree[patch.file]).not.toContain(patch.replace);
+    }
+
+    const all = records(STEPS, { cortex: tree, naive: naiveTree() });
+    const c1 = all.find((record) => record.feature === 'C1')!;
+
+    expect(c1.inCortex).toBe(true);
+    expect(c1.cortex.verdict).toBe('pass');
+  });
+
+  it('carries what it observed in each lane, never a bare verdict', () => {
+    // `observed` is what the page renders as evidence — "3 pages of sizes [4, 4, 2] over 10
+    // orders" is a fact a reader can check. A verdict on its own asks for trust, and `02` A7
+    // does not allow the page to ask for it.
+    for (const record of records()) {
+      expect(record.cortex.observed.length).toBeGreaterThan(0);
+      expect(record.naive.observed.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('reports a probe that throws as an error rather than throwing', () => {
+    // A page behind the run button may never show an error (`04` §5 invariant 1), and a
+    // home-made probe is the caller's code. This module survives it.
+    const exploding: Feature = {
+      id: 'C1',
+      title: 'a probe that cannot answer',
+      files: ['orders/repository.js'],
+      works: () => {
+        throw new Error('the tree does not run');
+      },
+    };
+
+    const all = attributeFeatures({
+      features: [exploding],
+      cortex: cortexTree(),
+      naive: naiveTree(),
+      steps: STEPS,
+    });
+
+    expect(all[0]!.cortex.verdict).toBe('error');
+    expect(all[0]!.cortex.observed).toContain('does not run');
+    expect(all[0]!.inCortex).toBe(false);
+  });
+});
+
 describe('every feature is accounted for in both apps', () => {
-  it('returns one record per feature, each naming the file it belongs to', () => {
+  it('returns one record per feature, naming the files it belongs to', () => {
     const all = records();
 
     expect(all).toHaveLength(FEATURES.length);
     for (const record of all) {
-      expect(record.file).toBe(record.patch.file);
-      expect(FEATURES.some((f) => f.id === record.feature)).toBe(true);
+      expect(record.files.length).toBeGreaterThan(0);
+      expect(record.title.length).toBeGreaterThan(0);
+      expect(FEATURES.some((feature) => feature.id === record.feature)).toBe(true);
     }
   });
 
@@ -110,24 +221,17 @@ describe('every feature is accounted for in both apps', () => {
    * "every loss is attributable"; over an empty set of losses that is true and worthless.
    * So the shape of the two trees is pinned here.
    *
-   * Since the corpus became seven layered modules, each of C1, C2 and C3 patches the file all
-   * three share **and** a view file nobody else touches — seven hunks across five files. Under
-   * per-file last-write-wins the four view hunks all survive and only the shared file loses,
-   * so the naive app keeps five of seven and the two it lost are both changes to
-   * `orders/repository.js`. That is `test/patches.test.ts`'s result restated as features, and
-   * it is the shape the page renders: not "two features vanished" but "two features have their
-   * chrome and not their behaviour".
+   * All three tickets work under arbitration. Under per-file last-write-wins the shared file
+   * carries only the last agent's change, so exactly one of the three still works — and the
+   * other two are losses with a name attached. That is `test/acceptance.test.ts`'s interlock-3
+   * result restated as features: not "the app is broken" but "these two agents' work is gone".
    */
-  it('finds seven hunks in the CORTEX app and five in the naive app', () => {
+  it('finds three features in the CORTEX app and one in the naive app', () => {
     const all = records();
 
-    expect(all.filter((r) => r.inCortex)).toHaveLength(7);
-    expect(all.filter((r) => r.inNaive)).toHaveLength(5);
-
-    const lost = all.filter((r) => r.inCortex && !r.inNaive);
-    expect(lost).toHaveLength(2);
-    // Both losses are in the shared file, which is the only place a loss can happen.
-    for (const record of lost) expect(record.file).toBe(CONTENDED_FILE);
+    expect(all.filter((record) => record.inCortex)).toHaveLength(3);
+    expect(all.filter((record) => record.inNaive)).toHaveLength(1);
+    expect(all.filter((record) => record.inCortex && !record.inNaive)).toHaveLength(2);
   });
 });
 
@@ -136,12 +240,12 @@ describe('a missing feature is evidence only if it is attributable', () => {
    * THE ASSERTION THE UNIT TURNS ON.
    *
    * Every feature present under arbitration and absent without it must carry complete
-   * attribution: a named agent, a real intent id, the patch, and the file. No nulls, and no
-   * intent id that the run's own steps do not contain.
+   * attribution: a named agent, a real intent id, and the files. No nulls, and no intent id
+   * that the run's own steps do not contain.
    */
-  it('attributes every feature the naive lane lost to an agent, an intent and a patch', () => {
+  it('attributes every feature the naive lane lost to an agent and an intent', () => {
     const all = records();
-    const lost = all.filter((r) => r.inCortex && !r.inNaive);
+    const lost = all.filter((record) => record.inCortex && !record.inNaive);
 
     expect(lost.length).toBeGreaterThan(0);
 
@@ -152,8 +256,9 @@ describe('a missing feature is evidence only if it is attributable', () => {
         STEPS.some((step) => step.intentId === record.intentId),
         `${record.feature} names an intent id this run never minted`,
       ).toBe(true);
-      expect(record.patch.replace.length).toBeGreaterThan(0);
-      expect(record.file).toBe(record.patch.file);
+      expect(record.files.length).toBeGreaterThan(0);
+      // The evidence a reader checks: the probe says what it saw in the lane that lost it.
+      expect(record.naive.observed.length).toBeGreaterThan(0);
     }
 
     expect(unattributableLosses(all, STEPS)).toEqual([]);
@@ -165,11 +270,12 @@ describe('a missing feature is evidence only if it is attributable', () => {
    * than rendered.
    */
   it('refuses a loss that no agent reported done', () => {
-    const silent = STEPS.filter((step) => step.taskId !== 'C1');
+    const lost = records().filter((record) => record.inCortex && !record.inNaive);
+    const silent = STEPS.filter((step) => step.taskId !== lost[0]!.feature);
     const all = records(silent);
     const flagged = unattributableLosses(all, silent);
 
-    expect(flagged.map((r) => r.feature)).toContain('C1');
+    expect(flagged.map((record) => record.feature)).toContain(lost[0]!.feature);
     for (const record of flagged) expect(record.inCortex && !record.inNaive).toBe(true);
   });
 
@@ -182,21 +288,23 @@ describe('a missing feature is evidence only if it is attributable', () => {
    * check, because nothing about it is null.
    *
    * Written after a mutation caught the first version of this file: removing
-   * `step.reported === 'done'` from `attributeFeatures` left all six tests green, because
-   * every step in the fixture reported `done` and the test above deletes the step rather
-   * than changing its verdict. The filter was correct and untested; this is the test.
+   * `step.reported === 'done'` from `attributeFeatures` left every test green, because every
+   * step in the fixture reported `done` and the test above deletes the step rather than
+   * changing its verdict. The filter was correct and untested; this is the test.
    */
   it('refuses a loss whose agent reported something other than done', () => {
+    const lost = records().filter((record) => record.inCortex && !record.inNaive);
+    const subject = lost[0]!.feature;
     const deduped: WorkStep[] = STEPS.map((step) =>
-      step.taskId === 'C1' ? { ...step, reported: 'deduped' } : step,
+      step.taskId === subject ? { ...step, reported: 'deduped' } : step,
     );
     const all = records(deduped);
 
-    const c1 = all.find((r) => r.feature === 'C1')!;
-    expect(c1.inCortex && !c1.inNaive).toBe(true);
-    expect(c1.agent).toBeNull();
-    expect(c1.intentId).toBeNull();
-    expect(unattributableLosses(all, deduped).map((r) => r.feature)).toContain('C1');
+    const record = all.find((one) => one.feature === subject)!;
+    expect(record.inCortex && !record.inNaive).toBe(true);
+    expect(record.agent).toBeNull();
+    expect(record.intentId).toBeNull();
+    expect(unattributableLosses(all, deduped).map((one) => one.feature)).toContain(subject);
   });
 
   /**
@@ -206,7 +314,7 @@ describe('a missing feature is evidence only if it is attributable', () => {
    */
   it('refuses an intent id that appears in no step of the run', () => {
     const all = records();
-    const lost = all.find((r) => r.inCortex && !r.inNaive)!;
+    const lost = all.find((record) => record.inCortex && !record.inNaive)!;
     const invented: FeatureAttribution = {
       ...lost,
       intentId: '99999999-9999-4999-8999-999999999999',
@@ -221,8 +329,7 @@ describe('a missing feature is evidence only if it is attributable', () => {
    * reason.
    */
   it('says nothing about a feature that is present in both apps', () => {
-    const all = records();
-    const kept = all.filter((r) => r.inCortex && r.inNaive);
+    const kept = records().filter((record) => record.inCortex && record.inNaive);
 
     expect(kept.length).toBeGreaterThan(0);
     expect(unattributableLosses(kept, [])).toEqual([]);

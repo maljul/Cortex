@@ -12,10 +12,14 @@
  *
  * Live, against the real cluster, in the visitor's own scope under `cortex_demo`'s row-level
  * security: every embedding, every dedupe search, every claim, every close, every recall, and
- * the consolidation that arrives over the changefeed. Committed: the **patch bodies** and one
- * **closure note**. Julian's call on 2026-08-13; `07` §4 forbids implying a model wrote either,
- * so the page must say so. There is no model reasoning in this runner at all — see the note at
- * the foot of this file.
+ * the consolidation that arrives over the changefeed.
+ *
+ * **Who writes the code is now a property of the run rather than of this file.** REPLAY — the
+ * default, and what an anonymous visitor gets — applies the ticket's reviewed patches and one
+ * **closure note**, and `07` §4 forbids implying a model wrote either, so the page must say so.
+ * LIVE passes `modelAuthor` and the agents author their own edits. Which happened is measured:
+ * `hunksAuthoredByModel`, `hunksFallenBack` and `hunksReplayed` partition every hunk applied.
+ * See the note at the foot of this file.
  *
  * ## The two lanes
  *
@@ -157,6 +161,73 @@ export interface FleetEvent {
   detail?: Record<string, unknown>;
 }
 
+/**
+ * One record per ticket that wrote anything: who authored the hunks and what it cost.
+ *
+ * A record rather than a counter. `src/demo/author.ts` decides whether an agent recites a
+ * reviewed patch or writes the code itself, and every figure the page shows about that is a
+ * filter or a sum over this list — so a fabricated authorship number would have to be a
+ * fabricated *record*, which carries a task id and an agent the journey also names.
+ */
+export interface Authoring {
+  taskId: string;
+  agent: string;
+  /** `model` — written and validated. `committed` — REPLAY, no call. `fallback` — called, refused. */
+  source: 'model' | 'committed' | 'fallback';
+  /** How many hunks this record covers, so the meter can speak in hunks rather than tickets. */
+  hunks: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** The authorship half of the meter, and `06` §3's token metric with it. */
+export interface Authorship {
+  hunksAuthoredByModel: number;
+  hunksReplayed: number;
+  hunksFallenBack: number;
+  modelInputTokens: number | null;
+  modelOutputTokens: number | null;
+  wastedTokens: number | null;
+}
+
+/**
+ * The authorship figures, derived from the records rather than accumulated alongside them.
+ *
+ * Exported and pure so that `test/workload.test.ts` can prove the two rules that matter without
+ * a cluster run: the three hunk counts partition the work, and **an unmeasured token count is
+ * `null` rather than `0`**. The second is `06` §6's line and it is the one most likely to be
+ * crossed by accident: on REPLAY every record reports zero tokens, and summing zeroes produces a
+ * `0` that renders exactly like a measurement of nothing spent.
+ *
+ * `wastedOn` is `06` §3's own set — the tickets whose intents ended `abandoned` or turned out to
+ * duplicate work already underway. The caller supplies it because only the run knows which
+ * those were.
+ */
+export function authorshipOf(
+  authorings: readonly Authoring[],
+  wastedOn: readonly string[],
+): Authorship {
+  const hunksFrom = (source: Authoring['source']): number =>
+    authorings.filter((one) => one.source === source).reduce((total, one) => total + one.hunks, 0);
+
+  // A call was made whenever the author was not the REPLAY one: `model` is a call that validated
+  // and `fallback` is a call that did not, and both were billed. `committed` never reached
+  // Bedrock, so it measured nothing — which is not the same as having measured nothing spent.
+  const called = authorings.filter((one) => one.source !== 'committed');
+  const spend = (records: readonly Authoring[]): number =>
+    records.reduce((total, one) => total + one.inputTokens + one.outputTokens, 0);
+
+  return {
+    hunksAuthoredByModel: hunksFrom('model'),
+    hunksReplayed: hunksFrom('committed'),
+    hunksFallenBack: hunksFrom('fallback'),
+    modelInputTokens: called.length === 0 ? null : called.reduce((t, one) => t + one.inputTokens, 0),
+    modelOutputTokens: called.length === 0 ? null : called.reduce((t, one) => t + one.outputTokens, 0),
+    wastedTokens:
+      called.length === 0 ? null : spend(called.filter((one) => wastedOn.includes(one.taskId))),
+  };
+}
+
 export interface ArmMeter {
   /** Proposals the cluster refused as duplicates before the agent spent anything. */
   duplicateWorkAvoided: number;
@@ -200,11 +271,37 @@ export interface ArmMeter {
   claimP50Ms: number | null;
   serializationRetries: number;
   /**
-   * `06` §3's token metric. **TBD, not zero**: this runner makes no model call, so nobody has
-   * measured it. `—` would claim the arm has no such thing to measure, and a bare 0 would claim
-   * it measured nothing spent. U24 owns LIVE and therefore owns this number.
+   * `06` §3's token metric: tokens spent on intents ending `abandoned` or deduped-after-work,
+   * summed from what the authors actually reported — the same rule `bench/metrics.ts` applies to
+   * the benchmark, so the two figures on one page mean one thing.
+   *
+   * **`null`, not `0`, when no model was called.** `06` §6 draws the line: `—` claims the arm has
+   * no such thing to measure and a bare `0` claims somebody measured nothing spent. A REPLAY run
+   * reaches Bedrock for no reasoning at all, so nobody measured, so this is TBD and the page must
+   * render it as TBD. It stops being null the moment a run has a model author.
    */
-  wastedTokens: null;
+  wastedTokens: number | null;
+  /**
+   * WHO WROTE THE CODE, in hunks. Derived from `authorings` by `authorshipOf` — a filter and a
+   * sum over records that exist because work happened, never a counter.
+   *
+   * `hunksAuthoredByModel` is what a model wrote and what validated; `hunksFallenBack` is what a
+   * model wrote and what did not, so the agent applied the reviewed patch instead;
+   * `hunksReplayed` is the REPLAY path, where no call was made. The three partition every hunk
+   * any agent applied, which is what lets the page say "the model wrote 9 of 13 hunks on this
+   * run" rather than asserting that it wrote them all.
+   *
+   * **Optional in the type and set on every path.** They are declared optional only so that an
+   * `ArmResult` built by hand elsewhere in the suite does not have to be rewritten to name them;
+   * `runArm` sets all five below on every return, and `test/workload.test.ts` reads this
+   * declaration and fails if the returned meter literal omits a field it declares.
+   */
+  hunksAuthoredByModel?: number;
+  hunksReplayed?: number;
+  hunksFallenBack?: number;
+  /** Bedrock's own `usage`, summed over every call this arm made. `null` when it made none. */
+  modelInputTokens?: number | null;
+  modelOutputTokens?: number | null;
 }
 
 export interface ArmResult {
@@ -219,6 +316,13 @@ export interface ArmResult {
    * against, and these two figures are the ones most able to look measured while being empty.
    */
   spans: WorkSpan[];
+  /**
+   * Who wrote each ticket's hunks and what it cost — the provenance for the authorship figures,
+   * carried for the same reason `spans` is. Optional in the type for the same reason those meter
+   * fields are: a hand-built `ArmResult` elsewhere in the suite predates it. `runArm` always sets
+   * it, and an empty list is a run in which nobody wrote anything, which the gate refuses.
+   */
+  authorings?: readonly Authoring[];
   events: FleetEvent[];
   /** The tree this lane finished with, read back from the cluster rather than accumulated. */
   tree: FileTree;
@@ -313,13 +417,22 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
    * sum over records that exist because work happened, which is the same rule `06` §6 applies to
    * a count over an empty list.
    */
-  const authorings: Array<{
-    taskId: string;
-    agent: string;
-    source: 'model' | 'committed' | 'fallback';
-    inputTokens: number;
-    outputTokens: number;
-  }> = [];
+  const authorings: Authoring[] = [];
+
+  /**
+   * What this agent's work on this ticket cost, for `intents.tokens_spent`.
+   *
+   * `03` §4.3's column has existed since the beginning and `close()` has always written it; the
+   * runner never had a number to give it, because nothing here spent a token. Now something can,
+   * so the row carries what the run measured rather than the default. Summed over every record
+   * for this agent and ticket, because a re-planned ticket authors twice and both attempts were
+   * billed.
+   */
+  function tokensSpentOn(taskId: string, agent: string): number {
+    return authorings
+      .filter((one) => one.taskId === taskId && one.agent === agent)
+      .reduce((total, one) => total + one.inputTokens + one.outputTokens, 0);
+  }
 
   /**
    * REPLAY unless a caller supplies otherwise, and that default is what keeps rule B4 affordable:
@@ -483,6 +596,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
       taskId: task.id,
       agent,
       source: authored.source,
+      hunks: authored.patches.length,
       inputTokens: authored.usage?.inputTokens ?? 0,
       outputTokens: authored.usage?.outputTokens ?? 0,
     });
@@ -614,6 +728,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
         intentId: decision.intentId,
         result: 'abandoned',
         idempotencyKey: `wl-${task.id}-${decision.intentId}`,
+        tokensSpent: tokensSpentOn(task.id, agent),
         ...(task.closureNote ? { notes: task.closureNote } : {}),
         ...scope,
       });
@@ -632,6 +747,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
       result: 'done',
       idempotencyKey: `wl-${task.id}-${decision.intentId}`,
       filesChanged: touched,
+      tokensSpent: tokensSpentOn(task.id, agent),
       ...(task.closureNote ? { notes: task.closureNote } : {}),
       ...scope,
     });
@@ -706,6 +822,9 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
         intentId: decision.intentId,
         result: 'done',
         idempotencyKey: `wl-${task.id}-${decision.intentId}`,
+        // Everything it spent, and nothing of it landed. That is the sharpest wasted token in
+        // the run and the row has to carry it or `06` §3's metric cannot see it.
+        tokensSpent: tokensSpentOn(task.id, agent),
         ...scope,
       });
       emit(agent, task.id, 'contended', {
@@ -756,6 +875,7 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
       intentId: decision.intentId,
       result: task.result,
       idempotencyKey: `wl-${task.id}-${decision.intentId}`,
+      tokensSpent: tokensSpentOn(task.id, agent),
       ...(touched.length > 0 ? { filesChanged: touched } : {}),
       ...scope,
     });
@@ -864,11 +984,26 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
   beats.consolidate =
     options.arm === 'cortex' && events.some((e) => e.detail?.['informing'] != null);
 
+  /**
+   * `06` §3's own set: the tickets whose tokens were wasted — an intent that ended `abandoned`
+   * after its agent had worked, and work that turned out to duplicate work already underway.
+   * Dedupe *before* the work spends nothing and is deliberately not in it, exactly as
+   * `bench/metrics.ts` has it.
+   */
+  const wastedOn = [
+    ...duplicates.map((duplicate) => duplicate.key),
+    ...steps
+      .filter((step) => step.reported === 'abandoned' && step.intentId !== null)
+      .map((step) => step.taskId),
+  ];
+  const authorship = authorshipOf(authorings, wastedOn);
+
   return {
     arm: options.arm,
     sessionId: options.sessionId,
     steps,
     spans,
+    authorings,
     events,
     tree,
     beats,
@@ -891,7 +1026,12 @@ export async function runArm(options: ArmOptions): Promise<ArmResult> {
       embeddingCalls: tally.calls,
       claimP50Ms: median(claimLatenciesMs(options.recorder?.statements ?? [])),
       serializationRetries: getRetryCount() - retriesBefore,
-      wastedTokens: null,
+      wastedTokens: authorship.wastedTokens,
+      hunksAuthoredByModel: authorship.hunksAuthoredByModel,
+      hunksReplayed: authorship.hunksReplayed,
+      hunksFallenBack: authorship.hunksFallenBack,
+      modelInputTokens: authorship.modelInputTokens,
+      modelOutputTokens: authorship.modelOutputTokens,
     },
   };
 }
@@ -921,20 +1061,23 @@ function median(values: readonly number[]): number | null {
 /** Every ticket the run performs, in wave order. Ten from the benchmark plus the eleventh. */
 export const WORKLOAD_TASKS: readonly DemoTask[] = DEMO_TASKS;
 
-/**
- * **No model call happens in this runner, and that is a deviation to publish rather than a
- * gap to paper over.**
+/*
+ * **HOW MANY MODEL CALLS THIS RUNNER MAKES IS A PROPERTY OF THE RUN, NOT OF THE FILE.**
  *
- * Design §3 says each agent's decision step is a model call whose prompt shape differs from the
- * benchmark's, and that the cassette library must be re-recorded for it. It is not built here.
- * What replaced it is stronger for the one decision that matters — which variant of a patch an
- * informed agent applies — because that choice is now driven by comparing recall's *returned
- * fact* against what consolidation actually wrote. No cached model output sits in the causal
- * path at all: if the changefeed has not delivered, the agent is uninformed, and the page says
- * so.
+ * This used to be `RUNNER_MAKES_MODEL_CALLS = false`, and it was true: the content of every hunk
+ * was committed text and only the coordination was live. `src/demo/author.ts` made it a question
+ * with two answers — REPLAY reaches Bedrock for no reasoning at all, LIVE has the model author
+ * every hunk — so a constant can no longer answer it and one that tried would be wrong on half
+ * the runs. A boolean that is wrong half the time is worse than no boolean, and this repository
+ * has paid for that shape before.
  *
- * The consequence for `07` §4's mode line is that it keeps its current honest wording — live
- * database, live embeddings, no model reasoning — rather than gaining "reasoning is cached".
- * Recorded in `docs/SPEC-DELTA.md`.
+ * The answer for a given run is measured and on the meter: `hunksAuthoredByModel`,
+ * `hunksFallenBack` and `hunksReplayed` partition every hunk any agent applied, and
+ * `modelInputTokens` / `modelOutputTokens` are `null` rather than `0` when nothing was called.
+ * `07` §4's mode line therefore reads off the run instead of off this file.
+ *
+ * What has not changed, and is the reason REPLAY is still a real demonstration: the decision an
+ * informed agent makes is driven by comparing recall's *returned fact* against what
+ * consolidation actually wrote. No cached model output sits in that causal path in either mode —
+ * if the changefeed has not delivered, the agent is uninformed, and the page says so.
  */
-export const RUNNER_MAKES_MODEL_CALLS = false;

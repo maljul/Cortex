@@ -272,6 +272,36 @@ describe('modelAuthor — authored when it validates, reviewed code when it does
     }
   });
 
+  /**
+   * **A refused answer still cost money, and the first version of this module forgot that.**
+   *
+   * `invoke` threw on `stop_reason === 'max_tokens'` *above* its own `return`, so a truncated call
+   * lost its `usage` on the way out. U24's first metered LIVE run reported **$0.2478** against a
+   * true **$0.2910**: 2 of 16 calls were billed by AWS and reported to nobody, and the error was
+   * large enough to move the derived daily cap by a whole run. A cost model that under-reports is
+   * worse than one that estimates, because it looks measured.
+   *
+   * Found by metering a real run rather than by a test, which is why there is now a test.
+   */
+  it('reports the spend of an answer it refuses — truncation is billed either way', async () => {
+    const author = modelAuthor({
+      fallback,
+      invoke: async () => ({
+        text: '{"edits":[{"file":"orders/list.js","find":"  return ORD',
+        inputTokens: 2300,
+        outputTokens: 1400,
+        truncated: true,
+      }),
+    });
+
+    const result = await author(request());
+    expect(result.source).toBe('fallback');
+    expect(result.patches).toEqual(COMMITTED);
+    // The whole point: the usage survives the rejection.
+    expect(result.usage).toEqual({ inputTokens: 2300, outputTokens: 1400 });
+    expect(result.note).toContain('max_tokens');
+  });
+
   it('falls back when the call itself throws, and still reports the ticket’s patches', async () => {
     const author = modelAuthor({
       fallback,
