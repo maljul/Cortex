@@ -5505,3 +5505,67 @@ Proved on the deployed stack, `npm run gate:async`:
   wall clock: response 647ms, whole run 9216ms
 GATE PASSED
 ```
+
+---
+
+## V53 — U25 built locally: the page derives the story from the run, and the cold read stays open
+
+**2026-08-16.** The single-file SPA redesign is implemented in `infra/site/index.html`. This is
+implementation evidence, not U25's done-when: nobody unfamiliar with the project has cold-read it
+yet, and the deployed CloudFront page remains the previous, gate-passed surface until U26.
+
+### The design is the brain's topology
+
+The page uses one dark theme and one teal channel. The hero's inline mark is two mirrored grey
+hemispheres around a two-tone teal spine; the run reveal uses the same split; the comparison is two
+equal arms separated by that spine; the arbitrated graph routes all five agents through it. There
+is no external image, font, script, stylesheet or framework request.
+
+The UI is still an instrument rather than a marketing page: one primary run control, five tracks
+per arm, two labelled event sources, eleven task rows, two executable application panes, a grouped
+transaction disclosure and block-style benchmark explanation. A direct file open runs a labelled
+interface fixture so the idle, running, completed, unobserved-beat and partial-failure states can
+all be inspected without implying that a database was reached.
+
+### The honesty rule is executable
+
+The first U25 test run was red by construction: **19 failures**, covering the missing page
+landmarks, fleet-mode request, source distinction, two sandboxed applications, reduced-motion
+path, failure state and supplied palette. The later readback check was also red before the result
+logic changed, and the meter distinction was red before `TBD`, `N/A` and measured `0` were split.
+
+The result panes do not always print the four designed defects. They inspect the final file trees:
+
+- shipping is silently wrong only when integer money landed and the matching shipping
+  representation did not;
+- confirmation is duplicated only when both independently-authored paths survived;
+- the oversell guard is silently wrong only when its returned file reads the cached availability;
+- missing shared-file work is counted by comparing the returned naive tree with the returned
+  CORTEX tree.
+
+Missing features are then linked to the naive arm's streamed step: ticket, agent, intent id, patch
+summary and absent file. A run whose database race produced a different winner therefore produces
+a different accusation on screen.
+
+### Verification
+
+```
+npm test -- --run test/site.test.ts test/app-bundle.test.ts
+  55 passed across 2 files
+
+npx tsc --noEmit
+  clean
+
+inline script extracted from infra/site/index.html | node --check -
+  clean
+
+git diff --check
+  clean
+```
+
+The source scan also found **zero** forbidden visitor fields or names, external asset URLs,
+non-system font requests, and em/en dash characters. The page still reads both endpoints only
+from `window.CORTEX_API_URL` and `window.CORTEX_STREAM_URL`; no deployment hostname is committed.
+
+**Still open:** a visual cold read and deployment. The first is U25's remaining judgment; the
+second belongs to U26 and still requires a fresh bundle before the stack changes.

@@ -1261,13 +1261,27 @@ account (V26) and U17 substituted nothing.
 service **will never fire**. The reasoning spend bills under `Claude Sonnet 4.5 (Amazon
 Bedrock Edition)`, a separate service; `Amazon Bedrock` carries only the Titan embedding line.
 
-### U25 — The new SPA ⬜ **this is the cut line**
+### U25 — The new SPA 🔶 **built locally 2026-08-16; cold read still open**
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(design §11, verbatim — the same sentence U16 was held to)*
 **Specs:** `07` §2, `07` §3, `02` §B
 **Now also renders both apps.** Two iframes fed by `srcdoc` from the two final file trees —
 no network, so nothing to fail — with each missing feature linked to the agent that reported it
 done. That link is what makes the naive app evidence rather than an assertion.
+
+**Built in V53.** `infra/site/index.html` is now the single-page instrument-panel redesign:
+one run control opens two five-agent swimlanes, committed rows and fleet activity are labelled
+as different sources, the two information-flow graphs animate only from matching run events,
+all eleven tickets carry live state, both returned file trees execute in sandboxed `srcdoc`
+frames, and the result verdicts are derived from those trees rather than declared in copy. The
+meter distinguishes measured zero, not applicable and unmeasured values. Opening the source
+file directly uses a clearly labelled simulated stream and includes both a completed run and a
+partial-failure path; deployed endpoints still select the real route.
+
+**Why this remains partial:** the done-when is a cold-reader judgment, not a source-code or test
+claim. V53 proves the bindings, security surface, syntax and result derivation; it does not claim
+that someone unfamiliar with the project has read the four beats. The current deployed page is
+unchanged, as design decision 7 requires, until U26.
 
 **If time runs out, this is what gets cut** (design §11). The current page then renders the new
 run through its existing three panels: uglier, real, already gate-passed, and nothing built is

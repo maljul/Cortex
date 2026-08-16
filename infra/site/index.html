@@ -1,658 +1,2243 @@
-<!--
-  THE DEMO — spec/07-DEMO-AND-SUBMISSION.md §1, §2, §3, §4.
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https: wss:; frame-src 'self' data: blob:; img-src data:; font-src 'none'; base-uri 'none'; object-src 'none'"
+  >
+  <meta name="theme-color" content="#131820">
+  <title>CORTEX | Arbitrated shared memory for coding agents</title>
 
-  §1 sets the brief: a judge arrives with no context, no account and no patience, and in
-  under ninety seconds must reach *the database is doing something here that a vector store
-  plus a lock service could not do*. Everything below is subordinate to that sentence.
-
-  Four properties this file must never lose, each one a rule rather than a preference:
-
-  1. **No input element of any kind.** Not a text field, not a form, not a hidden one, not
-     one behind an advanced panel, not one commented out. `03` §8 invariant 8, `05` §5 and
-     `07` §4's second absolute rule. The reasoning is not that a judge would refuse to
-     supply a credential — it is that the field itself is the hazard, because once it exists
-     on a public page somebody eventually pastes a live production key into it.
-     `test/site.test.ts` fails if one appears.
-  2. **No error page, ever, in place of a scenario.** `07` §4 and `04` §5 invariant 1. Every
-     failure path below renders a working page that explains itself.
-  3. **Every number on screen is real and comes from the database** (`07` §1). The only
-     figures here that this session did not measure are the benchmark's, and they are
-     labelled as the benchmark's where they appear.
-  4. **No endpoint is hardcoded.** `scripts/deploy-site.mts` injects `window.CORTEX_API_URL`
-     and `window.CORTEX_STREAM_URL` at upload time, because both are CloudFormation outputs
-     and a page carrying last stack's hostname is worse than one carrying none.
-
-  Vanilla, one file, no build step. A bundler would put an artifact between this source and
-  what a judge loads, for a page that needs neither modules nor a framework.
--->
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CORTEX — shared, arbitrated memory for fleets of coding agents</title>
-
-<style>
-  :root {
-    color-scheme: dark;
-    --bg: #0b0d10;
-    --panel: #131820;
-    --line: #232b36;
-    --ink: #e7ecf3;
-    --dim: #8b97a8;
-    --ok: #4ade80;
-    --warn: #fbbf24;
-    --bad: #f87171;
-    --accent: #60a5fa;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  header { padding: 1.1rem 1.25rem .75rem; border-bottom: 1px solid var(--line); }
-  h1 { margin: 0; font-size: 1.05rem; letter-spacing: .02em; }
-  h1 span { color: var(--dim); font-weight: 400; }
-  .thesis { margin: .35rem 0 0; color: var(--dim); max-width: 68ch; }
-
-  /* The mode line. Always visible, per `07` §4. */
-  .mode {
-    margin: .7rem 0 0; padding: .5rem .7rem; border: 1px solid var(--line);
-    border-left: 3px solid var(--ok); border-radius: 3px;
-    background: #0f1621; color: var(--dim); font-size: .82rem; max-width: 100ch;
-  }
-  .mode b { color: var(--ok); font-weight: 600; }
-
-  main {
-    display: grid; grid-template-columns: 21rem minmax(0, 1fr) 20rem;
-    gap: 1px; background: var(--line); border-top: 1px solid var(--line);
-    min-height: calc(100vh - 8.5rem);
-  }
-  section { background: var(--bg); padding: 1rem 1.1rem; overflow-y: auto; max-height: calc(100vh - 8.5rem); }
-  h2 {
-    margin: 0 0 .85rem; font-size: .7rem; text-transform: uppercase;
-    letter-spacing: .12em; color: var(--dim); font-weight: 600;
-  }
-  h2 small { float: right; text-transform: none; letter-spacing: 0; font-weight: 400; }
-
-  .card {
-    border: 1px solid var(--line); border-radius: 4px; padding: .55rem .65rem;
-    margin-bottom: .5rem; background: var(--panel);
-  }
-  .card .who { color: var(--accent); }
-  .card .what { color: var(--dim); font-size: .82rem; margin-top: .15rem; }
-  .card .note { font-size: .78rem; margin-top: .35rem; color: var(--dim); }
-
-  .badge {
-    display: inline-block; float: right; font-size: .68rem; padding: .08rem .4rem;
-    border-radius: 10px; border: 1px solid currentColor; text-transform: uppercase;
-    letter-spacing: .06em;
-  }
-  .b-granted { color: var(--ok); } .b-deduped { color: var(--warn); }
-  .b-blocked { color: var(--bad); } .b-idle { color: var(--dim); }
-  .b-proceeded { color: var(--bad); } .b-done { color: var(--ok); }
-  .b-seeded, .b-saved { color: var(--dim); }
-  .b-overwritten { color: var(--bad); }
-  /* Rare, and it has to render: both agents exhausting their SERIALIZABLE attempts is an
-     outcome the run reports rather than an error it raises. `04` §5 invariant 1. */
-  .b-contended { color: var(--warn); }
-
-  .tier { margin-bottom: 1rem; }
-  .tier h3 {
-    margin: 0 0 .35rem; font-size: .72rem; color: var(--dim); font-weight: 600;
-    border-bottom: 1px dotted var(--line); padding-bottom: .2rem;
-  }
-  .row {
-    display: flex; gap: .6rem; padding: .28rem 0; border-bottom: 1px solid #171d26;
-    font-size: .8rem; align-items: baseline;
-  }
-  .row .pk { color: var(--dim); flex: 0 0 7.5rem; font-size: .74rem; }
-  .row .body { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-  .row.fresh { animation: land 1.4s ease-out; }
-  @keyframes land { from { background: #1d2b3f; } to { background: transparent; } }
-
-  .meter dt { color: var(--dim); font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; }
-  .meter dd { margin: 0 0 .7rem; font-size: 1.3rem; }
-  .meter .pair { display: flex; gap: 1.1rem; }
-  .meter .pair div { flex: 1; }
-  .meter .arm { font-size: .68rem; color: var(--dim); display: block; }
-  .cortex { color: var(--ok); } .naive { color: var(--bad); } .none { color: var(--dim); }
-
-  button {
-    font: inherit; width: 100%; text-align: left; padding: .55rem .7rem; margin-bottom: .5rem;
-    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 4px; cursor: pointer;
-  }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { opacity: .45; cursor: default; }
-  button small { display: block; color: var(--dim); font-size: .72rem; }
-
-  pre.sql { margin: 0; font-size: .74rem; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .stmt { padding: .3rem 0; border-bottom: 1px solid #171d26; display: flex; gap: .55rem; }
-  .stmt .meta { color: var(--dim); flex: 0 0 8.5rem; font-size: .72rem; }
-  .stmt .txn { color: var(--accent); }
-
-  /*
-    One block per transaction. The agents run concurrently now, so a flat list interleaves
-    two BEGINs and the co-location invariant 1 is about stops being readable — which is the
-    one thing this panel exists to show. Grouped, each block is a whole transaction.
-  */
-  .txn-block {
-    border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: 3px;
-    padding: .35rem .55rem; margin-bottom: .5rem; background: var(--panel);
-  }
-  .txn-block > h4 {
-    margin: 0 0 .25rem; font-size: .7rem; font-weight: 600; color: var(--accent);
-    letter-spacing: .06em;
-  }
-  .txn-block .stmt:last-child { border-bottom: 0; }
-  .empty { color: var(--dim); font-size: .82rem; }
-  footer { padding: .6rem 1.25rem; color: var(--dim); font-size: .74rem; border-top: 1px solid var(--line); }
-</style>
-
-<header>
-  <h1>CORTEX <span>— shared, arbitrated memory for fleets of coding agents</span></h1>
-  <p class="thesis">
-    Durable execution gives exactly-once within one workflow. It does not give mutual
-    exclusion between agents that do not know each other exists. This does, in the database
-    that already holds the memory.
-  </p>
-  <p class="mode" id="mode"><b>live database, live embeddings</b> — connecting…</p>
-</header>
-
-<main>
-  <section>
-    <h2>The fleet <small id="fleet-arm">idle</small></h2>
-    <div id="fleet"></div>
-  </section>
-
-  <section>
-    <h2>The memory <small id="memory-source">waiting for a run</small></h2>
-    <div id="memory"></div>
-  </section>
-
-  <section>
-    <!--
-      The controls come first, above the meter. They were below it in the first deployed
-      version and a judge had to **scroll to find the run button** — which fails `07` §1's
-      "one click to a running scenario" on a page whose whole budget is ninety seconds.
-      Found by looking at it in a browser; no test would have caught it.
-    -->
-    <h2>Run it</h2>
-    <button id="run-cortex" disabled>
-      Run with CORTEX
-      <small>five agents, one arbitrated memory</small>
-    </button>
-    <button id="run-naive" disabled>
-      Run without it
-      <small>same script, no shared memory</small>
-    </button>
-    <button id="toggle-sql">
-      Show SQL
-      <small>the statements this run executed</small>
-    </button>
-
-    <h2 style="margin-top:1.4rem">The meter</h2>
-    <dl class="meter" id="meter"></dl>
-  </section>
-</main>
-
-<footer id="footer">No account, no key, no cluster, nothing to install.</footer>
-
-<script>
-  const API = window.CORTEX_API_URL || '';
-  const STREAM = window.CORTEX_STREAM_URL || '';
-
-  const $ = (id) => document.getElementById(id);
-  const text = (el, value) => { el.textContent = value; };
-
-  /**
-   * `07` §3's cast. Five cards, always present, so the panel has a shape before the first
-   * run rather than growing one — movement between states is the narrative, and there is
-   * no movement if the cards appear at the same moment as their verdicts.
-   */
-  const AGENTS = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5'];
-
-  /**
-   * The benchmark's figures, and the only numbers on this page this session did not
-   * measure. `07` §1 requires every number on screen to be real; these are real, published
-   * and reproducible from a clean clone — they are simply measured somewhere else, and the
-   * label says so rather than letting them read as this run's.
-   */
-  const BENCH = { source: 'bench/results/2026-08-12T18-35-38-014Z', naive: 4000, cortex: 867 };
-
-  /** One sandbox scope per arm: re-running CORTEX in one scope dedupes against itself. */
-  const runs = { cortex: null, naive: null };
-  let showingSql = false;
-  let ranSomething = false;
-  let lastArm = 'cortex';
-  let liveSession = null;
-
-  // ---------------------------------------------------------------- fleet
-
-  function renderFleet(result) {
-    const byAgent = new Map();
-    for (const step of result ? result.steps : []) {
-      if (step.agent === 'agent-0') continue;
-      byAgent.set(step.agent, step);
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #131820;
+      --surface: #1A2029;
+      --surface-raised: #202731;
+      --border: #252C36;
+      --border-strong: #38414d;
+      --text: #E8EAED;
+      --muted: #98A0AC;
+      --teal: #5CBCAA;
+      --teal-light: #7FD3C3;
+      --grey: #C9CBCF;
+      --grey-muted: #8A9099;
+      --amber: #D9A441;
+      --failure: #D2695B;
+      --display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --max: 1480px;
+      --section: clamp(4.5rem, 9vw, 9rem);
+      --edge: clamp(1rem, 4vw, 4rem);
     }
 
-    $('fleet').innerHTML = '';
-    for (const id of AGENTS) {
-      const step = byAgent.get(id);
-      const card = document.createElement('div');
-      card.className = 'card';
+    * { box-sizing: border-box; }
 
-      const decision = step ? step.decision : 'idle';
-      const badge = `<span class="badge b-${decision.replace(/[^a-z]/g, '') || 'idle'}">${decision}</span>`;
-      const what = step ? step.statement : 'waiting for work';
+    html {
+      scroll-behavior: smooth;
+      background: var(--canvas);
+    }
 
-      let note = '';
-      if (step && step.detail) {
-        // Invariants 3 and 4 made visible: a blocked agent is shown *who* holds the file,
-        // and a deduped agent is shown the prior outcome it inherited. Both are the whole
-        // reason those are decisions an agent can act on rather than rejections.
-        const contested = step.detail.contested;
-        if (Array.isArray(contested) && contested.length) {
-          note = `<div class="note">blocked by <b>${contested[0].holder}</b> — re-plans instead of polling</div>`;
-        } else if (step.detail.of) {
-          note = `<div class="note">adopted the outcome of an intent already in flight</div>`;
-        } else if (Array.isArray(step.detail.findings) && step.detail.findings.length) {
-          // `07` §3 beat 1 is "a finding from a session 14 days ago, **with a prior revert**",
-          // so a bare `RECALLED` badge is not the beat — it is the beat's headline with the
-          // story removed. Every other card carries its payload: blocked names the holder,
-          // deduped names the outcome it inherited.
-          //
-          // This branch did not exist until 2026-08-12 and could not have been missed by
-          // looking: recall returned nothing at `03` §4.1's old 0.35, so the card never had a
-          // finding to render and the gap was invisible. Changing the constant (V34) exposed
-          // it, and a browser found it rather than a test (V35) — the same lesson U16 already
-          // learned once, that a panel can be correct in every request it makes and still not
-          // say anything.
-          //
-          // `timesReverted` is the load-bearing half rather than decoration: `recall()` orders
-          // by it *ahead of* distance, so a previously-reverted finding is what the fleet is
-          // handed first. Rendering the fact without it would drop the reason this beat is
-          // evidence for the ordering claim.
-          note = step.detail.findings
-            .map((f) => {
-              const reverted =
-                f.timesReverted > 0
-                  ? ` <b>— a prior attempt was reverted</b>`
-                  : '';
-              return `<div class="note">“${f.fact}”${reverted}</div>`;
-            })
-            .join('');
-        } else if (step.detail.note) {
-          note = `<div class="note">${step.detail.note}</div>`;
-        }
+    body {
+      margin: 0;
+      min-width: 320px;
+      overflow-x: hidden;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: var(--display);
+      font-size: 16px;
+      line-height: 1.55;
+      text-rendering: optimizeLegibility;
+    }
+
+    button,
+    a { font: inherit; }
+
+    button { color: inherit; }
+
+    button:focus-visible,
+    a:focus-visible,
+    summary:focus-visible,
+    iframe:focus-visible {
+      outline: 2px solid var(--teal-light);
+      outline-offset: 4px;
+    }
+
+    a { color: inherit; }
+
+    p,
+    h1,
+    h2,
+    h3,
+    h4,
+    dl,
+    dd { margin: 0; }
+
+    .shell {
+      width: min(100%, var(--max));
+      margin-inline: auto;
+      padding-inline: var(--edge);
+    }
+
+    .mono,
+    .eyebrow,
+    .status-label,
+    .metric-value,
+    .agent-id,
+    .task-id,
+    .source-kind,
+    code,
+    pre {
+      font-family: var(--mono);
+    }
+
+    .skip-link {
+      position: fixed;
+      top: .75rem;
+      left: .75rem;
+      z-index: 10;
+      padding: .7rem 1rem;
+      border: 1px solid var(--teal);
+      background: var(--surface);
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .topbar {
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 2;
+      height: 72px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--canvas) 94%, transparent);
+    }
+
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+      gap: 1.5rem;
+    }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .24em;
+    }
+
+    .topbar-meta {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .69rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .hero {
+      min-height: 100dvh;
+      padding-top: 72px;
+      display: grid;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(360px, .96fr);
+      align-items: center;
+      gap: clamp(2rem, 7vw, 8rem);
+      padding-top: clamp(3rem, 7vh, 5.5rem);
+      padding-bottom: clamp(2.5rem, 7vh, 5rem);
+    }
+
+    .eyebrow {
+      color: var(--teal-light);
+      font-size: .7rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .hero h1 {
+      max-width: 14ch;
+      margin-top: 1.1rem;
+      font-size: clamp(3.35rem, 6vw, 5.8rem);
+      font-weight: 660;
+      letter-spacing: -.075em;
+      line-height: .88;
+    }
+
+    .positioning {
+      max-width: 34rem;
+      margin-top: 1.75rem;
+      color: var(--grey);
+      font-size: clamp(1.12rem, 1.8vw, 1.55rem);
+      line-height: 1.3;
+      letter-spacing: -.02em;
+    }
+
+    .thesis {
+      max-width: 59ch;
+      margin-top: 1.35rem;
+      color: var(--muted);
+      font-size: .98rem;
+    }
+
+    .thesis strong { color: var(--text); font-weight: 600; }
+
+    .run-cluster {
+      display: grid;
+      grid-template-columns: minmax(13rem, 19rem);
+      gap: .75rem;
+      margin-top: 2.2rem;
+    }
+
+    .run-button {
+      position: relative;
+      min-height: 4.25rem;
+      border: 1px solid var(--teal);
+      border-radius: 2px;
+      background: var(--teal);
+      color: #10201d;
+      font-family: var(--mono);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+    }
+
+    .run-button::after {
+      content: "";
+      position: absolute;
+      inset: 7px;
+      border: 1px solid rgb(16 32 29 / .36);
+      pointer-events: none;
+    }
+
+    .run-button:hover:not(:disabled) {
+      background: var(--teal-light);
+      transform: translateY(-2px);
+    }
+
+    .run-button:active:not(:disabled) { transform: translateY(1px); }
+
+    .run-button:disabled {
+      border-color: var(--border-strong);
+      background: var(--surface-raised);
+      color: var(--grey-muted);
+      cursor: wait;
+    }
+
+    .run-note {
+      max-width: 36ch;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .71rem;
+      line-height: 1.55;
+    }
+
+    .mode-line {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: .8rem;
+      align-items: start;
+      margin-top: 1.55rem;
+      padding: .75rem 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .69rem;
+      line-height: 1.6;
+    }
+
+    .mode-line b {
+      color: var(--teal-light);
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    .hero-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: min(72vh, 720px);
+      border-left: 1px solid var(--border);
+      isolation: isolate;
+    }
+
+    .hero-mark::before {
+      content: "";
+      position: absolute;
+      inset: 9% 0;
+      z-index: -1;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brain-logo {
+      width: min(86%, 520px);
+      height: auto;
+      filter: drop-shadow(0 28px 50px rgb(5 9 13 / .38));
+    }
+
+    .mark-caption {
+      position: absolute;
+      right: 0;
+      bottom: 8%;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .65rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .section {
+      padding-block: var(--section);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-heading {
+      max-width: 850px;
+      margin-bottom: clamp(2rem, 5vw, 4.25rem);
+    }
+
+    .section-heading h2 {
+      font-size: clamp(2.1rem, 4.5vw, 4.8rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+      font-weight: 620;
+    }
+
+    .section-heading p {
+      max-width: 62ch;
+      margin-top: 1.2rem;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 600ms cubic-bezier(.16, 1, .3, 1), transform 600ms cubic-bezier(.16, 1, .3, 1);
+    }
+
+    .reveal.seen {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .comparison-shell {
+      max-height: 0;
+      overflow: clip;
+      border-bottom: 0;
+      opacity: 0;
+      transition: max-height 900ms cubic-bezier(.16, 1, .3, 1), opacity 500ms ease;
+    }
+
+    body[data-demo-state="running"] .comparison-shell,
+    body[data-demo-state="finished"] .comparison-shell,
+    body[data-demo-state="failed"] .comparison-shell {
+      max-height: 20000px;
+      opacity: 1;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .split-stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .split-stage::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 50%;
+      width: 3px;
+      background: var(--teal);
+      transform: translateX(-1px) scaleY(0);
+      transform-origin: center;
+      transition: transform 850ms cubic-bezier(.16, 1, .3, 1) 200ms;
+      pointer-events: none;
+    }
+
+    body[data-demo-state="running"] .split-stage::after,
+    body[data-demo-state="finished"] .split-stage::after,
+    body[data-demo-state="failed"] .split-stage::after { transform: translateX(-1px) scaleY(1); }
+
+    .arm {
+      min-width: 0;
+      padding: clamp(1rem, 2.4vw, 2.35rem);
+      background: var(--surface);
+    }
+
+    .arm-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: start;
+      min-height: 6rem;
+      padding-bottom: 1.35rem;
+      border-bottom: 1px solid var(--border-strong);
+    }
+
+    .arm-header h3 {
+      font-size: clamp(1.2rem, 2vw, 1.75rem);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+
+    .arm-header p {
+      max-width: 42ch;
+      margin-top: .65rem;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .arm-code {
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .64rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .arm-cortex .arm-code { color: var(--teal-light); }
+
+    .beats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1px;
+      background: var(--border);
+    }
+
+    .beat {
+      min-width: 0;
+      padding: .65rem .5rem;
+      background: var(--canvas);
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .59rem;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .beat.observed { color: var(--teal-light); }
+    .arm-naive .beat.observed { color: var(--grey); }
+    .beat.absent { color: var(--amber); }
+
+    .tracks {
+      display: grid;
+      gap: .65rem;
+      margin-top: 1.2rem;
+    }
+
+    .agent-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: 5.25rem minmax(0, 1fr) 5.8rem;
+      gap: .75rem;
+      align-items: center;
+      min-height: 3.4rem;
+      padding: .55rem .65rem;
+      border: 1px solid var(--border);
+      background: var(--canvas);
+      overflow: hidden;
+    }
+
+    .agent-track::before {
+      content: "";
+      position: absolute;
+      left: 6.55rem;
+      right: 6.8rem;
+      top: 50%;
+      height: 1px;
+      background: var(--border-strong);
+    }
+
+    .agent-track.active::before { background: var(--teal); }
+    .arm-naive .agent-track.active::before { background: var(--grey-muted); }
+    .agent-track.collision { border-color: var(--failure); }
+    .agent-track.blocked { border-color: var(--teal); }
+
+    .agent-id {
+      position: relative;
+      z-index: 1;
+      color: var(--grey);
+      font-size: .66rem;
+    }
+
+    .work-items {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: .35rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .work-item {
+      flex: 0 0 auto;
+      max-width: 8rem;
+      padding: .33rem .48rem;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-raised);
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .57rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      animation: event-land 360ms cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .work-item.blocked,
+    .work-item.deduped,
+    .work-item.spared { border-color: var(--teal); color: var(--teal-light); }
+    .work-item.overwritten,
+    .work-item.abandoned,
+    .work-item.contended { border-color: var(--failure); color: #e49a90; }
+
+    @keyframes event-land {
+      from { opacity: 0; transform: translateX(-12px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .track-phase {
+      position: relative;
+      z-index: 1;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .57rem;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    .holder-link {
+      grid-column: 2 / 4;
+      margin-top: -.25rem;
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: .58rem;
+    }
+
+    .source-rail {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .source-stream {
+      min-width: 0;
+      min-height: 8.5rem;
+      max-height: 13rem;
+      padding: .9rem;
+      overflow: auto;
+      background: var(--canvas);
+    }
+
+    .source-kind {
+      display: block;
+      margin-bottom: .6rem;
+      color: var(--muted);
+      font-size: .57rem;
+      letter-spacing: .12em;
+    }
+
+    .source-kind.row-source { color: var(--teal-light); }
+
+    .source-event {
+      display: grid;
+      grid-template-columns: 4.25rem minmax(0, 1fr);
+      gap: .55rem;
+      padding: .38rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .57rem;
+    }
+
+    .source-event:last-child { border-bottom: 0; }
+    .source-event time { color: var(--grey); }
+
+    .graph-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .graph-panel {
+      min-width: 0;
+      padding: clamp(1.15rem, 3vw, 2.4rem);
+      background: var(--surface);
+    }
+
+    .graph-panel header {
+      min-height: 6.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .graph-panel h3 {
+      font-size: 1.2rem;
+      letter-spacing: -.025em;
+    }
+
+    .graph-panel p {
+      max-width: 48ch;
+      margin-top: .6rem;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .graph-canvas {
+      width: 100%;
+      height: auto;
+      margin-top: 1.25rem;
+      overflow: visible;
+    }
+
+    .graph-line {
+      fill: none;
+      stroke: var(--border-strong);
+      stroke-width: 1.2;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .graph-line.spine { stroke: var(--teal); stroke-width: 5; }
+    .graph-line.loss { stroke: var(--failure); }
+    .graph-line.flow { stroke-dasharray: 7 9; }
+    .graph-line.flow.active { animation: edge-flow 900ms linear 1; }
+
+    @keyframes edge-flow {
+      from { stroke-dashoffset: 32; opacity: .25; }
+      to { stroke-dashoffset: 0; opacity: 1; }
+    }
+
+    .graph-node {
+      fill: var(--canvas);
+      stroke: var(--grey-muted);
+      stroke-width: 1.4;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .graph-node.center { stroke: var(--teal-light); }
+
+    .graph-labels {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1rem;
+      background: var(--border);
+    }
+
+    .message-kind {
+      padding: .7rem;
+      background: var(--canvas);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .58rem;
+      line-height: 1.45;
+    }
+
+    .message-kind b { display: block; color: var(--teal-light); font-weight: 600; }
+
+    .task-table {
+      border-top: 1px solid var(--border-strong);
+    }
+
+    .task-row {
+      display: grid;
+      grid-template-columns: 4rem minmax(10rem, 1.7fr) minmax(7rem, .7fr) 6rem 7rem;
+      gap: 1rem;
+      align-items: center;
+      min-height: 4.25rem;
+      padding: .85rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .task-row.header {
+      min-height: 2.8rem;
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .56rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .task-id { color: var(--teal-light); font-size: .65rem; }
+    .task-statement { font-size: .82rem; }
+    .task-module,
+    .task-agent,
+    .task-status {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+
+    .task-row[data-conflict="duplicate"] .task-statement::after,
+    .task-row[data-conflict="shared-file"] .task-statement::after,
+    .task-row[data-conflict="depends"] .task-statement::after {
+      display: inline-block;
+      margin-left: .6rem;
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: .54rem;
+    }
+
+    .task-row[data-conflict="duplicate"] .task-statement::after { content: "semantic duplicate"; }
+    .task-row[data-conflict="shared-file"] .task-statement::after { content: "shared file"; }
+    .task-row[data-conflict="depends"] .task-statement::after { content: "depends on memory"; }
+
+    .task-status.done { color: var(--teal-light); }
+    .task-status.failed { color: var(--failure); }
+    .task-status.waiting { color: var(--grey-muted); }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .result-pane {
+      min-width: 0;
+      padding: clamp(1rem, 2.7vw, 2rem);
+      background: var(--surface);
+    }
+
+    .result-pane h3 {
+      font-size: 1.25rem;
+      letter-spacing: -.03em;
+    }
+
+    .result-pane > p {
+      margin-top: .5rem;
+      color: var(--muted);
+      font-size: .75rem;
+    }
+
+    .app-frame {
+      width: 100%;
+      height: min(36rem, 58vw);
+      min-height: 25rem;
+      margin-top: 1.25rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 2px;
+      background: #f4f5f7;
+    }
+
+    .feature-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1px;
+      background: var(--border);
+    }
+
+    .feature-state {
+      min-height: 4.2rem;
+      padding: .75rem;
+      background: var(--canvas);
+    }
+
+    .feature-state b {
+      display: block;
+      font-family: var(--mono);
+      font-size: .58rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .feature-state span {
+      display: block;
+      margin-top: .32rem;
+      color: var(--muted);
+      font-size: .68rem;
+    }
+
+    .state-present b { color: var(--teal-light); }
+    .state-missing b { color: var(--amber); }
+    .state-duplicated b { color: #dfbb70; }
+    .state-wrong {
+      border-left: 3px solid var(--failure);
+      background: color-mix(in srgb, var(--failure) 10%, var(--canvas));
+    }
+    .state-wrong b { color: #e49a90; }
+
+    .attribution {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border-strong);
+    }
+
+    .attribution-row {
+      display: grid;
+      grid-template-columns: 4rem 5rem minmax(7rem, .8fr) minmax(8rem, 1.2fr);
+      gap: .7rem;
+      padding: .65rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .58rem;
+      overflow-wrap: anywhere;
+    }
+
+    .attribution-row b { color: var(--grey); font-weight: 500; }
+
+    .meter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .meter-cell {
+      min-height: 8.4rem;
+      padding: 1rem;
+      background: var(--surface);
+    }
+
+    .meter-cell dt {
+      min-height: 2.8em;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .57rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .meter-pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .65rem;
+      margin-top: .8rem;
+    }
+
+    .metric-value {
+      display: block;
+      color: var(--grey);
+      font-size: clamp(1.25rem, 2.2vw, 2.1rem);
+      line-height: 1;
+    }
+
+    .meter-pair div:last-child .metric-value { color: var(--teal-light); }
+
+    .metric-arm {
+      display: block;
+      margin-top: .35rem;
+      color: var(--grey-muted);
+      font-family: var(--mono);
+      font-size: .52rem;
+      text-transform: uppercase;
+    }
+
+    .metric-zero { text-decoration: underline; text-decoration-color: var(--teal); text-underline-offset: .25em; }
+    .metric-tbd { color: var(--amber) !important; font-size: 1.1rem; }
+
+    .meter-provenance {
+      margin-top: 1rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .63rem;
+    }
+
+    details.sql-panel {
+      margin-top: 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    details.sql-panel summary {
+      padding: 1rem;
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: .66rem;
+      letter-spacing: .08em;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .sql-content {
+      max-height: 36rem;
+      padding: 0 1rem 1rem;
+      overflow: auto;
+    }
+
+    .txn-block {
+      margin-top: .7rem;
+      padding: .8rem;
+      border-left: 2px solid var(--teal);
+      background: var(--canvas);
+    }
+
+    .txn-block h4 {
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: .6rem;
+      font-weight: 500;
+    }
+
+    .stmt {
+      display: grid;
+      grid-template-columns: 6rem minmax(0, 1fr);
+      gap: .7rem;
+      padding: .5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stmt:last-child { border-bottom: 0; }
+    .stmt span { color: var(--grey-muted); font-family: var(--mono); font-size: .55rem; }
+    .stmt pre { margin: 0; color: var(--grey); font-size: .57rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .infographic {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .info-block {
+      min-height: 15rem;
+      padding: clamp(1rem, 2.3vw, 2rem);
+      background: var(--surface);
+    }
+
+    .info-block h3 {
+      font-size: clamp(1.15rem, 2.2vw, 2rem);
+      letter-spacing: -.04em;
+      line-height: 1.05;
+    }
+
+    .info-block p {
+      max-width: 48ch;
+      margin-top: .8rem;
+      color: var(--muted);
+      font-size: .76rem;
+    }
+
+    .info-block code {
+      display: block;
+      margin-top: 1.2rem;
+      color: var(--teal-light);
+      font-size: .66rem;
+    }
+
+    .info-atomic { grid-column: span 7; }
+    .info-distance { grid-column: span 5; }
+    .info-claims { grid-column: span 4; }
+    .info-memory { grid-column: span 4; }
+    .info-stream { grid-column: span 4; }
+    .info-measure { grid-column: span 12; min-height: 12rem; }
+
+    .atomic-diagram {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 1px;
+      margin-top: 1.4rem;
+      background: var(--border);
+    }
+
+    .atomic-diagram span {
+      padding: .8rem;
+      background: var(--canvas);
+      color: var(--grey);
+      font-family: var(--mono);
+      font-size: .61rem;
+    }
+
+    .atomic-diagram b {
+      display: grid;
+      place-items: center;
+      padding: .8rem;
+      background: var(--teal);
+      color: #10201d;
+      font-family: var(--mono);
+      font-size: .61rem;
+    }
+
+    .published-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 1.3rem;
+      background: var(--border);
+    }
+
+    .published-metric {
+      padding: 1rem;
+      background: var(--canvas);
+    }
+
+    .published-metric strong {
+      display: block;
+      color: var(--teal-light);
+      font-family: var(--mono);
+      font-size: clamp(1.55rem, 3vw, 3rem);
+      line-height: 1;
+    }
+
+    .published-metric span {
+      display: block;
+      margin-top: .55rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .55rem;
+    }
+
+    .production-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .84fr) minmax(0, 1.16fr);
+      gap: 1px;
+      border: 1px solid var(--border);
+      background: var(--border);
+    }
+
+    .production-block {
+      min-height: 27rem;
+      padding: clamp(1.3rem, 4vw, 3.3rem);
+      background: var(--surface);
+    }
+
+    .production-block h2 {
+      max-width: 12ch;
+      font-size: clamp(2rem, 4.5vw, 4.9rem);
+      line-height: .97;
+      letter-spacing: -.055em;
+    }
+
+    .readiness-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 2rem;
+      background: var(--border);
+    }
+
+    .readiness-item {
+      min-height: 6rem;
+      padding: .9rem;
+      background: var(--canvas);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+
+    .argument {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--teal);
+      color: #10201d;
+    }
+
+    .argument p {
+      max-width: 29ch;
+      font-size: clamp(1.55rem, 3.35vw, 3.9rem);
+      line-height: 1.02;
+      letter-spacing: -.045em;
+    }
+
+    .argument small {
+      max-width: 50ch;
+      font-family: var(--mono);
+      font-size: .66rem;
+      line-height: 1.55;
+    }
+
+    .run-failure {
+      display: none;
+      margin: 1rem 0 0;
+      padding: 1rem;
+      border: 1px solid var(--failure);
+      color: #e7b0a9;
+      font-family: var(--mono);
+      font-size: .68rem;
+    }
+
+    body[data-demo-state="failed"] .run-failure { display: block; }
+
+    .preview-controls {
+      display: none;
+      margin-top: 1rem;
+    }
+
+    .preview-controls.visible { display: block; }
+
+    .quiet-button {
+      width: auto;
+      padding: .6rem .8rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 2px;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .61rem;
+      cursor: pointer;
+    }
+
+    .quiet-button:hover { border-color: var(--teal); color: var(--text); }
+
+    .footer {
+      display: grid;
+      place-items: center;
+      min-height: 22rem;
+      padding: 4rem var(--edge);
+      text-align: center;
+    }
+
+    .footer .brain-logo { width: 74px; filter: none; }
+    .footer p { margin-top: 1.2rem; color: var(--muted); font-family: var(--mono); font-size: .63rem; }
+
+    @media (max-width: 1080px) {
+      .hero-inner { grid-template-columns: minmax(0, 1fr) minmax(300px, .72fr); gap: 2.4rem; }
+      .run-cluster { grid-template-columns: minmax(13rem, 19rem); }
+      .meter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .task-row { grid-template-columns: 3.5rem minmax(11rem, 1fr) 7rem 5.5rem 6rem; }
+      .published-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 820px) {
+      .topbar-meta { display: none; }
+      .hero-inner { grid-template-columns: 1fr; padding-top: 4.8rem; }
+      .hero-mark { min-height: 48vh; border-left: 0; border-top: 1px solid var(--border); }
+      .mark-caption { right: 1rem; }
+      .run-cluster { grid-template-columns: 1fr; }
+      .split-stage,
+      .graph-grid,
+      .results-grid,
+      .production-grid { grid-template-columns: 1fr; }
+      .split-stage::after { display: none; }
+      .source-rail { grid-template-columns: 1fr; }
+      .task-table { overflow-x: auto; }
+      .task-row { min-width: 760px; }
+      .meter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .info-atomic,
+      .info-distance,
+      .info-claims,
+      .info-memory,
+      .info-stream,
+      .info-measure { grid-column: 1 / -1; }
+      .production-block { min-height: auto; }
+    }
+
+    @media (max-width: 560px) {
+      .hero h1 { font-size: clamp(3.2rem, 20vw, 5rem); }
+      .hero-mark { min-height: 40vh; }
+      .brain-logo { width: 94%; }
+      .beats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .agent-track { grid-template-columns: 4.25rem minmax(0, 1fr); }
+      .agent-track::before { left: 5.4rem; right: .75rem; }
+      .track-phase { grid-column: 2; text-align: left; }
+      .holder-link { grid-column: 1 / -1; }
+      .graph-labels,
+      .feature-summary,
+      .meter-grid,
+      .published-metrics,
+      .readiness-list { grid-template-columns: 1fr; }
+      .app-frame { height: 31rem; min-height: 31rem; }
+      .attribution-row { grid-template-columns: 3.2rem 4rem minmax(0, 1fr); }
+      .attribution-row span:last-child { grid-column: 1 / -1; }
+      .atomic-diagram { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
       }
-
-      card.innerHTML = `${badge}<div class="who">${id}</div><div class="what">${what}</div>${note}`;
-      $('fleet').appendChild(card);
+      .reveal { opacity: 1; transform: none; }
+      .comparison-shell { transition: none; }
     }
-  }
+  </style>
+</head>
 
-  // ---------------------------------------------------------------- memory
+<body data-demo-state="idle">
+  <a class="skip-link" href="#comparison">Skip to the comparison</a>
 
-  /** `03` §2's four tiers, in the order `07` §2 lists them. */
-  const TIERS = [
-    { key: 'claims', table: 'claims', label: 'working — claims' },
-    { key: 'intents', table: 'intents', label: 'episodic — intents' },
-    { key: 'findings', table: 'findings', label: 'semantic — findings' },
-    { key: 'ledger', table: 'action_ledger', label: 'procedural — action_ledger' },
-  ];
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <span class="wordmark">CORTEX</span>
+      <span class="topbar-meta">Arbitrated shared memory / CockroachDB</span>
+    </div>
+  </header>
 
-  const memory = { claims: [], intents: [], findings: [], ledger: [] };
-  const fresh = new Set();
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="shell hero-inner">
+        <div>
+          <p class="eyebrow">Coordination for coding-agent fleets</p>
+          <h1 id="hero-title">Intent before damage.</h1>
+          <p class="positioning">Arbitrated shared memory for parallel coding agents.</p>
+          <p class="thesis">
+            Worktrees prevent file clobbering, not duplicate work across modules. <strong>CORTEX checks intent and claims files in one database transaction.</strong>
+          </p>
 
-  /**
-   * The naive fleet's entire shared memory: one JSON cell holding whatever survived the
-   * last write. Rendered beside the four tiers rather than instead of them, because the
-   * comparison is the point — four populated tiers against one cell missing most of what
-   * was put in it. Null for every CORTEX run, which never writes it.
-   */
-  let sharedState = null;
+          <div class="run-cluster">
+            <button class="run-button" id="run-demo" type="button" disabled>Run the demo</button>
+            <p class="run-note">Eleven real tickets, five agents, two arms, one live CockroachDB cluster. About ten seconds.</p>
+          </div>
 
-  /** Each row shows its real primary key, per `07` §2. */
-  function pkOf(tier, row) {
-    if (tier === 'claims') return row.resourceKey || row.resource_key || '';
-    return String(row.id || '').slice(0, 8);
-  }
+          <div class="mode-line" id="mode" role="status" aria-live="polite">
+            <b>CONNECTING</b>
+            <span>Code patches and one cross-module note are authored and reviewed. Coordination, embeddings, claims, recall and database writes are measured live.</span>
+          </div>
 
-  function bodyOf(tier, row) {
-    if (tier === 'claims') return `held by ${row.holder}`;
-    if (tier === 'intents') return `${row.agentId || row.agent_id} — ${row.statement} <b>${row.status}</b>`;
-    if (tier === 'findings') {
-      const confidence = Number(row.confidence).toFixed(2);
-      const corroborations = row.corroborations;
-      return `${row.fact} <span class="pk">conf ${confidence} · ×${corroborations}</span>`;
-    }
-    return `${row.action} — ${row.idempotencyKey || row.idempotency_key}`;
-  }
+          <div class="preview-controls" id="preview-controls">
+            <button class="quiet-button" id="preview-failure" type="button">Preview a partial run failure</button>
+          </div>
+        </div>
 
-  function renderMemory() {
-    if (showingSql) return;
-    const host = $('memory');
-    host.innerHTML = '';
+        <div class="hero-mark" aria-label="CORTEX brain mark: two hemispheres connected by one teal channel">
+          <svg class="brain-logo" viewBox="0 0 320 360" role="img" aria-labelledby="logo-title logo-desc">
+            <title id="logo-title">CORTEX</title>
+            <desc id="logo-desc">A geometric brain with two grey hemispheres and one shared teal spine.</desc>
+            <defs>
+              <path id="hemi" d="M142 40C99 22 57 48 54 94C24 112 21 161 48 183C17 224 38 285 78 296C72 332 103 349 142 334Z"/>
+            </defs>
+            <use href="#hemi" fill="#C9CBCF"/>
+            <use href="#hemi" fill="#C9CBCF" transform="translate(320 0) scale(-1 1)"/>
+            <path d="M128 38C128 18 146 8 160 24V336C160 352 142 354 128 338Z" fill="#4C9C90"/>
+            <path d="M160 24C174 8 192 18 192 38V338C178 354 160 352 160 336Z" fill="#5CBCAA"/>
+            <path d="M116 73C91 64 77 83 81 106C84 124 103 127 102 147C101 164 89 170 75 170" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M204 73C229 64 243 83 239 106C236 124 217 127 218 147C219 164 231 170 245 170" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M112 190C86 204 66 198 52 183" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M208 190C234 204 254 198 268 183" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M112 246C79 236 61 258 65 294" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M208 246C241 236 259 258 255 294" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M116 287C96 292 92 311 100 327" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+            <path d="M204 287C224 292 228 311 220 327" fill="none" stroke="#131820" stroke-width="13" stroke-linecap="round"/>
+          </svg>
+          <span class="mark-caption">Two agents / one shared channel</span>
+        </div>
+      </div>
+    </section>
 
-    let total = 0;
-    for (const tier of TIERS) {
-      const rows = memory[tier.key];
-      total += rows.length;
-      const block = document.createElement('div');
-      block.className = 'tier';
-      block.innerHTML = `<h3>${tier.label}</h3>`;
+    <section class="section comparison-shell" id="comparison" aria-labelledby="comparison-title">
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="comparison-title">The same agents. The same tickets. One transaction boundary changes the result.</h2>
+          <p>Activity arrives in database order. No lane is pre-positioned to win, and a beat stays dark when it did not happen in this run.</p>
+        </div>
 
-      if (!rows.length) {
-        block.innerHTML += '<div class="empty">nothing yet</div>';
-      } else {
-        for (const row of rows) {
-          const key = `${tier.key}:${pkOf(tier.key, row)}`;
-          block.innerHTML +=
-            `<div class="row${fresh.has(key) ? ' fresh' : ''}">` +
-            `<span class="pk">${pkOf(tier.key, row)}</span>` +
-            `<span class="body">${bodyOf(tier.key, row)}</span></div>`;
-        }
-      }
-      host.appendChild(block);
-    }
+        <div class="split-stage" id="journey">
+          <article class="arm arm-naive" aria-labelledby="naive-title">
+            <div class="arm-header">
+              <div>
+                <h3 id="naive-title">Worktree isolation</h3>
+                <p>Each agent owns a sandbox. Semantic search and file leases happen in separate transactions.</p>
+              </div>
+              <span class="arm-code">NAIVE</span>
+            </div>
+            <div class="beats" id="beats-naive" aria-label="Observed naive-arm moments"></div>
+            <div class="tracks" id="tracks-naive" aria-live="polite"></div>
+            <div class="source-rail">
+              <div class="source-stream"><span class="source-kind">FLEET EVENT / TIMESTAMPED ACTIVITY</span><div id="fleet-source-naive"></div></div>
+              <div class="source-stream"><span class="source-kind row-source">COMMITTED ROW / AUTHORITATIVE</span><div id="row-source-naive"></div></div>
+            </div>
+          </article>
 
-    if (total === 0 && !sharedState) {
-      host.innerHTML = ranSomething
-        ? '<div class="empty">Nothing. That is the result: these agents share no memory, ' +
-          'so there is nothing for them to write to and nothing for the next one to find. ' +
-          'Run it with CORTEX to see the same script fill this panel.</div>'
-        : '<div class="empty">Run a scenario and rows will arrive here from the database’s own changefeed.</div>';
-      return;
-    }
+          <article class="arm arm-cortex" aria-labelledby="cortex-title">
+            <div class="arm-header">
+              <div>
+                <h3 id="cortex-title">CORTEX arbitrated memory</h3>
+                <p>The same semantic search and file claims succeed together or neither does.</p>
+              </div>
+              <span class="arm-code">CORTEX</span>
+            </div>
+            <div class="beats" id="beats-cortex" aria-label="Observed CORTEX-arm moments"></div>
+            <div class="tracks" id="tracks-cortex" aria-live="polite"></div>
+            <div class="source-rail">
+              <div class="source-stream"><span class="source-kind">FLEET EVENT / TIMESTAMPED ACTIVITY</span><div id="fleet-source-cortex"></div></div>
+              <div class="source-stream"><span class="source-kind row-source">COMMITTED ROW / AUTHORITATIVE</span><div id="row-source-cortex"></div></div>
+            </div>
+          </article>
+        </div>
 
-    // What the naive fleet has instead. It is one row in the database, read back after the
-    // run, and the entries missing from it are the writes its own agents were told had
-    // been saved. The four tiers above stay on screen and stay empty, which is the honest
-    // shape of the comparison rather than a substitution.
-    if (sharedState) {
-      const block = document.createElement('div');
-      block.className = 'tier';
-      block.innerHTML =
-        '<h3>the whole of this fleet’s shared memory — one JSON cell</h3>';
+        <p class="run-failure" id="run-failure">Everything above this line happened before the run stopped.</p>
+      </div>
+    </section>
 
-      if (!sharedState.entries.length) {
-        block.innerHTML += '<div class="empty">empty</div>';
-      } else {
-        for (const entry of sharedState.entries) {
-          block.innerHTML +=
-            '<div class="row"><span class="pk">' + entry.agent + '</span>' +
-            '<span class="body">' + entry.statement + '</span></div>';
-        }
-      }
+    <section class="section" id="flow-graphs" aria-labelledby="graphs-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="graphs-title">Isolation has five private paths. Arbitration has one shared channel.</h2>
+          <p>Graph edges animate only when the corresponding claim, refusal or finding appears in the run.</p>
+        </div>
 
-      block.innerHTML +=
-        '<div class="empty" style="margin-top:.4rem">Four agents were told their work was ' +
-        'saved. This is what is still there: each save wrote the whole cell back from a ' +
-        'snapshot taken before the others landed.</div>';
-      host.appendChild(block);
-    }
-  }
+        <div class="graph-grid">
+          <article class="graph-panel">
+            <header><h3>Five islands, one late merge</h3><p>Agents can write without clobbering a branch. They cannot see an intent in another worktree.</p></header>
+            <svg class="graph-canvas" viewBox="0 0 520 320" role="img" aria-label="Five isolated agents writing to separate worktrees and merging at the end">
+              <line class="graph-line" x1="70" y1="48" x2="115" y2="245"/>
+              <line class="graph-line" x1="165" y1="48" x2="185" y2="245"/>
+              <line class="graph-line" x1="260" y1="48" x2="260" y2="245"/>
+              <line class="graph-line" x1="355" y1="48" x2="335" y2="245"/>
+              <line class="graph-line" x1="450" y1="48" x2="405" y2="245"/>
+              <line class="graph-line loss flow" id="naive-merge-edge" x1="115" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
+              <line class="graph-line loss flow" x1="185" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
+              <line class="graph-line loss flow" x1="335" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
+              <line class="graph-line loss flow" x1="405" y1="245" x2="260" y2="292" data-event="C1 C2 C3"/>
+              <circle class="graph-node" cx="70" cy="48" r="22"/>
+              <circle class="graph-node" cx="165" cy="48" r="22"/>
+              <circle class="graph-node" cx="260" cy="48" r="22"/>
+              <circle class="graph-node" cx="355" cy="48" r="22"/>
+              <circle class="graph-node" cx="450" cy="48" r="22"/>
+              <rect class="graph-node" x="92" y="224" width="46" height="42"/>
+              <rect class="graph-node" x="162" y="224" width="46" height="42"/>
+              <rect class="graph-node" x="237" y="224" width="46" height="42"/>
+              <rect class="graph-node" x="312" y="224" width="46" height="42"/>
+              <rect class="graph-node" x="382" y="224" width="46" height="42"/>
+              <circle class="graph-node" cx="260" cy="292" r="18"/>
+            </svg>
+            <div class="graph-labels"><div class="message-kind"><b>NO EDGES</b>intent stays private</div><div class="message-kind"><b>LOCAL WRITE</b>each branch looks correct</div><div class="message-kind"><b>LATE MERGE</b>one clean loss</div></div>
+          </article>
 
-  function applyState(state) {
-    memory.claims = state.claims || [];
-    memory.intents = state.intents || [];
-    memory.findings = state.findings || [];
-    memory.ledger = state.ledger || [];
-    sharedState = state.sharedState || null;
-    renderMemory();
-  }
+          <article class="graph-panel">
+            <header><h3>Five agents, one transactional spine</h3><p>The central channel carries ownership, refusals and durable findings before work is wasted.</p></header>
+            <svg class="graph-canvas" viewBox="0 0 520 320" role="img" aria-label="Five agents connected through one central teal memory channel">
+              <line class="graph-line spine" x1="260" y1="28" x2="260" y2="294"/>
+              <line class="graph-line flow cortex-edge" x1="72" y1="58" x2="260" y2="78" data-kind="claim"/>
+              <line class="graph-line flow cortex-edge" x1="72" y1="154" x2="260" y2="154" data-kind="refusal"/>
+              <line class="graph-line flow cortex-edge" x1="72" y1="250" x2="260" y2="230" data-kind="finding"/>
+              <line class="graph-line flow cortex-edge" x1="448" y1="58" x2="260" y2="78" data-kind="claim"/>
+              <line class="graph-line flow cortex-edge" x1="448" y1="154" x2="260" y2="154" data-kind="refusal"/>
+              <line class="graph-line flow cortex-edge" x1="448" y1="250" x2="260" y2="230" data-kind="finding"/>
+              <circle class="graph-node" cx="72" cy="58" r="22"/>
+              <circle class="graph-node" cx="72" cy="154" r="22"/>
+              <circle class="graph-node" cx="72" cy="250" r="22"/>
+              <circle class="graph-node" cx="448" cy="58" r="22"/>
+              <circle class="graph-node" cx="448" cy="154" r="22"/>
+              <circle class="graph-node center" cx="260" cy="154" r="25"/>
+            </svg>
+            <div class="graph-labels"><div class="message-kind"><b>CLAIM</b>this file is mine</div><div class="message-kind"><b>REFUSAL</b>already underway, holder named</div><div class="message-kind"><b>FINDING</b>what the fleet learned</div></div>
+          </article>
+        </div>
+      </div>
+    </section>
 
-  /** A row arriving over the WebSocket — what committed, not what this page believes it sent. */
-  function applyChange(message) {
-    const tier = TIERS.find((t) => t.table === message.topic);
-    if (!tier || !message.after) return;
+    <section class="section" id="task-board" aria-labelledby="tasks-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="tasks-title">Eleven tickets engineered to cross module boundaries.</h2>
+          <p>Two pairs are semantic duplicates. Three tasks touch one shared file. Two later tickets need a decision another agent made.</p>
+        </div>
+        <div class="task-table" id="tasks"></div>
+      </div>
+    </section>
 
-    const rows = memory[tier.key];
-    const key = pkOf(tier.key, message.after);
-    const index = rows.findIndex((r) => pkOf(tier.key, r) === key);
-    if (index >= 0) rows[index] = message.after;
-    else rows.unshift(message.after);
+    <section class="section" id="results" aria-labelledby="results-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="results-title">The artifact is the application, not a diff.</h2>
+          <p>Both file trees come back from the database and run here without network access. Click through both.</p>
+        </div>
 
-    fresh.add(`${tier.key}:${key}`);
-    text($('memory-source'), 'live from the changefeed');
-    renderMemory();
-  }
+        <div class="results-grid">
+          <article class="result-pane">
+            <h3>Worktree result</h3>
+            <p id="naive-result-note">Waiting for the run to finish.</p>
+            <iframe class="app-frame" id="naive-frame" title="Orders dashboard produced by the worktree-isolated arm" sandbox="allow-scripts"></iframe>
+            <div class="feature-summary" id="naive-features"></div>
+            <div class="attribution" id="naive-attribution"></div>
+          </article>
 
-  // ---------------------------------------------------------------- meter
+          <article class="result-pane">
+            <h3>CORTEX result</h3>
+            <p id="cortex-result-note">Waiting for the run to finish.</p>
+            <iframe class="app-frame" id="cortex-frame" title="Orders dashboard produced by the CORTEX arm" sandbox="allow-scripts"></iframe>
+            <div class="feature-summary" id="cortex-features"></div>
+            <div class="attribution" id="cortex-attribution"></div>
+          </article>
+        </div>
 
-  function value(arm, get) {
-    const run = runs[arm];
-    if (!run) return '<span class="none">—</span>';
-    const v = get(run.meter);
-    return v === null || v === undefined ? '<span class="none">—</span>' : v;
-  }
+        <div class="meter-grid" id="meter"></div>
+        <p class="meter-provenance" id="meter-provenance">Run-level figures appear only after the terminal message. A measured zero is shown as 0. Not applicable is N/A. Nobody measured it is TBD.</p>
 
-  function renderMeter() {
-    const rows = [
-      ['duplicate work avoided', (m) => m.duplicateWorkAvoided],
-      ['duplicate work done', (m) => m.duplicateWorkDone],
-      ['writes lost', (m) => m.lostWrites],
-      ['blocked, then re-planned', (m) => m.blockedAndReplanned],
-      ['claim p50', (m) => (m.claimP50Ms === null ? null : m.claimP50Ms + ' ms')],
-      ['serialization retries', (m) => m.serializationRetries],
+        <details class="sql-panel" id="sql-panel">
+          <summary>SHOW TRANSACTIONS</summary>
+          <div class="sql-content" id="sql-content"><p class="meter-provenance">Run the fleet to load the grouped transaction transcript.</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="section" id="benchmark" aria-labelledby="benchmark-title">
+      <div class="shell reveal">
+        <div class="section-heading">
+          <h2 id="benchmark-title">One transaction turns coordination into a database invariant.</h2>
+          <p>The blocks read independently. Together they show why semantic memory and file ownership must share one snapshot.</p>
+        </div>
+
+        <div class="infographic">
+          <article class="info-block info-atomic">
+            <h3>Duplicate check and claim are atomic.</h3>
+            <p>The search and every requested file claim commit together, or neither does.</p>
+            <div class="atomic-diagram"><span>semantic duplicate search</span><b>ONE BEGIN</b><span>all file claims</span></div>
+          </article>
+          <article class="info-block info-distance">
+            <h3>Meaning, not ticket wording.</h3>
+            <p>Titan embeddings are compared in the cluster. The mechanism threshold is disclosed separately from the benchmark judge.</p>
+            <code>distance &lt; 0.39 / refuse duplicate</code>
+          </article>
+          <article class="info-block info-claims">
+            <h3>All or nothing.</h3>
+            <p>A blocked agent learns the holder and the intent. It can re-plan instead of polling.</p>
+          </article>
+          <article class="info-block info-memory">
+            <h3>Outcomes become memory.</h3>
+            <p>Completed and abandoned work becomes a durable finding scoped to the repository.</p>
+          </article>
+          <article class="info-block info-stream">
+            <h3>The fleet sees commits.</h3>
+            <p>The change stream delivers database rows. Activity events remain separately labelled.</p>
+          </article>
+          <article class="info-block info-measure">
+            <h3>Published benchmark, median of three replay runs.</h3>
+            <p>Same 30 tasks, five agents and recorded reasoning in both arms. Database behavior is live. Small synthetic corpus; serialized harness; CORTEX recall is outside that harness.</p>
+            <div class="published-metrics">
+              <div class="published-metric"><strong>0.00</strong><span>CORTEX duplicate work rate / naive 0.21</span></div>
+              <div class="published-metric"><strong>0</strong><span>CORTEX lost writes / naive 21</span></div>
+              <div class="published-metric"><strong>0</strong><span>CORTEX conflicting edits / naive 3</span></div>
+              <div class="published-metric"><strong>867</strong><span>CORTEX wasted tokens / naive 4000</span></div>
+            </div>
+            <code>source: bench/results/2026-08-12T18-35-38-014Z</code>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="production" aria-labelledby="production-title">
+      <div class="shell reveal">
+        <div class="production-grid">
+          <article class="production-block">
+            <h2 id="production-title">Built for the failure paths.</h2>
+            <div class="readiness-list">
+              <div class="readiness-item">Row-level security isolates every demo scope.</div>
+              <div class="readiness-item">Three least-privileged database principals.</div>
+              <div class="readiness-item">Serializable transactions with bounded retry.</div>
+              <div class="readiness-item">A degradation ladder keeps the page readable.</div>
+              <div class="readiness-item">Infrastructure described as code.</div>
+              <div class="readiness-item">The suite runs against a real cluster.</div>
+            </div>
+          </article>
+          <article class="production-block argument">
+            <p>The bottleneck is no longer model quality. It is coordination.</p>
+            <small>Isolation protects files. Arbitration protects the fleet's time, intent and decisions. That belongs in the transactional database holding the memory.</small>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>
+      <svg class="brain-logo" viewBox="0 0 320 360" aria-hidden="true">
+        <defs><path id="footer-hemi" d="M142 40C99 22 57 48 54 94C24 112 21 161 48 183C17 224 38 285 78 296C72 332 103 349 142 334Z"/></defs>
+        <use href="#footer-hemi" fill="#C9CBCF"/><use href="#footer-hemi" fill="#C9CBCF" transform="translate(320 0) scale(-1 1)"/>
+        <path d="M128 38C128 18 146 8 160 24V336C160 352 142 354 128 338Z" fill="#4C9C90"/><path d="M160 24C174 8 192 18 192 38V338C178 354 160 352 160 336Z" fill="#5CBCAA"/>
+      </svg>
+      <p>CORTEX / shared memory with a transaction boundary</p>
+    </div>
+  </footer>
+
+  <!--
+    REAL DATA BINDINGS
+    1. openSession() binds POST /demo/session.
+    2. startFleet() binds POST /demo/run.
+    3. loadFinalState() binds GET /demo/state for both arm scopes.
+    4. loadSql() binds the existing transaction-log route when its disclosure opens.
+    5. handleSocketMessage() binds change, fleet and run messages from the WebSocket.
+    6. loadFinalState() binds the two iframe srcdoc slots from state.files.
+
+    Direct file preview uses runPreview() and is always labelled SIMULATED UI PREVIEW.
+    Deployment injects both endpoint globals. No hostname is committed here.
+  -->
+  <script>
+    const API = window.CORTEX_API_URL || '';
+    const STREAM = window.CORTEX_STREAM_URL || '';
+    const PREVIEW = !API || !STREAM;
+
+    const AGENTS = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5'];
+    const BEATS = ['recall', 'dedupe', 'collision', 'consolidate'];
+    const ARMS = ['naive', 'cortex'];
+    const SCRIPT_ORDER = [
+      'lib/money.js', 'orders/data.js', 'inventory/repository.js', 'orders/repository.js',
+      'shipping/quote.js', 'payments/provider.js', 'notify/templates.js', 'notify/email.js',
+      'orders/list.js', 'orders/status.js', 'orders/create.js', 'web/app.js'
     ];
 
-    let html = '';
-    for (const [label, get] of rows) {
-      html +=
-        `<dt>${label}</dt><dd class="pair">` +
-        `<div><span class="arm">cortex</span><span class="cortex">${value('cortex', get)}</span></div>` +
-        `<div><span class="arm">naive</span><span class="naive">${value('naive', get)}</span></div>` +
-        `</dd>`;
+    const TASKS = [
+      { id: 'I3', statement: 'Store monetary amounts as integer minor units instead of floating point', module: 'lib/money', agent: 'agent-1', conflict: 'depends' },
+      { id: 'P2a', statement: 'Cache inventory availability lookups for thirty seconds', module: 'inventory', agent: 'agent-2', conflict: 'duplicate' },
+      { id: 'P2b', statement: 'Add a thirty second cache to inventory stock level lookups', module: 'inventory', agent: 'agent-3', conflict: 'duplicate' },
+      { id: 'P6a', statement: 'Send an order confirmation email when an order is placed', module: 'notify/email', agent: 'agent-4', conflict: 'duplicate' },
+      { id: 'P6b', statement: 'Email an order confirmation to the customer once the order is placed', module: 'notify/templates', agent: 'agent-5', conflict: 'duplicate' },
+      { id: 'C1', statement: 'Add pagination to the order list endpoint', module: 'orders/list', agent: 'agent-1', conflict: 'shared-file' },
+      { id: 'C2', statement: 'Record a status transition history for every order', module: 'orders/status', agent: 'agent-2', conflict: 'shared-file' },
+      { id: 'C3', statement: 'Refuse order creation when quantity exceeds stock', module: 'orders/create', agent: 'agent-3', conflict: 'shared-file' },
+      { id: 'R3', statement: 'Convert shipping quotes to the new integer minor unit representation', module: 'shipping', agent: 'agent-4', conflict: 'depends' },
+      { id: 'A1', statement: 'Migrate the payment provider integration to version three', module: 'payments', agent: 'agent-5', conflict: '' },
+      { id: 'T11', statement: 'Move the refund flow onto the payment provider version three API', module: 'payments', agent: 'agent-4', conflict: 'depends' }
+    ];
+
+    const FEATURES = [
+      { id: 'C1', file: 'orders/repository.js', patch: 'pagination store hunk', marker: 'ORDERS_PER_PAGE' },
+      { id: 'C2', file: 'orders/repository.js', patch: 'status-history write hunk', marker: 'STATUS_HISTORY[id].push' },
+      { id: 'C3', file: 'orders/repository.js', patch: 'oversell refusal hunk', marker: 'insufficient stock' },
+      { id: 'P6a', file: 'notify/email.js', patch: 'confirmation sender hunk', marker: 'A receipt is on its way' },
+      { id: 'P6b', file: 'notify/templates.js', patch: 'confirmation template hunk', marker: 'A receipt is on its way' },
+      { id: 'I3', file: 'lib/money.js', patch: 'integer minor-unit hunk', marker: 'minorUnits / 100' },
+      { id: 'R3', file: 'shipping/quote.js', patch: 'shipping minor-unit hunk', marker: 'Math.round(299' }
+    ];
+
+    const METRICS = [
+      ['duplicateWorkAvoided', 'duplicate work avoided'],
+      ['duplicateWorkDone', 'duplicate work done'],
+      ['lostWrites', 'lost writes'],
+      ['blockedAndReplanned', 'blocked and re-planned'],
+      ['findingsRecalled', 'findings recalled'],
+      ['agentsSpared', 'agents spared'],
+      ['deadEndsWalked', 'dead ends walked'],
+      ['conflictingEdits', 'conflicting edits'],
+      ['fileCollisions', 'file collisions'],
+      ['embeddingCalls', 'embedding calls'],
+      ['claimP50Ms', 'claim p50 ms'],
+      ['serializationRetries', 'serialization retries'],
+      ['wastedTokens', 'wasted tokens']
+    ];
+
+    const state = {
+      session: null,
+      runId: null,
+      terminal: null,
+      preview: PREVIEW,
+      events: { naive: [], cortex: [] },
+      rows: { naive: [], cortex: [] },
+      taskStatus: new Map(),
+      agentState: { naive: new Map(), cortex: new Map() },
+      socket: null,
+      states: { naive: null, cortex: null },
+      sqlLoaded: false
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const setText = (id, value) => { const node = $(id); if (node) node.textContent = value; };
+
+    function safeTime(ms) {
+      return Number.isFinite(Number(ms)) ? (Number(ms) / 1000).toFixed(2) + 's' : 'live';
     }
 
-    // Labelled, because it is the one figure here that this session did not measure.
-    html +=
-      `<dt>wasted tokens</dt><dd class="pair">` +
-      `<div><span class="arm">cortex</span><span class="cortex">${BENCH.cortex}</span></div>` +
-      `<div><span class="arm">naive</span><span class="naive">${BENCH.naive}</span></div></dd>` +
-      `<div class="empty">measured in the benchmark over 30 tasks, not in this session — ${BENCH.source}</div>`;
+    function renderTasks() {
+      const host = $('tasks');
+      host.replaceChildren();
 
-    /*
-      Said out loud rather than implied. The benchmark is bit-reproducible and says so; this
-      page is not, because its agents genuinely run at the same time and the database
-      decides between them. A judge who runs it twice and sees different numbers should
-      have been told to expect that, or the demo looks unreliable instead of live.
-    */
-    html +=
-      '<div class="empty" style="margin-top:.9rem">Every figure above except the last row ' +
-      'was measured during the run you just triggered. The agents run concurrently, so ' +
-      'these are the outcome of a real race — run it twice and the winner and the number ' +
-      'of lost writes will change. The benchmark is the reproducible artifact; this is the ' +
-      'live one. <strong>&mdash;</strong> means that arm has no such thing to measure, not ' +
-      'that it went unmeasured: the naive arm takes no claims, so it has no claim latency ' +
-      'and no serialization retries. That is the same convention the published benchmark ' +
-      'table uses.</div>';
+      const header = document.createElement('div');
+      header.className = 'task-row header';
+      ['ticket', 'work', 'module', 'agent', 'live status'].forEach((label) => {
+        const cell = document.createElement('span');
+        cell.textContent = label;
+        header.appendChild(cell);
+      });
+      host.appendChild(header);
 
-    $('meter').innerHTML = html;
-  }
+      TASKS.forEach((task) => {
+        const row = document.createElement('div');
+        row.className = 'task-row';
+        row.dataset.task = task.id;
+        if (task.conflict) row.dataset.conflict = task.conflict;
 
-  // ---------------------------------------------------------------- sql
+        const values = [task.id, task.statement, task.module, task.agent];
+        const classes = ['task-id', 'task-statement', 'task-module', 'task-agent'];
+        values.forEach((value, index) => {
+          const cell = document.createElement('span');
+          cell.className = classes[index];
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
 
-  async function renderSql() {
-    // The arm the visitor last ran, not whichever exists: after a naive run, showing
-    // CORTEX's transcript would answer a question nobody asked and hide the more
-    // interesting answer, which is that the naive arm executed nothing at all.
-    const session = runs[lastArm] || runs.cortex || runs.naive;
-    const host = $('memory');
-
-    if (!session) {
-      host.innerHTML = '<div class="empty">Run a scenario first — this panel shows the statements it executed, and nothing else.</div>';
-      return;
+        const status = document.createElement('span');
+        status.className = 'task-status waiting';
+        status.textContent = state.taskStatus.get(task.id) || 'waiting';
+        row.appendChild(status);
+        host.appendChild(row);
+      });
     }
 
-    text($('memory-source'), 'every statement this run sent to CockroachDB');
-    host.innerHTML = '<div class="empty">loading…</div>';
+    function renderTracks() {
+      ARMS.forEach((arm) => {
+        const host = $('tracks-' + arm);
+        host.replaceChildren();
 
-    const response = await fetch(`${API}/demo/sql-log?session=${session.sessionId}`);
-    const log = await response.json();
+        AGENTS.forEach((agent) => {
+          const current = state.agentState[arm].get(agent) || { phase: 'idle', events: [] };
+          const row = document.createElement('div');
+          row.className = 'agent-track';
+          if (current.phase !== 'idle') row.classList.add('active');
+          if (['overwritten', 'contended'].includes(current.phase)) row.classList.add('collision');
+          if (current.phase === 'blocked') row.classList.add('blocked');
 
-    if (!log.statements.length) {
-      // Kept as a truthful fallback rather than as the naive arm's expected state. It used
-      // to be the naive arm's *only* state — that arm executed nothing, which is why the
-      // two numbers beside it could not have been measured. Now both arms transact.
-      host.innerHTML =
-        '<div class="empty">This run executed no statements. Run a scenario and this ' +
-        'panel fills with the statements it sent.</div>';
-      return;
+          const label = document.createElement('span');
+          label.className = 'agent-id';
+          label.textContent = agent;
+          row.appendChild(label);
+
+          const items = document.createElement('div');
+          items.className = 'work-items';
+          current.events.slice(-4).forEach((event) => {
+            const chip = document.createElement('span');
+            chip.className = 'work-item ' + event.phase;
+            chip.textContent = event.taskId + ' / ' + event.phase;
+            chip.title = 'FLEET EVENT at ' + safeTime(event.at);
+            items.appendChild(chip);
+          });
+          row.appendChild(items);
+
+          const phase = document.createElement('span');
+          phase.className = 'track-phase';
+          phase.textContent = current.phase;
+          row.appendChild(phase);
+
+          if (current.phase === 'blocked') {
+            const contested = current.detail && Array.isArray(current.detail.contested) ? current.detail.contested : [];
+            const holder = contested[0] && contested[0].holder ? contested[0].holder : 'the current holder';
+            const link = document.createElement('span');
+            link.className = 'holder-link';
+            link.textContent = 'claim boundary -> held by ' + holder + '; this agent re-plans';
+            row.appendChild(link);
+          }
+
+          host.appendChild(row);
+        });
+      });
     }
 
-    /*
-      Grouped by transaction. `txn` is assigned once per `withRetry` attempt, so a block is
-      exactly one transaction — including a retried one, which really was a second attempt.
+    function renderBeats(final = false) {
+      ARMS.forEach((arm) => {
+        const host = $('beats-' + arm);
+        host.replaceChildren();
+        const armSummary = state.terminal && state.terminal.arms
+          ? state.terminal.arms.find((item) => item.arm === arm)
+          : null;
 
-      Grouped through a Map rather than by comparing each statement with the one before it.
-      Two agents racing **interleave**: BEGIN(1), BEGIN(2), SELECT(1), SELECT(2)… so an
-      adjacent comparison would cut a single transaction into a block per statement and show
-      the opposite of what this panel is for. The interleaving is the evidence that they
-      really did race; the grouping is what makes each one readable anyway.
-
-      `?? 0` covers a transcript written before `txn` existed — the log store has a two-hour
-      TTL, so this is a window, not a permanent branch.
-    */
-    const byTxn = new Map();
-    for (const s of log.statements) {
-      const key = s.txn ?? 0;
-      if (byTxn.has(key)) byTxn.get(key).statements.push(s);
-      else byTxn.set(key, { txn: key, statements: [s] });
+        BEATS.forEach((beat) => {
+          const cell = document.createElement('div');
+          cell.className = 'beat';
+          const observed = armSummary ? armSummary.beats[beat] === true : beatObserved(arm, beat);
+          if (observed) {
+            cell.classList.add('observed');
+            cell.textContent = beat + ' / observed';
+          } else if (final) {
+            cell.classList.add('absent');
+            cell.textContent = beat + ' / NOT OBSERVED THIS RUN';
+          } else {
+            cell.textContent = beat + ' / waiting';
+          }
+          host.appendChild(cell);
+        });
+      });
     }
-    const blocks = [...byTxn.values()];
 
-    const arbitration = blocks.filter((b) =>
-      b.statements.some((s) => /INSERT INTO claims/.test(s.sql)),
-    ).length;
+    function beatObserved(arm, beat) {
+      const events = state.events[arm];
+      if (beat === 'recall') return events.some((event) => event.phase === 'recalled');
+      if (beat === 'dedupe') return events.some((event) => event.phase === 'deduped');
+      if (beat === 'collision') return events.some((event) => ['blocked', 'overwritten', 'contended'].includes(event.phase));
+      if (beat === 'consolidate') return state.rows[arm].some((row) => row.topic === 'findings');
+      return false;
+    }
 
-    let html =
-      `<div class="empty" style="margin-bottom:.6rem">${log.statements.length} statements in ` +
-      `${blocks.length} transactions, ${log.arm} arm. ` +
-      (arbitration
-        ? 'Read one block at a time: the dedupe search and the claim insert are inside the ' +
-          'same BEGIN, on one snapshot. That co-location is the whole thesis, and blocks ' +
-          'that overlap in time are agents that genuinely raced.'
-        : 'No claim, no dedupe, no arbitration — these agents read a shared file, did the ' +
-          'work, and wrote the whole file back over each other.') +
-      '</div>';
+    function appendSource(arm, kind, at, summary) {
+      const host = $(kind + '-source-' + arm);
+      const row = document.createElement('div');
+      row.className = 'source-event';
+      const time = document.createElement('time');
+      time.textContent = safeTime(at);
+      const text = document.createElement('span');
+      text.textContent = summary;
+      row.append(time, text);
+      host.prepend(row);
+      while (host.children.length > 8) host.lastElementChild.remove();
+    }
 
-    for (const block of blocks) {
-      html += `<div class="txn-block"><h4>transaction ${block.txn}</h4>`;
-      for (const s of block.statements) {
-        const isTxn = /^(BEGIN|COMMIT|ROLLBACK)/.test(s.sql);
-        html +=
-          `<div class="stmt"><span class="meta">${s.ms}ms · $${s.parameters} · ${s.rows}r</span>` +
-          `<pre class="sql${isTxn ? ' txn' : ''}">${s.sql.replace(/</g, '&lt;')}</pre></div>`;
+    function updateGraphs(event) {
+      if (event.arm === 'naive' && ['overwritten', 'contended', 'patched'].includes(event.phase) && ['C1', 'C2', 'C3'].includes(event.taskId)) {
+        pulseEdge($('naive-merge-edge'));
       }
-      html += '</div>';
+
+      if (event.arm === 'cortex') {
+        let kind = null;
+        if (event.phase === 'claiming') kind = 'claim';
+        if (['blocked', 'deduped'].includes(event.phase)) kind = 'refusal';
+        if (['recalled', 'patched', 'spared'].includes(event.phase)) kind = 'finding';
+        if (kind) document.querySelectorAll('.cortex-edge[data-kind="' + kind + '"]').forEach(pulseEdge);
+      }
     }
-    host.innerHTML = html;
-  }
 
-  // ---------------------------------------------------------------- runs
+    function pulseEdge(edge) {
+      if (!edge) return;
+      edge.classList.remove('active');
+      void edge.getBoundingClientRect();
+      edge.classList.add('active');
+      window.setTimeout(() => edge.classList.remove('active'), 1000);
+    }
 
-  async function newSession() {
-    const response = await fetch(`${API}/demo/session`, { method: 'POST' });
-    if (!response.ok) throw new Error('session');
-    return response.json();
-  }
+    function handleFleet(message) {
+      const event = message.event;
+      if (!event || !ARMS.includes(event.arm) || !AGENTS.includes(event.agent)) return;
+      state.events[event.arm].push(event);
+      const previous = state.agentState[event.arm].get(event.agent) || { events: [] };
+      state.agentState[event.arm].set(event.agent, {
+        phase: event.phase,
+        taskId: event.taskId,
+        detail: event.detail || {},
+        events: [...previous.events, event]
+      });
+      state.taskStatus.set(event.taskId, event.phase);
+      appendSource(event.arm, 'fleet', event.at, event.agent + ' / ' + event.taskId + ' / ' + event.phase);
+      renderTracks();
+      renderTasks();
+      renderBeats(false);
+      updateGraphs(event);
+    }
 
-  function listen(sessionId) {
-    if (liveSession) liveSession.close();
-    liveSession = new WebSocket(`${STREAM}?session=${sessionId}`);
-    liveSession.addEventListener('message', (event) => applyChange(JSON.parse(event.data)));
-  }
+    function handleChange(message) {
+      const arm = state.session && message.scope === state.session.scopes.naive ? 'naive' : 'cortex';
+      state.rows[arm].push(message);
+      const row = message.after || {};
+      const key = row.id || row.intent_id || row.resource_key || 'committed';
+      appendSource(arm, 'row', Date.now() - (state.previewStartedAt || Date.now()), message.topic + ' / ' + String(key).slice(0, 8));
+      renderBeats(false);
+    }
 
-  async function run(arm) {
-    $('run-cortex').disabled = true;
-    $('run-naive').disabled = true;
-    text($('fleet-arm'), `${arm} — running`);
+    async function handleRun(message) {
+      if (state.runId && message.runId && message.runId !== state.runId) return;
+      if (message.phase === 'started') {
+        state.runId = message.runId;
+        return;
+      }
+      if (message.phase === 'finished') {
+        state.terminal = message;
+        document.body.dataset.demoState = 'finished';
+        renderBeats(true);
+        renderMeter(message.arms || []);
+        await loadFinalState();
+        setText('meter-provenance', state.preview
+          ? 'SIMULATED UI PREVIEW. Values below are interface fixtures, not measurements.'
+          : 'Every run-level figure below came from the database or from work read back from it. Measured zero, N/A and TBD remain distinct.');
+      }
+      if (message.phase === 'failed') {
+        document.body.dataset.demoState = 'failed';
+        setText('run-failure', 'Everything above this line happened before the run stopped. ' + (message.reason || 'No terminal detail was supplied.'));
+        renderBeats(true);
+      }
+      $('run-demo').disabled = false;
+    }
 
-    try {
-      // A scope of its own. Re-running CORTEX in one scope would dedupe against the
-      // previous run, which is correct behaviour and an unreadable demo.
-      const session = await newSession();
-      listen(session.sessionId);
-      for (const tier of TIERS) memory[tier.key] = [];
-      sharedState = null;
-      renderMemory();
+    async function handleSocketMessage(message) {
+      if (!message || typeof message !== 'object') return;
+      if (message.type === 'change') handleChange(message);
+      if (message.type === 'fleet') handleFleet(message);
+      if (message.type === 'run') await handleRun(message);
+    }
 
-      const response = await fetch(`${API}/demo/run`, {
+    function resetRun() {
+      state.runId = null;
+      state.terminal = null;
+      state.events = { naive: [], cortex: [] };
+      state.rows = { naive: [], cortex: [] };
+      state.taskStatus.clear();
+      state.agentState = { naive: new Map(), cortex: new Map() };
+      state.states = { naive: null, cortex: null };
+      state.sqlLoaded = false;
+      ARMS.forEach((arm) => {
+        $('fleet-source-' + arm).replaceChildren();
+        $('row-source-' + arm).replaceChildren();
+      });
+      renderTasks();
+      renderTracks();
+      renderBeats(false);
+      renderMeter([]);
+      setEmptyFrames();
+    }
+
+    async function openSession() {
+      const response = await fetch(API + '/demo/session', { method: 'POST' });
+      if (!response.ok) throw new Error('session unavailable');
+      return response.json();
+    }
+
+    function openSocket(sessionId) {
+      return new Promise((resolve, reject) => {
+        if (state.socket) state.socket.close();
+        const socket = new WebSocket(STREAM + '?session=' + encodeURIComponent(sessionId));
+        state.socket = socket;
+        const timer = window.setTimeout(() => reject(new Error('stream unavailable')), 5000);
+        socket.addEventListener('open', () => { window.clearTimeout(timer); resolve(); }, { once: true });
+        socket.addEventListener('message', (event) => {
+          try { handleSocketMessage(JSON.parse(event.data)); } catch { /* A malformed event is ignored, the run continues. */ }
+        });
+        socket.addEventListener('error', () => { window.clearTimeout(timer); reject(new Error('stream unavailable')); }, { once: true });
+      });
+    }
+
+    async function startFleet() {
+      const session = state.session;
+      const response = await fetch(API + '/demo/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ session: session.sessionId, arm }),
+        body: JSON.stringify({
+          session: session.scopes.cortex,
+          naive: session.scopes.naive,
+          mode: 'fleet'
+        })
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'run failed');
-
-      runs[arm] = { sessionId: session.sessionId, meter: result.meter, steps: result.steps };
-      ranSomething = true;
-      lastArm = arm;
-      renderFleet(result);
-      renderMeter();
-      text($('fleet-arm'), arm);
-
-      // The panel header stops saying "waiting for a run" once one has happened. For NAIVE
-      // that matters: no rows arrive over the changefeed, so nothing else would ever
-      // update it, and a judge would be reading a stale label under a finished run.
-      text(
-        $('memory-source'),
-        arm === 'naive' ? 'nothing was written to shared memory' : 'live from the changefeed',
-      );
-
-      const state = await fetch(`${API}/demo/state?session=${session.sessionId}`);
-      if (state.ok) applyState(await state.json());
-      if (showingSql) renderSql();
-    } catch (error) {
-      // Never an error page: `07` §4 and `04` §5 invariant 1. The page keeps working and
-      // says what it could not do.
-      text($('footer'), 'That run could not reach the backend. Everything already on screen is still real; try again in a moment.');
-    } finally {
-      $('run-cortex').disabled = false;
-      $('run-naive').disabled = false;
+      if (!response.ok) throw new Error(result.error || 'run unavailable');
+      state.runId = result.runId;
     }
-  }
 
-  // ---------------------------------------------------------------- boot
+    async function runDemo() {
+      if (state.preview) {
+        await runPreview(false);
+        return;
+      }
 
-  $('run-cortex').addEventListener('click', () => run('cortex'));
-  $('run-naive').addEventListener('click', () => run('naive'));
-  $('toggle-sql').addEventListener('click', () => {
-    showingSql = !showingSql;
-    // Both halves of the button, not just the label. The sub-label used to stay on "the
-    // statements this run executed" in either state, so with the SQL panel already open the
-    // button offered "Show memory" while describing the panel you were looking at. Found by
-    // reading the deployed page rather than the source (V32); no test would have caught it,
-    // because both strings are correct in isolation.
-    $('toggle-sql').firstChild.textContent = showingSql ? 'Show memory' : 'Show SQL';
-    $('toggle-sql').querySelector('small').textContent = showingSql
-      ? 'the four tiers, live from the changefeed'
-      : 'the statements this run executed';
-    if (showingSql) renderSql();
-    else { text($('memory-source'), 'live from the changefeed'); renderMemory(); }
-  });
+      resetRun();
+      document.body.dataset.demoState = 'running';
+      $('run-demo').disabled = true;
+      $('comparison').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 
-  renderFleet(null);
-  renderMeter();
-  renderMemory();
-
-  /**
-   * Pre-warm, per `07` §1's "nothing loads slowly. Pre-warm and pre-seed everything."
-   * This one call warms the Lambda sandbox and its connection pool — V22 measured a cold
-   * query at ~690ms against 3ms warm — and fetches the mode line the page is required to
-   * display. The buttons stay disabled until it lands, so a judge's first click is fast.
-   */
-  (async () => {
-    try {
-      const session = await newSession();
-      const state = await (await fetch(`${API}/demo/state?session=${session.sessionId}`)).json();
-      $('mode').innerHTML = `<b>${state.mode.name}</b> — ${state.mode.reason}`;
-      $('run-cortex').disabled = false;
-      $('run-naive').disabled = false;
-    } catch (error) {
-      $('mode').innerHTML =
-        '<b>backend unreachable</b> — the page is here and honest about it: nothing below is live right now.';
+      try {
+        state.session = await openSession();
+        await openSocket(state.session.scopes.cortex);
+        await startFleet();
+      } catch (error) {
+        document.body.dataset.demoState = 'failed';
+        setText('run-failure', 'backend unreachable. Everything already rendered remains valid; the live run did not start.');
+        $('run-demo').disabled = false;
+      }
     }
-  })();
-</script>
+
+    function inlineScript(source) {
+      const closing = new RegExp('<' + '/script', 'gi');
+      return source.replace(closing, '<\\/script');
+    }
+
+    function assembleApp(tree) {
+      const styles = tree['web/styles.css'] || '';
+      const body = tree['web/index.html'] || '<main><p>No application shell survived this run.</p></main>';
+      const open = '<scr' + 'ipt>';
+      const close = '</scr' + 'ipt>';
+      const scripts = SCRIPT_ORDER
+        .filter((name) => typeof tree[name] === 'string')
+        .map((name) => open + '\n' + inlineScript(tree[name]) + '\n' + close)
+        .join('\n');
+      return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' + styles + '</style></head><body>' + body + scripts + open + 'if(typeof start==="function"){start();}' + close + '</body></html>';
+    }
+
+    async function fetchArmState(scope) {
+      const response = await fetch(API + '/demo/state?session=' + encodeURIComponent(scope));
+      if (!response.ok) throw new Error('state unavailable');
+      return response.json();
+    }
+
+    async function loadFinalState() {
+      if (state.preview) {
+        const naiveState = { files: previewTree('naive') };
+        const cortexState = { files: previewTree('cortex') };
+        state.states = { naive: naiveState, cortex: cortexState };
+        bindFrames(naiveState, cortexState);
+        renderFeatureEvidence();
+        return;
+      }
+
+      try {
+        const [cortexState, naiveState] = await Promise.all([
+          fetchArmState(state.session.scopes.cortex),
+          fetchArmState(state.session.scopes.naive)
+        ]);
+        state.states = { naive: naiveState, cortex: cortexState };
+        bindFrames(naiveState, cortexState);
+        renderFeatureEvidence();
+      } catch {
+        setText('naive-result-note', 'The run finished, but its final file tree could not be loaded.');
+        setText('cortex-result-note', 'The run finished, but its final file tree could not be loaded.');
+      }
+    }
+
+    function bindFrames(naiveState, cortexState) {
+      const naiveFrame = $('naive-frame');
+      const cortexFrame = $('cortex-frame');
+      cortexFrame.srcdoc = assembleApp(cortexState.files);
+      naiveFrame.srcdoc = assembleApp(naiveState.files);
+      setText('naive-result-note', state.preview ? 'Preview fixture: four defects are intentionally visible.' : 'The final file tree from the isolated arm.');
+      setText('cortex-result-note', state.preview ? 'Preview fixture: the coordinated features compose correctly.' : 'The final file tree from the arbitrated arm.');
+    }
+
+    function present(tree, feature) {
+      return Boolean(tree && tree[feature.file] && tree[feature.file].includes(feature.marker));
+    }
+
+    function renderFeatureEvidence() {
+      const naiveTree = state.states.naive && state.states.naive.files;
+      const cortexTree = state.states.cortex && state.states.cortex.files;
+      renderFeatureSummary('cortex', cortexTree, cortexTree);
+      renderFeatureSummary('naive', naiveTree, cortexTree);
+      renderAttribution(naiveTree, cortexTree);
+    }
+
+    function renderFeatureSummary(arm, tree, reference) {
+      const host = $(arm + '-features');
+      host.replaceChildren();
+      const byId = Object.fromEntries(FEATURES.map((feature) => [feature.id, feature]));
+      const shippingWrong = present(tree, byId.I3) && !present(tree, byId.R3);
+      const confirmationA = present(tree, byId.P6a);
+      const confirmationB = present(tree, byId.P6b);
+      const duplicateConfirmation = confirmationA && confirmationB;
+      const repository = tree && tree['orders/repository.js'] ? tree['orders/repository.js'] : '';
+      const oversellWrong = repository.includes('availableStock(wanted.sku)');
+      const oversellSafe = repository.includes('stockOnRecord(wanted.sku)');
+      const sharedIds = ['C1', 'C2', 'C3'];
+      const missingSharedFile = sharedIds.filter((id) => present(reference, byId[id]) && !present(tree, byId[id])).length;
+
+      const items = [
+        shippingWrong
+          ? ['silently wrong', 'Shipping uses pounds beside integer minor units', 'wrong']
+          : present(tree, byId.I3) && present(tree, byId.R3)
+            ? ['present', 'Integer money and shipping agree', 'present']
+            : ['missing', 'Money representation is incomplete', 'missing'],
+        duplicateConfirmation
+          ? ['duplicated', 'Confirmation appears twice', 'duplicated']
+          : confirmationA || confirmationB
+            ? ['present', 'One confirmation path', 'present']
+            : ['missing', 'No confirmation path landed', 'missing'],
+        oversellWrong
+          ? ['silently wrong', 'Oversell guard reads the stale cache', 'wrong']
+          : oversellSafe
+            ? ['present', 'Oversell reads stock on record', 'present']
+            : ['missing', 'Oversell refusal is absent', 'missing'],
+        missingSharedFile > 0
+          ? ['missing', missingSharedFile + ' shared-file feature' + (missingSharedFile === 1 ? '' : 's') + ' vanished', 'missing']
+          : ['present', 'All shared-file features landed', 'present']
+      ];
+
+      items.forEach(([status, text, kind]) => {
+        const cell = document.createElement('div');
+        cell.className = 'feature-state state-' + kind;
+        const label = document.createElement('b');
+        label.textContent = status;
+        const detail = document.createElement('span');
+        detail.textContent = text;
+        cell.append(label, detail);
+        host.appendChild(cell);
+      });
+    }
+
+    function renderAttribution(naiveTree, cortexTree) {
+      const host = $('naive-attribution');
+      host.replaceChildren();
+      const naiveSteps = state.terminal && state.terminal.arms
+        ? (state.terminal.arms.find((arm) => arm.arm === 'naive') || {}).steps || []
+        : [];
+
+      FEATURES.filter((feature) => present(cortexTree, feature) && !present(naiveTree, feature)).forEach((feature) => {
+        const step = naiveSteps.find((item) => item.taskId === feature.id && item.reported === 'done') || {};
+        const row = document.createElement('div');
+        row.className = 'attribution-row';
+        [feature.id, step.agent || 'unreported', step.intentId || 'TBD', feature.patch + ' / absent from ' + feature.file].forEach((value, index) => {
+          const cell = document.createElement(index === 0 ? 'b' : 'span');
+          cell.textContent = value;
+          row.appendChild(cell);
+        });
+        host.appendChild(row);
+      });
+
+      if (!host.children.length) {
+        const row = document.createElement('div');
+        row.className = 'attribution-row';
+        const cell = document.createElement('span');
+        cell.textContent = state.preview ? 'Preview attribution appears after the simulated terminal event.' : 'No attributed loss in this run.';
+        row.appendChild(cell);
+        host.appendChild(row);
+      }
+    }
+
+    function metricValue(key, value, hasRun) {
+      if (!hasRun) return { value: 'TBD', className: 'metric-tbd' };
+      if (value === null && key === 'wastedTokens') return { value: 'TBD', className: 'metric-tbd' };
+      if (value === null) return { value: 'N/A', className: 'metric-tbd' };
+      if (value === undefined) return { value: 'TBD', className: 'metric-tbd' };
+      return { value: String(value), className: Number(value) === 0 ? 'metric-zero' : '' };
+    }
+
+    function renderMeter(arms) {
+      const host = $('meter');
+      host.replaceChildren();
+      const byArm = Object.fromEntries(arms.map((arm) => [arm.arm, arm.meter || {}]));
+
+      METRICS.forEach(([key, label]) => {
+        const cell = document.createElement('dl');
+        cell.className = 'meter-cell';
+        const name = document.createElement('dt');
+        name.textContent = label;
+        const pair = document.createElement('dd');
+        pair.className = 'meter-pair';
+
+        ['naive', 'cortex'].forEach((arm) => {
+          const group = document.createElement('div');
+          const formatted = metricValue(key, byArm[arm] ? byArm[arm][key] : undefined, Boolean(byArm[arm]));
+          const value = document.createElement('span');
+          value.className = 'metric-value ' + formatted.className;
+          value.textContent = formatted.value;
+          const armLabel = document.createElement('span');
+          armLabel.className = 'metric-arm';
+          armLabel.textContent = arm;
+          group.append(value, armLabel);
+          pair.appendChild(group);
+        });
+
+        cell.append(name, pair);
+        host.appendChild(cell);
+      });
+    }
+
+    async function loadSql() {
+      if (state.sqlLoaded || state.preview || !state.session) return;
+      state.sqlLoaded = true;
+      const host = $('sql-content');
+      host.replaceChildren();
+      const logs = await Promise.all(ARMS.map(async (arm) => {
+        const response = await fetch(API + '/demo/sql-log?session=' + encodeURIComponent(state.session.scopes[arm]));
+        return response.ok ? response.json() : { arm, statements: [] };
+      }));
+
+      logs.forEach((log) => {
+        const transactions = new Map();
+        (log.statements || []).forEach((statement) => {
+          const key = statement.txn == null ? 0 : statement.txn;
+          if (!transactions.has(key)) transactions.set(key, []);
+          transactions.get(key).push(statement);
+        });
+        transactions.forEach((statements, txn) => {
+          const block = document.createElement('section');
+          block.className = 'txn-block';
+          const title = document.createElement('h4');
+          title.textContent = (log.arm || 'unknown') + ' / transaction ' + txn;
+          block.appendChild(title);
+          statements.forEach((statement) => {
+            const row = document.createElement('div');
+            row.className = 'stmt';
+            const meta = document.createElement('span');
+            meta.textContent = statement.ms + 'ms / ' + statement.rows + ' rows';
+            const sql = document.createElement('pre');
+            sql.textContent = statement.sql;
+            row.append(meta, sql);
+            block.appendChild(row);
+          });
+          host.appendChild(block);
+        });
+      });
+    }
+
+    function emptyDocument(label) {
+      return '<!doctype html><html lang="en"><head><meta charset="utf-8"><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#f4f5f7;color:#596170;font:14px ui-monospace,monospace}p{max-width:30ch;text-align:center}</style></head><body><p>' + label + '</p></body></html>';
+    }
+
+    function setEmptyFrames() {
+      $('naive-frame').srcdoc = emptyDocument('The isolated application will appear when the run finishes.');
+      $('cortex-frame').srcdoc = emptyDocument('The arbitrated application will appear when the run finishes.');
+      $('naive-features').replaceChildren();
+      $('cortex-features').replaceChildren();
+      $('naive-attribution').replaceChildren();
+    }
+
+    function previewTree(arm) {
+      const isCortex = arm === 'cortex';
+      const styles = [
+        '*{box-sizing:border-box}body{margin:0;background:#f4f5f7;color:#20242b;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif}',
+        'header{padding:22px;border-bottom:1px solid #d9dde3;background:#fff}h1{margin:0;font-size:21px}header p{margin:5px 0 0;color:#687181}',
+        'main{display:grid;grid-template-columns:1fr .72fr;gap:1px;background:#d9dde3}section{padding:20px;background:#fff;min-height:420px}',
+        '.order{padding:12px 0;border-bottom:1px solid #e5e8ec}.money{font:600 16px ui-monospace,monospace}.status{color:#566171}',
+        '.banner{margin:8px 0;padding:9px;border-left:3px solid #5CBCAA;background:#edf8f6}.bad{border-left-color:#D2695B;background:#fbefed}',
+        'button{margin:8px 5px 0 0;padding:9px 12px;border:1px solid #aeb6c1;background:#fff;color:#20242b;cursor:pointer}',
+        '.detail{padding:12px;background:#f6f7f9}.timeline{padding-left:20px}.muted{color:#727b89}@media(max-width:620px){main{grid-template-columns:1fr}}'
+      ].join('');
+      const body = '<header><h1>Northstar Orders</h1><p>Dashboard produced by the ' + (isCortex ? 'arbitrated' : 'isolated') + ' arm</p></header><main><section><h2>Orders</h2><div id="orders"></div><button data-order="A-1001">Open A-1001</button><button data-action="oversell">Try oversell</button><div id="notice"></div></section><section><h2>Order detail</h2><div class="detail" id="detail">Select an order.</div></section></main>';
+      const app = "function start(){var orders=document.getElementById('orders');var detail=document.getElementById('detail');var notice=document.getElementById('notice');orders.innerHTML='<div class=\"order\"><b>A-1001</b><div class=\"money\">Items £18.51 / Shipping " + (isCortex ? '£3.37' : '£0.03') + "</div><div class=\"status\">processing</div></div><div class=\"order\"><b>A-1002</b><div class=\"money\">Items £12.34 / Shipping £3.49</div></div>';document.querySelector('[data-order]').addEventListener('click',function(){detail.innerHTML='<b>A-1001</b><p>processing</p>" + (isCortex ? '<ol class=\"timeline\"><li>placed</li><li>paid</li><li>processing</li></ol><div class=\"banner\">Order A-1001 is confirmed.</div>' : '<p class=\"muted\">No status history recorded.</p><div class=\"banner\">Order A-1001 is confirmed.</div><div class=\"banner bad\">Order A-1001 is confirmed.</div>') + "';});document.querySelector('[data-action]').addEventListener('click',function(){notice.innerHTML='" + (isCortex ? '<div class=\"banner\">Refused: only 3 units remain.</div>' : '<div class=\"banner bad\">Accepted 24 units with 3 on hand.</div>') + "';});}"
+      const files = {
+        'web/styles.css': styles,
+        'web/index.html': body,
+        'web/app.js': app,
+        'orders/repository.js': isCortex
+          ? 'ORDERS_PER_PAGE; STATUS_HISTORY[id].push; insufficient stock; stockOnRecord(wanted.sku)'
+          : 'ORDERS_PER_PAGE; insufficient stock; availableStock(wanted.sku)',
+        'notify/email.js': 'A receipt is on its way',
+        'notify/templates.js': isCortex ? '' : 'A receipt is on its way',
+        'lib/money.js': 'minorUnits / 100',
+        'shipping/quote.js': isCortex ? 'Math.round(299' : 'return 2.99'
+      };
+      return files;
+    }
+
+    function previewEvents() {
+      const events = [];
+      ARMS.forEach((arm) => {
+        TASKS.forEach((task, index) => {
+          let phases = arm === 'cortex'
+            ? ['started', index % 3 === 0 ? 'recalled' : 'reading', 'claiming', 'patched']
+            : ['started', 'reading', 'decided', 'patched'];
+          if (arm === 'cortex' && ['P2b', 'P6b'].includes(task.id)) phases = ['started', 'reading', 'claiming', 'deduped'];
+          if (arm === 'cortex' && task.id === 'C2') phases = ['started', 'reading', 'blocked', 'patched'];
+          if (arm === 'cortex' && task.id === 'T11') phases = ['started', 'recalled', 'decided', 'spared'];
+          if (task.id === 'A1') phases = ['started', 'reading', 'decided', 'abandoned'];
+          if (arm === 'naive' && task.id === 'T11') phases = ['started', 'reading', 'decided', 'abandoned'];
+          phases.forEach((phase, phaseIndex) => {
+            events.push({
+              type: 'fleet',
+              runId: 'preview-run',
+              scope: arm,
+              event: {
+                seq: index * 4 + phaseIndex + 1,
+                arm,
+                agent: task.agent,
+                taskId: task.id,
+                phase,
+                at: (index * 4 + phaseIndex + (arm === 'cortex' ? 0 : 1)) * 105,
+                detail: phase === 'blocked' ? { contested: [{ holder: 'agent-1' }] } : {}
+              }
+            });
+          });
+        });
+      });
+      return events.sort((a, b) => a.event.at - b.event.at);
+    }
+
+    function previewTerminal() {
+      const steps = TASKS.map((task) => ({
+        taskId: task.id,
+        agent: task.agent,
+        intentId: 'intent-' + task.id.toLowerCase(),
+        reported: task.id === 'A1' || task.id === 'T11' ? 'abandoned' : 'done'
+      }));
+      return {
+        type: 'run',
+        phase: 'finished',
+        runId: 'preview-run',
+        at: 8910,
+        arms: [
+          {
+            arm: 'naive', events: 44, steps,
+            beats: { recall: false, dedupe: false, collision: true, consolidate: false },
+            meter: { duplicateWorkAvoided: 0, duplicateWorkDone: 2, lostWrites: 2, blockedAndReplanned: 0, findingsRecalled: 0, agentsSpared: 0, deadEndsWalked: 2, conflictingEdits: 0, fileCollisions: 3, embeddingCalls: 11, claimP50Ms: null, serializationRetries: 0, wastedTokens: null }
+          },
+          {
+            arm: 'cortex', events: 44, steps,
+            beats: { recall: true, dedupe: true, collision: false, consolidate: true },
+            meter: { duplicateWorkAvoided: 2, duplicateWorkDone: 0, lostWrites: 0, blockedAndReplanned: 1, findingsRecalled: 2, agentsSpared: 1, deadEndsWalked: 1, conflictingEdits: 0, fileCollisions: 0, embeddingCalls: 11, claimP50Ms: 143, serializationRetries: 1, wastedTokens: null }
+          }
+        ]
+      };
+    }
+
+    async function runPreview(failPartway) {
+      resetRun();
+      state.preview = true;
+      state.previewStartedAt = Date.now();
+      state.session = { scopes: { cortex: 'cortex', naive: 'naive' } };
+      state.runId = 'preview-run';
+      document.body.dataset.demoState = 'running';
+      $('run-demo').disabled = true;
+      $('comparison').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+
+      const events = previewEvents();
+      const limit = failPartway ? 30 : events.length;
+      for (let index = 0; index < limit; index += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 62));
+        await handleSocketMessage(events[index]);
+        if (index === 12 || index === 27 || index === 46) {
+          await handleSocketMessage({ type: 'change', topic: index === 46 ? 'findings' : 'intents', scope: index === 27 ? 'naive' : 'cortex', after: { id: 'preview-row-' + index } });
+        }
+      }
+
+      if (failPartway) {
+        await handleSocketMessage({ type: 'run', runId: 'preview-run', phase: 'failed', at: 3320, reason: 'Previewed dependency timeout after 30 timestamped events.' });
+      } else {
+        await handleSocketMessage(previewTerminal());
+      }
+    }
+
+    async function boot() {
+      renderTasks();
+      renderTracks();
+      renderBeats(false);
+      renderMeter([]);
+      setEmptyFrames();
+
+      if (PREVIEW) {
+        state.preview = true;
+        $('mode').innerHTML = '<b>SIMULATED UI PREVIEW</b><span>No deployment endpoints were injected. Coordination events below are labelled interface fixtures; the production path uses the live stream.</span>';
+        $('preview-controls').classList.add('visible');
+        $('run-demo').disabled = false;
+        return;
+      }
+
+      try {
+        const session = await openSession();
+        const liveState = await fetchArmState(session.scopes.cortex);
+        state.mode = liveState.mode;
+        $('mode').replaceChildren();
+        const label = document.createElement('b');
+        label.textContent = state.mode.name;
+        const reason = document.createElement('span');
+        reason.textContent = state.mode.reason + ' Code patches and one cross-module note are authored and reviewed.';
+        $('mode').append(label, reason);
+        $('run-demo').disabled = false;
+      } catch {
+        $('mode').innerHTML = '<b>backend unreachable</b><span>The page remains readable. A live run can be retried when the database plane is available.</span>';
+        $('run-demo').disabled = false;
+      }
+    }
+
+    document.querySelectorAll('.reveal').forEach((node) => node.classList.add('seen'));
+    if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.reveal').forEach((node) => node.classList.remove('seen'));
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('seen');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: .12 });
+      document.querySelectorAll('.reveal').forEach((node) => observer.observe(node));
+    }
+
+    $('run-demo').addEventListener('click', runDemo);
+    $('preview-failure').addEventListener('click', () => runPreview(true));
+    $('sql-panel').addEventListener('toggle', () => { if ($('sql-panel').open) loadSql(); });
+    boot();
+  </script>
+</body>
+</html>

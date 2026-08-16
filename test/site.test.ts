@@ -91,3 +91,120 @@ describe('the page says what it is, per `07` §4', () => {
     expect(page.toLowerCase()).not.toContain('stack trace');
   });
 });
+
+describe('the fleet redesign makes the coordination visible — U25', () => {
+  /**
+   * Break caught: replacing the page with a generic hero or removing one of the comparison
+   * surfaces. The two arms, the task journey, the event graph and the produced applications are
+   * the four different views a cold reader needs to connect cause to effect.
+   */
+  it.each([
+    'id="comparison"',
+    'id="journey"',
+    'id="flow-graphs"',
+    'id="task-board"',
+    'id="results"',
+    'id="benchmark"',
+    'id="production"',
+  ])('keeps the %s section in the single-page argument', (landmark) => {
+    expect(page).toContain(landmark);
+  });
+
+  /** Break caught: a page that runs the old four-beat branch instead of the real fleet. */
+  it('starts the asynchronous two-arm fleet from the one primary action', () => {
+    expect(page.match(/id="run-demo"/g)).toHaveLength(1);
+    expect(page).toContain("mode: 'fleet'");
+    expect(page).toContain('naive: session.scopes.naive');
+    expect(page).toContain("message.type === 'fleet'");
+    expect(page).toContain("message.type === 'run'");
+  });
+
+  /**
+   * Break caught: turning runner activity into a fake database row, or dropping committed rows
+   * from the visual explanation. Design §5.3 says the two sources have different authority.
+   */
+  it('labels committed rows separately from timestamped fleet activity', () => {
+    expect(page).toContain("message.type === 'change'");
+    expect(page).toContain('COMMITTED ROW');
+    expect(page).toContain('FLEET EVENT');
+  });
+
+  /**
+   * Break caught: rendering the prewritten screenshots instead of the two file trees the agents
+   * actually produced. Exactly two sandboxed frames make the result comparable without a toggle.
+   */
+  it('runs both produced applications in networkless sandboxed frames', () => {
+    expect(page.match(/<iframe\b/g)).toHaveLength(2);
+    expect(page.match(/sandbox="allow-scripts"/g)).toHaveLength(2);
+    expect(page).toContain("cortexFrame.srcdoc = assembleApp(cortexState.files)");
+    expect(page).toContain("naiveFrame.srcdoc = assembleApp(naiveState.files)");
+  });
+
+  /**
+   * Break caught: always accusing the isolated arm of the designed four defects even when the
+   * database produced a different race winner. The result labels must be derived from that arm's
+   * returned tree, for the same reason the meter is derived from readback.
+   */
+  it('derives every result verdict from the returned file trees', () => {
+    expect(page).toContain('const shippingWrong =');
+    expect(page).toContain('const duplicateConfirmation =');
+    expect(page).toContain('const oversellWrong =');
+    expect(page).toContain('const missingSharedFile =');
+  });
+
+  /**
+   * Break caught: treating an absent beat as a broken UI, inventing a zero, or losing the failed
+   * run after some real events already arrived.
+   */
+  it('has deliberate states for an unobserved beat, unmeasured value and partial failure', () => {
+    expect(page).toContain('NOT OBSERVED THIS RUN');
+    expect(page).toContain('TBD');
+    expect(page).toContain('Everything above this line happened before the run stopped.');
+  });
+
+  /**
+   * Break caught: showing N/A before a run, or showing claim latency as unmeasured when that arm
+   * has no claim transaction. Those are different claims and a zero is different from both.
+   */
+  it('distinguishes measured zero, not applicable and not measured in the meter logic', () => {
+    expect(page).toContain("if (!hasRun) return { value: 'TBD'");
+    expect(page).toContain("if (value === null && key === 'wastedTokens')");
+    expect(page).toContain("if (value === null) return { value: 'N/A'");
+    expect(page).toContain("Number(value) === 0 ? 'metric-zero'");
+  });
+
+  /**
+   * Break caught: shipping a static mockup that cannot demonstrate itself when opened directly.
+   * The fixture path is visibly labelled and cannot be mistaken for the deployed live database.
+   */
+  it('provides a clearly labelled local preview without weakening the deployed live path', () => {
+    expect(page).toContain('SIMULATED UI PREVIEW');
+    expect(page).toContain('runPreview');
+    expect(page).toContain('backend unreachable');
+  });
+});
+
+describe('the fleet redesign is self-contained and accessible', () => {
+  /** Break caught: an asset or dependency that a strict deployment policy refuses to load. */
+  it('makes no external asset request and draws the supplied brain mark inline', () => {
+    expect(page).toContain('<svg');
+    expect(page).not.toMatch(/<script[^>]+\bsrc=/i);
+    expect(page).not.toMatch(/<link[^>]+\bhref=/i);
+    expect(page).not.toMatch(/<img[^>]+\bsrc=/i);
+  });
+
+  /** Break caught: motion becoming content, or running for a visitor who reduced it. */
+  it('uses observer-driven reveals and collapses them under reduced motion', () => {
+    expect(page).toContain('IntersectionObserver');
+    expect(page).toContain('prefers-reduced-motion: reduce');
+    expect(page).toContain('scroll-behavior: auto');
+  });
+
+  /** Break caught: the supplied design palette drifting into a generic blue or purple theme. */
+  it.each(['#131820', '#1A2029', '#252C36', '#E8EAED', '#98A0AC', '#5CBCAA']) (
+    'keeps the brand token %s',
+    (token) => {
+      expect(page).toContain(token);
+    },
+  );
+});
