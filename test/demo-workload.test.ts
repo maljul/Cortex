@@ -9,10 +9,11 @@
  * settle it — two correct changes composing into a wrong result is exactly the thing that
  * looks fine on the page and is wrong on the screen.
  *
- * So this file **runs the app**. `evaluate` concatenates a file tree in load order and
- * executes it, then calls the functions a judge's clicks would call. The DOM half
- * (`web/app.js`) is left out because it needs a document and adds nothing here: every
- * interlock is a fact about the modules underneath it.
+ * So this file **runs the app**. `evaluate` — `src/demo/evaluate.ts` since 2026-08-16, so that
+ * this test and `bench/demo-app/acceptance.ts` run the same execution rather than two that
+ * drift — concatenates a file tree in load order and executes it, then calls the functions a
+ * judge's clicks would call. The DOM half (`web/app.js`) is left out because it needs a
+ * document and adds nothing here: every interlock is a fact about the modules underneath it.
  *
  * **What each lane's tree means.** The naive lane has the dedupe search and the claim in two
  * transactions and **no `findings` tier** — `06` §2 assigns NAIVE "Consolidation: none" — so
@@ -25,11 +26,9 @@ import { describe, expect, it } from 'vitest';
 
 import { CONTENDED_FILE, DEMO_TASKS, factOf, patchesFor, taskById } from '../bench/demo-workload.js';
 import { APP_FILES } from '../src/demo/app-bundle.js';
+import { evaluate, type App } from '../src/demo/evaluate.js';
 import { factFromClosedIntent } from '../src/memory/consolidate.js';
 import { applyPatch, DEMO_APP_CORPUS, loadFixtureTree, type FileTree } from '../src/demo/patches.js';
-
-/** Everything except the two documents and the file that needs a DOM. */
-const MODULES = APP_FILES.filter((f) => !f.startsWith('web/'));
 
 function baseline(): FileTree {
   return loadFixtureTree(APP_FILES, DEMO_APP_CORPUS);
@@ -40,34 +39,6 @@ function withTask(tree: FileTree, id: string, informed = false): FileTree {
   let next = tree;
   for (const patch of patchesFor(id, informed)) next = applyPatch(next, patch);
   return next;
-}
-
-type App = Record<string, (...args: never[]) => unknown> & {
-  ORDERS: { id: string }[];
-  INVENTORY: Record<string, number>;
-};
-
-/**
- * Runs a tree and hands back the functions it defines.
- *
- * `new Function` rather than a module loader, because the corpus is deliberately
- * import-free — that is what lets `assembleApp` concatenate it into one `srcdoc` document
- * with no build step, and it is what lets this test execute exactly the text the iframe will.
- */
-function evaluate(tree: FileTree): App {
-  const source = MODULES.map((file) => tree[file] ?? '').join('\n');
-  const exported = [
-    'formatPrice', 'lineTotal', 'sumAmounts',
-    'stockOnRecord', 'availableStock', 'consumeStock',
-    'findOrder', 'allOrders', 'orderPageCount', 'updateOrderStatus', 'statusHistory', 'insertOrder',
-    'orderWeightKg', 'shippingQuote',
-    'notifyOrderPlaced', 'confirmationsFor', 'confirmationBody',
-    'submitNewOrder', 'renderOrderList', 'renderPager', 'renderStatusPanel',
-    'priceOf', 'nameOf', 'nextOrderId', 'ORDERS', 'INVENTORY',
-  ];
-
-  const factory = new Function(`${source}\nreturn { ${exported.join(', ')} };`);
-  return factory() as App;
 }
 
 /** The banners the detail panel would render for one order — the interlock 4 count. */

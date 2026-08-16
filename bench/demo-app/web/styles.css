@@ -83,11 +83,25 @@ ul.stock li.negative { color: var(--bad); font-weight: 600; }
 .ok { color: var(--good); font-size: 13px; }
 .refused { color: var(--bad); font-size: 13px; font-weight: 600; }
 
-/* The pager C1 adds. The stylesheet carries rules for the whole design, the way a real
-   one does — the *feature* is in `orders/list.js`, and that is where its absence is true. */
+/* This stylesheet carries rules for the whole design, the way a real one does, including for
+   parts of the page that nothing renders yet. */
 .pager { display: flex; gap: 4px; align-items: center; margin-top: 8px; font-size: 12px; }
 .pager .current { font-weight: 700; }
 
 ol.timeline { margin: 6px 0 0; padding-left: 18px; font-size: 12px; }
 ol.timeline li { margin: 2px 0; }
 ol.timeline time { color: var(--muted); }
+
+.caption { color: var(--muted); font-size: 11px; margin: 0 0 6px; }
+.summary { font-size: 13px; margin: 6px 0 0; }
+td.units { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+ul.status-counts { list-style: none; padding: 0; margin: 6px 0 0; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+ul.stock em { color: var(--muted); font-style: normal; font-size: 11px; }
+
+.placed { color: var(--muted); font-size: 12px; margin: 0; }
+.progress {
+  height: 4px; margin: 6px 0 2px; border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 60%, transparent);
+}
+.progress span { display: block; height: 100%; border-radius: 999px; background: var(--good); }

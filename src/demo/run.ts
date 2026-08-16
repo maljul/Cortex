@@ -39,14 +39,23 @@
  * code a test can force with a 60ms budget, rather than in `infra/lambda/runner.ts` where it
  * would only ever have been seen firing in production. `test/run-stream.test.ts` drives both.
  *
- * **The arms run one after the other, deliberately.** Ten agents at once is within reach — V51
- * measured ten concurrent transactions on the demo plane committing in 2497ms against a 2s sleep,
- * with `pg`'s pool max at exactly 10 — but running the arms together would have each arm's
- * `claim_p50` and `serialization_retries` measured under the other arm's load, and `06` §3's
- * numbers are the comparison. Deployed, sequential is 5.9–8.3s against `07` §1's ninety-second
- * budget, so concurrency would buy a few seconds nobody is short of at the cost of the meter
- * meaning something else. If that trade is ever revisited, the pool headroom is measured and
- * written down.
+ * **The arms run one after the other, deliberately, and this survived being revisited.** Ten
+ * agents at once is within reach — V51 measured ten concurrent transactions on the demo plane
+ * committing in 2497ms against a 2s sleep, with `pg`'s pool max at exactly 10 — but running the
+ * arms together would have each arm's `claim_p50` and `serialization_retries` measured under the
+ * other arm's load, and `06` §3's numbers are the comparison. Deployed, sequential is 5.9–8.3s
+ * against `07` §1's ninety-second budget.
+ *
+ * **The LIVE path was the case that looked like it would force the change, and it does not.** With
+ * a model authoring each ticket the critical path is roughly 424s sequential against 244s
+ * concurrent, and the runner's Lambda timeout is 900s — so sequential fits with headroom, and
+ * concurrency would buy about three minutes at the cost of two published figures meaning something
+ * different from what the benchmark's mean. That is the same trade as before with bigger numbers
+ * on both sides, and it comes out the same way.
+ *
+ * **What is concurrent, and always has been, is the agents inside an arm** (`Promise.all` per wave
+ * in `runArm`). "Five agents work one complex change together rather than one after another" is a
+ * property of the lane, not of the arm schedule, and nothing here constrains it.
  *
  * Deliberately free of AWS types, for the reason `src/demo/api.ts` gives: a sink that can only be
  * exercised by deploying it is a sink that is exercised once.
@@ -117,6 +126,16 @@ export interface StreamRunOptions {
   recorders?: Partial<Record<DemoArm, StatementRecorder>>;
   /** The seam `test/run-stream.test.ts` uses to force a throw, a stall, and a broken socket. */
   run?: (options: ArmOptions) => Promise<ArmResult>;
+  /**
+   * Who writes the code the agents apply — REPLAY's reviewed patches when absent, `modelAuthor`
+   * when a LIVE run has been authorised.
+   *
+   * **Both arms get the same one, and that is not a detail.** Handing the lanes different authors
+   * would make the run a comparison between two code generators rather than between two
+   * coordination strategies, and every figure on the page would be measuring the wrong difference.
+   * The asymmetry that matters lives one level down, in what `recall()` puts in each prompt.
+   */
+  author?: ArmOptions['author'];
 }
 
 export interface RunOutcome {
@@ -156,7 +175,7 @@ function reasonOf(error: unknown): string {
  * the run ended. The outcome is the return value, and it has already been published.
  */
 export async function streamRun(options: StreamRunOptions): Promise<RunOutcome> {
-  const { runId, scopes, embed, publish, budgetMs, recorders, run = runArm } = options;
+  const { runId, scopes, embed, publish, budgetMs, recorders, author, run = runArm } = options;
   const started = Date.now();
 
   const results: ArmResult[] = [];
@@ -198,6 +217,7 @@ export async function streamRun(options: StreamRunOptions): Promise<RunOutcome> 
         arm,
         embed,
         ...(recorder ? { recorder } : {}),
+        ...(author ? { author } : {}),
         onEvent: (event) => send({ type: 'fleet', runId, scope: scopes[arm], event }),
       });
       results.push(result);

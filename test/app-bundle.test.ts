@@ -80,6 +80,93 @@ describe('the corpus assembles into something an iframe can render', () => {
   });
 });
 
+/**
+ * The corpus was fifteen files of four hundred to sixteen hundred bytes until 2026-08-16, and
+ * every ticket against it was answerable by reading one function. That is fine while the
+ * patches are committed and fatal the moment an agent authors the code: a ticket a model
+ * finishes in one glance produces the same answer every run, and a demo whose outcome never
+ * varies reads as a recording.
+ *
+ * These are the properties that make the tickets worth a model's attention, and they are here
+ * because prose in a README is not a check.
+ */
+describe('the corpus is deep enough that a ticket is real work', () => {
+  /** Every module a ticket names, or has to be read to answer one. */
+  const TICKET_MODULES = [
+    'lib/money.js', 'inventory/repository.js', 'orders/repository.js', 'orders/list.js',
+    'orders/status.js', 'orders/create.js', 'shipping/quote.js', 'notify/templates.js',
+    'notify/email.js', 'payments/provider.js',
+  ];
+
+  it('every module a ticket touches has enough in it to be read', () => {
+    // A floor rather than a range. The point is that these are modules with behaviour —
+    // validation, edge cases, formatting, error paths — and not four functions and a comment
+    // saying what a ticket will do to them.
+    const tree = app();
+    const tooThin = TICKET_MODULES.map((file) => ({
+      file,
+      lines: (tree[file] ?? '').split('\n').length,
+    })).filter((module) => module.lines < 90);
+
+    expect(tooThin).toEqual([]);
+  });
+
+  it('the answer to a ticket is not inside the file the ticket names', () => {
+    // Each pair is a module and a name it depends on that is **defined somewhere else**. This
+    // is the property design §3.1 asks for — every interlock crosses a module boundary — made
+    // checkable: a corpus flattened back into self-contained files fails here.
+    const DEPENDS_ON: [string, string][] = [
+      ['lib/money.js', 'CURRENCY'],
+      ['lib/money.js', 'taxRateOf'],
+      ['inventory/repository.js', 'catalogueSkus'],
+      ['orders/repository.js', 'STATUS_FLOW'],
+      ['orders/repository.js', 'consumeStock'],
+      ['orders/list.js', 'lineTotal'],
+      ['orders/list.js', 'pluralise'],
+      ['orders/status.js', 'STATUS_RANK'],
+      ['orders/status.js', 'nextStatusesFor'],
+      ['orders/create.js', 'insertOrder'],
+      ['orders/create.js', 'notifyOrderPlaced'],
+      ['shipping/quote.js', 'SHIPPING_TARIFF'],
+      ['shipping/quote.js', 'weightOf'],
+      ['notify/templates.js', 'formatPrice'],
+      ['notify/templates.js', 'deliveryEstimateDays'],
+      ['notify/email.js', 'subjectFor'],
+      ['payments/provider.js', 'orderSubtotal'],
+    ];
+
+    const tree = app();
+    const definedIn = (name: string) =>
+      Object.keys(tree).filter(
+        (file) =>
+          (tree[file] ?? '').includes(`function ${name}(`) ||
+          (tree[file] ?? '').includes(`var ${name} =`),
+      );
+
+    const broken = DEPENDS_ON.filter(([file, name]) => {
+      const where = definedIn(name);
+      return !(tree[file] ?? '').includes(name) || where.length !== 1 || where[0] === file;
+    });
+
+    expect(broken).toEqual([]);
+  });
+
+  it('carries no module syntax of any kind, so it needs no build step', () => {
+    // `assembleApp` concatenates these files into one `srcdoc` document and
+    // `src/demo/evaluate.ts` runs them through `new Function`. Either would break silently on a
+    // module keyword — the iframe renders blank with no error — so the absence is asserted
+    // against the files rather than only against the assembled document.
+    const offenders = Object.entries(app()).filter(
+      ([, source]) =>
+        /^\s*(import|export)\s/m.test(source) ||
+        /\brequire\s*\(/.test(source) ||
+        /\bmodule\.exports\b/.test(source),
+    );
+
+    expect(offenders.map(([file]) => file)).toEqual([]);
+  });
+});
+
 describe('the baseline lacks every feature the tickets add', () => {
   const source = () => Object.values(app()).join('\n');
 
@@ -129,7 +216,13 @@ describe('the baseline lacks every feature the tickets add', () => {
     // assumed wrong. `2 * 6.17` **is** exactly 12.34 in binary floating point, so an order of
     // two proves nothing. A-1001 is three lines at 6.17, which renders as
     // `£18.509999999999998` on screen, straight off the float.
-    expect(app()['lib/money.js']).toContain("return '£' + amount;");
+    //
+    // The formatter renders what it is handed and scales nothing; the absence to assert is the
+    // scaling, because `lib/money.js` has carried `toMinorUnits` all along and nothing calls it
+    // on the way to the screen.
+    expect(app()['lib/money.js']).toContain('return CURRENCY.symbol + amount;');
+    expect(app()['lib/money.js']).toContain('function toMinorUnits');
+    expect(app()['lib/money.js']).not.toContain('minorUnits / 100');
     expect(String(2 * 6.17)).toBe('12.34');
     expect(String(3 * 6.17)).toBe('18.509999999999998');
   });

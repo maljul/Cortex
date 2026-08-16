@@ -196,7 +196,7 @@ const DUPLICATES: DemoTask[] = [
       {
         file: 'inventory/repository.js',
         find: `function availableStock(sku) {
-  return stockOnRecord(sku);
+  return stockOnRecord(sku) - reservedFor(sku);
 }`,
         replace: `var STOCK_CACHE = {};
 var STOCK_CACHE_MS = 30000;
@@ -205,7 +205,7 @@ function availableStock(sku) {
   var hit = STOCK_CACHE[sku];
   if (hit && Date.now() - hit.at < STOCK_CACHE_MS) return hit.value;
 
-  var value = stockOnRecord(sku);
+  var value = stockOnRecord(sku) - reservedFor(sku);
   STOCK_CACHE[sku] = { at: Date.now(), value: value };
   return value;
 }`,
@@ -256,22 +256,25 @@ const CONTENDED: DemoTask[] = [
       {
         file: CONTENDED_FILE,
         find: `function allOrders() {
-  return ORDERS.slice();
+  return sortedOrders();
 }
 
 function orderPageCount() {
   return 1;
 }`,
+        // Paging over `sortedOrders()` rather than over `ORDERS`, because the store's own
+        // rule is that a read reaching a view is ordered — page 1 of an unsorted list is a
+        // different set of rows every time an order is written.
         replace: `var ORDERS_PER_PAGE = 4;
 
 function allOrders(page, perPage) {
   var size = perPage || ORDERS_PER_PAGE;
   var start = (page || 0) * size;
-  return ORDERS.slice(start, start + size);
+  return sortedOrders().slice(start, start + size);
 }
 
 function orderPageCount(perPage) {
-  return Math.ceil(ORDERS.length / (perPage || ORDERS_PER_PAGE));
+  return Math.ceil(orderCount() / (perPage || ORDERS_PER_PAGE));
 }`,
       },
       {
@@ -310,15 +313,20 @@ function orderPageCount(perPage) {
         find: `function updateOrderStatus(id, status) {
   var order = findOrder(id);
   if (!order) return null;
+  if (!canTransition(order.status, status)) return null;
   order.status = status;
   return order;
 }`,
+        // Recorded after the transition is accepted, not before it: a refused transition did
+        // not happen, and a history that carries attempts makes `furthestStatus` report a
+        // stage the order never reached.
         replace: `function updateOrderStatus(id, status) {
   var order = findOrder(id);
   if (!order) return null;
+  if (!canTransition(order.status, status)) return null;
   order.status = status;
   if (!STATUS_HISTORY[id]) STATUS_HISTORY[id] = [];
-  STATUS_HISTORY[id].push({ status: status, at: new Date().toISOString() });
+  STATUS_HISTORY[id].push({ status: status, at: nowIso() });
   return order;
 }`,
       },
@@ -336,8 +344,8 @@ function orderPageCount(perPage) {
   var html = '';
   for (var i = 0; i < entries.length; i += 1) {
     html +=
-      '<li>' + entries[i].status +
-      ' <time>' + entries[i].at.slice(11, 19) + '</time></li>';
+      '<li>' + statusLabel(entries[i].status) +
+      ' <time>' + clockOf(entries[i].at) + '</time></li>';
   }
   return '<ol class="timeline">' + html + '</ol>';
 }`,
@@ -405,11 +413,13 @@ function orderPageCount(perPage) {
   for (var g = 0; g < order.lines.length; g += 1) {
     var wanted = order.lines[g];
     // Recall warned this agent that availability lookups are cached for thirty seconds, so
-    // the guard reads the record rather than the cache. Nothing in this file said so.
-    if (stockOnRecord(wanted.sku) < wanted.quantity) {
+    // the guard subtracts reservations from the record itself rather than asking for the
+    // number that goes through the cache. Nothing in this file said so.
+    var free = stockOnRecord(wanted.sku) - reservedFor(wanted.sku);
+    if (free < wanted.quantity) {
       return {
         ok: false,
-        reason: 'insufficient stock for ' + nameOf(wanted.sku) + ': ' + stockOnRecord(wanted.sku) + ' left',
+        reason: 'insufficient stock for ' + nameOf(wanted.sku) + ': ' + free + ' left',
       };
     }
   }
@@ -456,14 +466,17 @@ const RECALL_PAIR: DemoTask[] = [
       {
         file: 'lib/money.js',
         find: `function formatPrice(amount) {
-  return '£' + amount;
+  return CURRENCY.symbol + amount;
 }
 
 function lineTotal(line) {
   return line.price * line.quantity;
 }`,
+        // The price on a line is a decimal off the catalogue, so it is converted once, at the
+        // edge, and multiplied afterwards — `Math.round(price * quantity * 100)` rounds the
+        // product instead of the price and drifts a penny on any quantity above one.
         replace: `function formatPrice(minorUnits) {
-  return '£' + (minorUnits / 100).toFixed(2);
+  return CURRENCY.symbol + (minorUnits / 100).toFixed(2);
 }
 
 function lineTotal(line) {
