@@ -1751,7 +1751,7 @@
       taskStatus: new Map(),
       agentState: { naive: new Map(), cortex: new Map() },
       workflowPulseAgent: null,
-      socket: null,
+      sockets: [],
       states: { naive: null, cortex: null },
       sqlLoaded: false
     };
@@ -2036,18 +2036,43 @@
       return response.json();
     }
 
-    function openSocket(sessionId) {
+    function streamTargets(scopes) {
+      return [
+        { sessionId: scopes.cortex, source: 'primary' },
+        { sessionId: scopes.naive, source: 'changes' }
+      ];
+    }
+
+    function acceptsSocketMessage(source, message) {
+      return source === 'primary' || message.type === 'change';
+    }
+
+    function openSocket(sessionId, source) {
       return new Promise((resolve, reject) => {
-        if (state.socket) state.socket.close();
         const socket = new WebSocket(STREAM + '?session=' + encodeURIComponent(sessionId));
-        state.socket = socket;
+        state.sockets.push(socket);
         const timer = window.setTimeout(() => reject(new Error('stream unavailable')), 5000);
         socket.addEventListener('open', () => { window.clearTimeout(timer); resolve(); }, { once: true });
         socket.addEventListener('message', (event) => {
-          try { handleSocketMessage(JSON.parse(event.data)); } catch { /* A malformed event is ignored, the run continues. */ }
+          try {
+            const message = JSON.parse(event.data);
+            if (acceptsSocketMessage(source, message)) handleSocketMessage(message);
+          } catch { /* A malformed event is ignored, the run continues. */ }
         });
         socket.addEventListener('error', () => { window.clearTimeout(timer); reject(new Error('stream unavailable')); }, { once: true });
       });
+    }
+
+    async function openSockets(scopes) {
+      state.sockets.forEach((socket) => socket.close());
+      state.sockets = [];
+      try {
+        await Promise.all(streamTargets(scopes).map((target) => openSocket(target.sessionId, target.source)));
+      } catch (error) {
+        state.sockets.forEach((socket) => socket.close());
+        state.sockets = [];
+        throw error;
+      }
     }
 
     async function startFleet() {
@@ -2079,7 +2104,7 @@
 
       try {
         state.session = await openSession();
-        await openSocket(state.session.scopes.cortex);
+        await openSockets(state.session.scopes);
         await startFleet();
       } catch (error) {
         document.body.dataset.demoState = 'failed';

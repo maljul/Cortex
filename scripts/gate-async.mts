@@ -12,7 +12,7 @@
  * What it does, in the order a visitor would:
  *
  *   1. asks the hosted API for a session — two scopes now, one per arm (design §4.1)
- *   2. opens the WebSocket the page opens, filtered to the cortex scope
+ *   2. opens the page's primary WebSocket, filtered to the cortex scope
  *   3. posts the fleet run and **times the response**, against the measured 30,000ms ceiling
  *   4. reads the whole run off the socket, ending at the terminal message
  *
@@ -131,11 +131,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // 2. One socket, on the cortex scope, exactly as a page holds one. The runner broadcasts a
-  //    run's messages to both of a visitor's scopes precisely so that this is enough.
+  // 2. The page's primary socket, on the cortex scope. The page also opens the naive scope for
+  //    that arm's tenant-scoped changefeed rows; this gate is about the runner stream, which is
+  //    broadcast to both scopes, so one connection is the correct surface to observe here.
   const socket = new WebSocket(`${stream}?session=${scopes.cortex}`);
   const received: AnyMessage[] = [];
-  let terminalAt = -1;
+  let terminalRunAt = -1;
 
   const finished = new Promise<void>((done, fail) => {
     const timer = setTimeout(
@@ -152,10 +153,12 @@ async function main(): Promise<void> {
       }
 
       if (message.type === 'run' && (message.phase === 'finished' || message.phase === 'failed')) {
-        if (terminalAt === -1) terminalAt = received.length - 1;
+        if (terminalRunAt === -1) {
+          terminalRunAt = received.filter((item) => item.type === 'fleet' || item.type === 'run').length - 1;
+        }
         clearTimeout(timer);
-        // Deliberately not resolved at once: anything arriving *after* the terminal message is a
-        // defect, and the only way to see it is to keep listening for a moment.
+        // Deliberately not resolved at once: any runner message arriving *after* the terminal is
+        // a defect. Changefeed rows are an independent source and can legitimately arrive later.
         setTimeout(() => done(), 3_000);
       }
     });
@@ -204,6 +207,7 @@ async function main(): Promise<void> {
 
   const runMs = Date.now() - postedAt;
   const fleet = received.filter((m) => m.type === 'fleet');
+  const runMessages = received.filter((m) => m.type === 'fleet' || m.type === 'run');
   const terminals = received.filter(
     (m) => m.type === 'run' && (m.phase === 'finished' || m.phase === 'failed'),
   );
@@ -213,9 +217,9 @@ async function main(): Promise<void> {
   check('4. the run terminated rather than going silent', stalled === null, stalled ?? `${runMs}ms`);
   check('4b. exactly one terminal message', terminals.length === 1, `${terminals.length}`);
   check(
-    '4c. nothing arrived after it',
-    terminalAt === -1 || terminalAt === received.length - 1,
-    terminalAt === -1 ? 'no terminal' : `${received.length - 1 - terminalAt} after`,
+    '4c. no runner message arrived after it',
+    terminalRunAt === -1 || terminalRunAt === runMessages.length - 1,
+    terminalRunAt === -1 ? 'no terminal' : `${runMessages.length - 1 - terminalRunAt} after`,
   );
   check('4d. it finished rather than failing', terminal?.phase === 'finished', terminal?.reason ?? '');
 

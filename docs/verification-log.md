@@ -5692,3 +5692,84 @@ walked a dead end the CORTEX arm recalled and skipped.
 **Still open:** U25's formal done-when is an independent cold read. Julian approved this design
 direction and supplied the revision, but is not a reader unfamiliar with the project. Deployment
 also remains untouched until U26, as design decision 7 requires.
+
+---
+
+## V56 — The judge page is connected to both live scopes and published
+
+**2026-08-16.** U26's deployment half is complete. The page at
+https://d11xbslgdgomdp.cloudfront.net is the V55 judge redesign, not the previous four-beat page,
+and its run button now has every browser-side connection the two-arm product needs.
+
+### The missing connection was the naive changefeed scope
+
+The runner broadcasts fleet and terminal messages to both of a visitor's scopes, so one socket
+was enough to animate both agent lanes. CockroachDB's changefeed is correctly stricter: it sends a
+row only to a socket registered for that row's `repo_id`. The page still opened only the CORTEX
+scope, which meant the naive lane's fleet actions and final state were real while its committed-row
+panel could never receive a row.
+
+A test failed first because `streamTargets` did not exist. The implementation now opens:
+
+```
+scope-cortex  primary  change + fleet + terminal
+scope-naive   changes  change only
+```
+
+The secondary connection deliberately refuses fleet and terminal messages because the runner
+broadcasts them to both scopes. Without that filter every agent action and the terminal result
+would be rendered twice. Both sockets are closed together before a new run and after a partial
+connection failure.
+
+### The live gate exposed a source-boundary bug in its own assertion
+
+The first pre-deployment `npm run gate:async` completed the real run but reported `22 after` on
+its terminal-order check. Inspection showed all 22 were CockroachDB changefeed rows, not runner
+messages. The two sources are independent by design: `streamRun` can close its fleet stream before
+publishing the terminal event, but it cannot reorder rows already committed and travelling through
+CockroachDB's changefeed.
+
+The gate now applies its ordering assertion to `fleet | run`, the source whose order the terminal
+event owns, while still counting and reporting database rows separately. No runner or backend code
+was changed to hide the delayed evidence. The required re-run passed:
+
+```
+POST /demo/run                 202 in 542ms
+whole run                     9673ms
+fleet events                  98 across cortex + naive
+terminal messages             1
+runner messages after it      0
+undelivered                   0
+real changefeed rows          43
+GATE PASSED
+```
+
+### Local and hosted verification
+
+```
+npm test -- --run test/site.test.ts test/app-bundle.test.ts test/run-stream.test.ts
+  69 passed across 3 files
+
+npx tsc --noEmit
+  clean
+
+inline script extracted from infra/site/index.html | node --check -
+  clean
+
+git diff --check
+  clean
+```
+
+`npm run deploy:site` uploaded the page with the stack's current public API and WebSocket outputs
+and invalidated CloudFront distribution `E1FAHM2LWWYFY8`. A cache-busted fetch of the public URL
+returned HTTP 200 and confirmed the endpoint preamble, `streamTargets`, the development workflow
+and the CORTEX hub in the served artifact.
+
+**What is real in this product demo:** anonymous session confinement, CockroachDB transactions,
+Bedrock embeddings, semantic dedupe, file claims, re-planning, consolidation, both file trees,
+both SQL transcripts, and both changefeed streams. **What remains deliberately not LIVE:** model
+reasoning. U24 still owns that metered architecture and the page's backend-provided mode line says
+so rather than implying the checked-in patches were model-authored.
+
+**Still open:** Julian's cold run of the deployed page, which is U26's judgment and cannot be
+closed by this verification log.

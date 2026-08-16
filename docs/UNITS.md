@@ -1038,7 +1038,10 @@ over the socket." *(design §11, verbatim)*
 
 **Closed by `npm run gate:async`, 13/13, V51** — against the deployed stack, which is the only
 place a gateway ceiling exists. **482ms against a 30,000ms ceiling; 87 of 87 fleet events
-delivered; exactly one terminal message and nothing after it.** `src/demo/run.ts` is the sink,
+delivered; exactly one terminal message and no runner message after it.** CockroachDB changefeed
+rows are a separately-labelled source and may arrive after the runner has terminated; V56 caught
+the gate incorrectly counting those rows as late runner output and narrowed the assertion to the
+source whose ordering `streamRun` owns. `src/demo/run.ts` is the sink,
 `infra/lambda/runner.ts` the second Lambda, `infra/lambda/fanout.ts` the one socket fan-out both
 producers now share. Tests: `test/run-stream.test.ts` (7) and five live cases in
 `test/demo-plane.test.ts`.
@@ -1302,6 +1305,12 @@ the run; it does not manufacture them. The first of the two permitted gate runs 
 timing-dependent informed-patch interlocks while still producing the same directional outcome;
 the required re-run recalled both findings and passed every check. V55 records both outcomes.
 
+**Connected and published in V56.** The deployed page creates both demo scopes, opens one
+WebSocket per scope, accepts the fleet and terminal stream from the primary connection only, and
+accepts tenant-scoped committed rows from both. That prevents duplicate fleet events while making
+the naive arm's real changefeed rows visible. Both final states and SQL transcripts were already
+fetched per scope; the missing second row stream was the last browser-to-system wiring gap.
+
 **Why this remains partial:** Julian approved the direction and supplied the judge-facing
 revision, but the done-when specifically requires someone unfamiliar with the project. V53/V55
 prove the bindings, security surface, syntax and result derivation; they do not turn an owner read
@@ -1319,7 +1328,7 @@ Design §9 motion rule 3 — beat 3's winner is decided by the unique index, so 
 be pre-positioned to win, and a page that animates one is depicting a determinism the system
 does not have. Rule A7.
 
-### U26 — Deploy and cold read ⬜
+### U26 — Deploy and cold read 🔶 **deployed 2026-08-16; Julian's cold run still open**
 **Done when:** "Julian opens the deployed page cold and the run reads." *(design §11, verbatim)*
 **Specs:** `02` §B, `04` §5
 **Verify live first:** `node infra/bundle.mjs` before `npx cdk deploy`. Nothing runs it
@@ -1330,6 +1339,14 @@ the revision marker for this and it only helps if it is bumped.
 **This one cannot be closed by a script**, exactly as U16 could not. Design §13 names the risk
 plainly: the rebuilt page may be correct and less readable than the one it replaces, and only a
 cold read rules that out.
+
+**Published in V56:** https://d11xbslgdgomdp.cloudfront.net. The deployment injected the current
+CloudFormation API and WebSocket outputs, invalidated the distribution, and a cache-busted fetch
+returned the new two-scope runtime, judge workflow and CORTEX hub at HTTP 200. Immediately before
+publication, `npm run gate:async` passed the complete hosted runner path: anonymous two-scope
+session, 202 in 542ms, 98 fleet events across both arms, one terminal event, zero undelivered and
+43 real changefeed rows. **Still required to close this unit:** Julian opens that URL without
+project context, runs it once, and says whether the four beats read.
 
 ---
 

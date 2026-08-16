@@ -21,6 +21,19 @@ const page = readFileSync(
   'utf8',
 );
 
+function pageFunction(name: string): (...args: unknown[]) => unknown {
+  const match = page.match(
+    new RegExp(`    function ${name}\\(([^)]*)\\) \\{([\\s\\S]*?)\\n    \\}`),
+  );
+  if (!match) throw new Error(`page function ${name} not found`);
+
+  const parameters = match[1]
+    ?.split(',')
+    .map((parameter) => parameter.trim())
+    .filter(Boolean) ?? [];
+  return new Function(...parameters, match[2] ?? '') as (...args: unknown[]) => unknown;
+}
+
 describe('the demo page accepts nothing from the visitor — invariant 8', () => {
   it.each(['<input', '<form', '<textarea', '<select', 'contenteditable'])(
     'contains no %s anywhere, including commented out',
@@ -230,6 +243,30 @@ describe('the fleet redesign makes the coordination visible — U25', () => {
     expect(page).toContain('renderOutcomeComparison(message.arms || []);');
     expect(page).toContain('state.states.naive.files');
     expect(page).toContain('state.states.cortex.files');
+  });
+
+  /**
+   * Break caught: subscribing only to the CORTEX scope. The runner deliberately broadcasts its
+   * own messages to both scopes, but CockroachDB changefeed rows are tenant-scoped and therefore
+   * require one connection per arm. The secondary connection must not duplicate fleet or terminal
+   * messages that the primary connection already receives.
+   */
+  it('subscribes to both scopes while accepting run messages only from the primary stream', () => {
+    const streamTargets = pageFunction('streamTargets');
+    expect(streamTargets({ cortex: 'scope-cortex', naive: 'scope-naive' })).toEqual([
+      { sessionId: 'scope-cortex', source: 'primary' },
+      { sessionId: 'scope-naive', source: 'changes' },
+    ]);
+
+    const acceptsSocketMessage = pageFunction('acceptsSocketMessage');
+    expect(acceptsSocketMessage('primary', { type: 'fleet' })).toBe(true);
+    expect(acceptsSocketMessage('primary', { type: 'run' })).toBe(true);
+    expect(acceptsSocketMessage('primary', { type: 'change' })).toBe(true);
+    expect(acceptsSocketMessage('changes', { type: 'change' })).toBe(true);
+    expect(acceptsSocketMessage('changes', { type: 'fleet' })).toBe(false);
+    expect(acceptsSocketMessage('changes', { type: 'run' })).toBe(false);
+
+    expect(page).toContain('await openSockets(state.session.scopes)');
   });
 });
 
