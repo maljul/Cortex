@@ -1362,9 +1362,47 @@ comes before SPA polish rather than after; and `docs/SPEC-DELTA.md`'s "`cortex b
 correctly. A README documenting a command that does not exist is worse than a README
 documenting a differently-named one.
 
-### U18 — README, architecture diagram, licence, third-party disclosure ⬜
+### U18 — README, architecture diagram, licence, third-party disclosure ✅ 2026-08-16
 **Done when:** "a clean clone reproduces the benchmark." *(08 §5, 47–52h, verbatim)*
 **Specs:** `09` §1, `07` §7, `02` §B
+
+**Closed by running it, V57.** `git clone` to an empty directory, `npm ci`, `npx tsc
+--noEmit` clean, `npm run bench:results`. **Every coordination row is identical to the
+published table**; only `claim_p50` (732 → 778) and `claim_p95` (818 → 967) moved, which is
+the wall-clock variation both `summary.md` and the README tell a reader to expect. Both run
+records carry `mode=replay` and `liveCalls: {embed: 0, reason: 0}`, so no network was
+reached.
+
+**The run found a defect reading could not, and it was a reproduction blocker.** The
+committed `summary.md` named `CORTEX_DSN` as the only prerequisite — true on 2026-08-12,
+false since V48 moved the write plane to `CORTEX_WRITER_DSN`. A judge configuring exactly
+what the published artifact asked for would have watched the CORTEX arm fail.
+`scripts/bench-results.mts` was corrected on 2026-08-13 (`fe3da84`) and **the artifact was
+never regenerated**, so the fix reached the generator and not the file anybody reads — the
+same corrected-source-and-stale-copy shape as V39's changefeed sink. The prerequisite
+paragraph now carries the generator's own current wording; **no published number moved and
+the results directory is still singular.**
+
+**Five factual errors were corrected in the diagram before it shipped**, all found by
+reading `infra/cdk/lib/cortex-stack.ts` rather than the prose beside it: four Lambdas where
+five are deployed (the fleet runner was missing), one DynamoDB table where there are two,
+Secrets Manager absent, S3 labelled as holding cassettes/fixtures/results when it holds only
+the SPA, and — the one that mattered — **Claude Sonnet 4.5 drawn inside the AWS boundary.**
+Every `bedrock:InvokeModel` grant in the stack is scoped by ARN to the Titan embedding model,
+so no deployed function can invoke a reasoning model at all. Depicting LIVE reasoning as
+wired is exactly what rule A7 forbids. `docs/architecture.md` now states that explicitly, and
+the AWS Budget alarm and degradation rungs 1, 3 and 4 are labelled **not built** rather than
+listed as if they exist.
+
+**`.env.example` was the other thing standing between a clean clone and a working one**, and
+it is **not fixed** — the file is behind a read/write deny rule in this session's permission
+settings, so the corrected version is parked outside the repo for Julian to install. It
+labels `CORTEX_DSN` the write plane (false since V48), omits `CORTEX_WRITER_DSN`,
+`CORTEX_READER_DSN`, `CORTEX_DEMO_DSN` and `CORTEX_CORPUS_ROOT` entirely, and carries
+`CORTEX_DEDUPE_THRESHOLD` (removed by `05` §6) and `CORTEX_LEASE_TTL` (read by nothing since
+U9 decided against lease extension). The README's own variable table carries the true set, so
+a reader following the README is not blocked; a reader following `.env.example` is.
+
 **Verify live first:** the clean clone itself — clone to a fresh directory and run the
 published command. `bench/results/*/summary.md` already claims everything except
 re-running needs no prerequisites; that claim is either true from an empty directory or

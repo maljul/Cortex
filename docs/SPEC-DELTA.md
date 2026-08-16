@@ -1031,3 +1031,30 @@ explicitly, "rather than a sixth route, so `05` §5's route list does not grow".
 carries `files` — the arm's finished working tree — projected from the scope's own
 `demo_shared_state` cell, which the route was already reading. No new storage, no new query, no new
 route. `null` before any agent has saved, because a scope that has run nothing has no app.
+
+---
+
+### `05` §6's configuration contract is three variables behind the code *(2026-08-16, V57)*
+
+`spec/05-INTERFACES.md` §6 is the config contract `.env.example` names in its own header, and
+it no longer describes what the code reads. Found by rebuilding `.env.example` from
+`process.env` call sites while closing U18, not by reading the spec.
+
+- **`CORTEX_DSN` is captioned "write-plane connection string".** False since V48. It is the
+  administrative credential — `scripts/sql.mts` and `scripts/changefeed.mts`, which genuinely
+  need DDL and job control — and it stays admin deliberately. The write plane is
+  `CORTEX_WRITER_DSN`, which **§6 does not list at all**.
+- **`CORTEX_CORPUS_ROOT` is missing.** Added by U22 so the fleet runner can find
+  `bench/demo-app/` beside the Lambda handler; `infra/bundle.mjs` fails loudly if the copy is
+  empty. It is as load-bearing as `CORTEX_REPO_ROOT`, which §6 does list.
+- **`CORTEX_LEASE_TTL` is listed with a default of 10m and is read by nothing.** U9 decided
+  against heartbeat and lease extension (cut-list item 6, taken up front rather than under
+  time pressure), so the variable has had no reader since. It is the same shape as
+  `CORTEX_DEDUPE_THRESHOLD`, which §6 removed in 2026-08-11 for exactly this reason and said
+  so in place.
+
+**Not reconciled in code.** The deviation is recorded here and the README's own variable table
+publishes the true set, so a reader following the README is not blocked. `.env.example` itself
+is still wrong: it is behind a read/write deny rule in the session that found this, so the
+corrected file could not be written. That is the file a newcomer copies, and it is the one
+remaining thing between a clean clone and a configured one.

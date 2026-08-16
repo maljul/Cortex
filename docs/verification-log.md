@@ -5773,3 +5773,83 @@ so rather than implying the checked-in patches were model-authored.
 
 **Still open:** Julian's cold run of the deployed page, which is U26's judgment and cannot be
 closed by this verification log.
+
+---
+
+## V57 — A clean clone reproduces the benchmark, and the published recipe was wrong
+
+**2026-08-16.** U18's done-when, run rather than reasoned about: `git clone` to an empty
+directory, `npm ci`, `npx tsc --noEmit`, `npm run bench:results`. Nothing from the working
+tree was carried across except `.env`, which is what a judge supplies for their own cluster.
+
+### The run
+
+```
+$ git clone -q /Users/julian/leasehold /tmp/cortex-cleanclone
+$ cd /tmp/cortex-cleanclone && npm ci --silent
+$ npx tsc --noEmit
+(exit 0, no output)
+
+$ npm run bench:results
+naive run 1/3… 40 ms
+naive run 2/3… 27 ms
+naive run 3/3… 27 ms
+cortex run 1/3… 48152 ms
+cortex run 2/3… 47752 ms
+cortex run 3/3… 44429 ms
+
+| metric                | naive | cortex |
+|-----------------------|-------|--------|
+| duplicate_work_rate   |  0.21 |   0.00 |
+| lost_writes           |    21 |      0 |
+| conflicting_edits     |     3 |      0 |
+| wasted_tokens         |  4000 |    867 |
+| goodput (tasks/min)   | 38.16 | 200.73 |
+| claim_p50 (ms)        |     — |    778 |
+| claim_p95 (ms)        |     — |    967 |
+| serialization_retries |     — |      0 |
+
+written: /private/tmp/cortex-cleanclone/bench/results/2026-08-16T13-16-00-511Z
+```
+
+**Every coordination row is identical to the published table.** The only two rows that moved
+are the wall-clock ones — `claim_p50` 732 → 778 and `claim_p95` 818 → 967 — which is exactly
+what `summary.md` and the README both predict, and why they tell a reader to compare
+everything else. `diff` over the two tables reports those two lines and nothing else.
+
+**No network was reached.** Both run records carry the replay marker, read out of the
+committed JSON rather than off the console:
+
+```
+$ node -e "for (const f of ['cortex.json','naive.json']) { ... }"
+cortex.json mode=replay liveCalls={"embed":0,"reason":0}
+naive.json  mode=replay liveCalls={"embed":0,"reason":0}
+```
+
+### What the run found, which reading could not
+
+**The committed `summary.md`'s reproduction recipe named one connection string and the run
+needs two.** Its "Reproducing this" section said the prerequisite was a cluster "named by
+`CORTEX_DSN`" — written on 2026-08-12, before V48 moved the write plane off that variable.
+The CORTEX arm runs on `CORTEX_WRITER_DSN`, so a judge who configured exactly what the
+published artifact asked for would have watched the CORTEX arm fail and concluded the
+benchmark does not reproduce.
+
+It surfaced as a `diff` between the committed `summary.md` and the one this run generated:
+`scripts/bench-results.mts` was corrected on 2026-08-13 (`fe3da84`) and now emits both
+variables, but **the committed artifact was never regenerated**, so the fix reached the
+generator and not the thing anybody reads. That is the same shape as the changefeed sink's
+second copy of the status rule (V39) — a corrected source and a stale copy, with nothing
+holding them together.
+
+**Corrected in place, and no published number moved.** The prerequisite paragraph in
+`bench/results/2026-08-12T18-35-38-014Z/summary.md` now carries the generator's own current
+wording. The table, the spread, the limitations and every figure are untouched, and the
+directory is still singular.
+
+### What this does not close
+
+The clone was taken from a local path, not from a public URL, because the repository is
+still private (`gh repo view` reports `"visibility":"PRIVATE"`). The reproduction is proved;
+the *availability* of the thing being cloned is a repository-settings act and is B1/B2's,
+not this unit's.

@@ -376,6 +376,32 @@ What does not belong in a unit list, and so lives here:
   `summary.md` carries them and they are load-bearing, not decoration. **One results
   directory only.** The 0.28 run was deleted rather than kept alongside; two published
   tables is a reader guessing which one is quoted.
+  **And a clean clone actually reproduces it now — run, not reasoned about (U18, V57,
+  2026-08-16).** Clone to an empty directory, `npm ci`, `npx tsc --noEmit`, `npm run
+  bench:results`: every coordination row is identical, only `claim_p50` (732 → 778) and
+  `claim_p95` (818 → 967) move, and both arms record `mode=replay` with
+  `liveCalls: {embed: 0, reason: 0}`. **The run found what reading had not: the committed
+  `summary.md` named `CORTEX_DSN` as the only prerequisite, and the CORTEX arm runs on
+  `CORTEX_WRITER_DSN`** — so a judge configuring exactly what the artifact asked for would
+  have watched that arm fail. `scripts/bench-results.mts` was fixed on 2026-08-13 and the
+  artifact was never regenerated, so the fix reached the generator and not the file anybody
+  reads. Corrected in place; **no published number moved.**
+- **`05` §6's config contract is three variables behind the code, and `.env.example` with
+  it (V57).** §6 still captions `CORTEX_DSN` the write plane, omits `CORTEX_WRITER_DSN` and
+  `CORTEX_CORPUS_ROOT`, and lists `CORTEX_LEASE_TTL`, which has had no reader since U9 cut
+  lease extension. `docs/SPEC-DELTA.md` carries it. **`.env.example` is still wrong and is
+  the file a newcomer copies** — it is behind a read/write deny rule, so the corrected
+  version could not be written from a session; the README's variable table carries the true
+  set in the meantime.
+- **The public docs are written and the diagram is corrected (U18, V57).** `README.md`,
+  `LICENSE` (**MIT** — Julian's call 2026-08-13, settling `package.json`'s ISC against `02`
+  B2 and `09` §1; all four places now agree), `docs/architecture.md`, `docs/third-party.md`.
+  **Five factual errors were found in the diagram by reading the CDK stack rather than the
+  prose beside it**, the load-bearing one being Claude Sonnet 4.5 drawn inside the AWS
+  boundary: every `bedrock:InvokeModel` grant is scoped by ARN to the Titan embedding model,
+  so **no deployed function can invoke a reasoning model at all.** Depicting LIVE reasoning
+  as wired is what A7 forbids. AWS Budgets and degradation rungs 1, 3 and 4 are now labelled
+  **not built** rather than listed as though they exist.
 - Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
   probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer

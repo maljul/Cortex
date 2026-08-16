@@ -54,10 +54,12 @@ the NAIVE arm really does lose writes to its JSON file, and is not scripted to.
 npm run bench:results
 ```
 
-**Prerequisite: a CockroachDB cluster of your own**, named by `CORTEX_DSN`. The
-CORTEX arm cannot run without one — that is the point of the harness, not a
-restriction on it. No Bedrock credentials are needed: the run replays cassettes
-and reports `liveCalls: {embed: 0, reason: 0}`.
+**Prerequisite: a CockroachDB cluster of your own**, and two connection strings for
+it: `CORTEX_DSN` to apply `sql/001_init.sql` once, and `CORTEX_WRITER_DSN` — the
+least-privileged `cortex_writer` role that schema creates — which is what the CORTEX
+arm actually runs on. The CORTEX arm cannot run without a cluster; that is the point
+of the harness, not a restriction on it. No Bedrock credentials are needed: the run
+replays cassettes and reports `liveCalls: {embed: 0, reason: 0}`.
 
 **What needs no prerequisites at all:** everything except re-running. The
 committed cassettes, this table, `environment.json`, the full run record in each
