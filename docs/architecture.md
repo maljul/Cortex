@@ -27,9 +27,9 @@ flowchart TB
     DDB[("DynamoDB<br/>connection registry · SQL log")]
     S3[("S3<br/>the SPA")]
     CF["CloudFront"]
-    SM["Secrets Manager<br/>every DSN, the changefeed token"]
-    BEDROCK["Bedrock<br/>Titan Text Embeddings V2<br/>embeddings only"]
-    OBS["CloudWatch"]
+    SM["Secrets Manager<br/>every DSN, the changefeed token,<br/>the LIVE capability token"]
+    BEDROCK["Bedrock<br/>Titan Text Embeddings V2 — every function<br/>Claude Haiku 4.5 — the fleet runner alone"]
+    OBS["CloudWatch + AWS Budgets"]
   end
 
   subgraph CRDB["CockroachDB Cloud · one cluster"]
@@ -82,12 +82,25 @@ run id in ~480ms, and the whole run — every agent step, ending in one terminal
 arrives over the WebSocket. Lambda reaches CockroachDB Cloud with no VPC and no TLS work:
 cold `queryMs` around 690, warm 3 on a reused pool.
 
-**No deployed function can invoke a reasoning model, and the diagram says so deliberately.**
-Every `bedrock:InvokeModel` grant in `infra/cdk/lib/cortex-stack.ts` is scoped to the Titan
-embedding model by ARN — the demo Lambda, the fleet runner and the changefeed sink all embed
-and none of them reason. Claude Sonnet 4.5 is invoked only from a developer machine, by
-`npm run probe:reason` and by `npm run bench -- --record` when cassettes are recorded. LIVE
-reasoning is designed (U24) and not built; nothing in the deployed system reaches it.
+**Exactly one deployed function can invoke a reasoning model, and only that one.** Until U24
+this section said *no* function could, which was true when it was written and became false the
+moment LIVE landed; it is corrected here rather than left standing, because a diagram that
+understates what the deployed system can reach is as wrong as one that overstates it.
+
+The grant is `LiveReasoningPolicy`, attached to the **fleet runner's role and to nothing else**
+— read back from the account on 2026-08-17, not from the template. It allows
+`bedrock:InvokeModel` on Claude **Haiku 4.5** alone, by ARN: the three regional foundation-model
+ARNs plus the `us.` inference profile that actually serves it. The demo Lambda, the changefeed
+sink, the connections handler and the identity handler hold Titan embedding grants and cannot
+reason at all. Claude Sonnet 4.5 is still reachable only from a developer machine, by
+`npm run probe:reason` and by `npm run bench -- --record`.
+
+**What makes that safe to deploy is that the grant is revocable without touching anything else.**
+`LiveReasoningDenyPolicy` mirrors the allow ARN for ARN with `Effect: Deny`, and an explicit
+Deny beats an Allow in IAM — so attaching it stops reasoning and leaves the API, the SPA, the
+read path, the embeddings and the cluster untouched. That is `04` §5's constraint on a brake
+made mechanical rather than promised. It is attached to nothing today, which is what an armed
+brake that has never fired looks like.
 
 **Every DSN is a CloudFormation dynamic reference** (`{{resolve:secretsmanager:...}}`),
 never a template value. The first arrangement wrote one into the synthesized template,
@@ -217,9 +230,10 @@ pool for the two consumers, and on this account reserved concurrency cannot be s
 | live memory stream     | API Gateway WebSocket + Lambda | pushed, not polled; DynamoDB connection registry |
 | changefeed ingress     | API Gateway HTTP               | webhook sink target                      |
 | consolidation          | the same changefeed Lambda     | asynchronous, off the agent's critical path |
-| embeddings             | Bedrock                        | Titan, on every deployed function; **no deployed function can invoke a reasoning model** |
-| secrets                | Secrets Manager                | every DSN and the changefeed token, by dynamic reference |
-| guardrails             | CloudWatch                     | see §5; the AWS Budget alarm is **not built** |
+| embeddings             | Bedrock                        | Titan, on every deployed function      |
+| LIVE reasoning         | Bedrock                        | Claude Haiku 4.5, on **the fleet runner alone**, by ARN — see §1 |
+| secrets                | Secrets Manager                | every DSN, the changefeed token and the LIVE capability token, by dynamic reference |
+| guardrails             | CloudWatch + AWS Budgets       | see §5; the Budget is **built and armed** |
 
 Artifacts are **not** in S3. `bench/cassettes/`, `bench/fixtures/` and `bench/results/` are
 committed to git — that is what makes the benchmark reproducible from a clean clone with
@@ -241,30 +255,41 @@ reasoning path and nothing else.
 
 | Brake                                  | Status                                                                        |
 | -------------------------------------- | ----------------------------------------------------------------------------- |
-| reserved concurrency on the LIVE Lambda | **falsified and unimplemented.** This account's Lambda concurrency limit is 10, below AWS's default of 1000, and AWS refuses any reservation that would drop unreserved concurrency below 10. Every value from 1 up is rejected. The quota increase cannot be requested from the CLI, and the Support API needs a paid plan. **Build for 10.** |
+| reserved concurrency on the LIVE Lambda | **falsified, and replaced rather than skipped.** This account's Lambda concurrency limit is 10, below AWS's default of 1000, and AWS refuses any reservation that would drop unreserved concurrency below 10. Every value from 1 up is rejected. §5 constrains the replacement to target LIVE reasoning and nothing else, and two things now meet that: the global run counter bounds **spend**, and the account's own 10-slot ceiling bounds **fan-out** — the physical property §5 wanted brake 1 for, by accident of the restriction that falsified it. `LiveReasoningPolicy` is the third and the strongest in kind: detaching it stops model calls and nothing else. |
 | a global run counter in the database    | built, on a seventh table (`live_run_budget`). It carries no `repo_id` because the counter is global, and that exemption is asserted against `information_schema` so it cannot widen. `cortex_demo` reaches today's row and no other day, and holds no `DELETE` — a principal that can delete today's row can reset the brake that governs it. |
-| an AWS Budget alarm                     | **not built.** When it is, it must filter on the service name **`Claude Sonnet 4.5 (Amazon Bedrock Edition)`**, which Cost Explorer bills separately from `Amazon Bedrock`. A budget watching only `Amazon Bedrock` sees a meter carrying the Titan line alone and never fires. |
+| an AWS Budget alarm                     | **built and armed.** `cortex-live-reasoning`, a **$9 ANNUAL** COST budget — annual rather than monthly because the judging window spans two calendar months and a monthly budget would silently reset inside it. Its cost filter is `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock Edition)`, **not `Amazon Bedrock`**, which Cost Explorer bills separately and which carries only the Titan line — a budget watching that name would never fire. Its action is `APPLY_IAM_POLICY` on `LiveReasoningDenyPolicy`, AUTOMATIC, currently `STANDBY`: armed and never fired. |
 
-The daily LIVE cap is **10 runs**, not the spec's 40, because the Bedrock rate is
-measured from this account's own billing at **$3.30 per 1M input tokens and $16.50 per 1M
-output**. At the spec's own default the spec's own "single-digit dollars" target is
-missed. Deviation recorded in `docs/SPEC-DELTA.md`.
+The daily LIVE cap is **30 runs**, and it is derived rather than chosen: `LIVE_RUNS_PER_DAY`
+is `floor(LIVE_BUDGET_USD / cost of one metered run)` in `src/memory/live-budget.ts`, not a
+literal. The metered run is real — 2026-08-16, 16 model calls, 36,892 input and 10,255 output
+tokens from Bedrock's own `usage` — which at the measured rate of **$3.30 per 1M input and
+$16.50 per 1M output** is **$0.2910 a run** against a **$9** whole-event reasoning budget.
+The spec's own default of 40 a day is what the deviation is measured against; it is recorded
+in `docs/SPEC-DELTA.md`. If the metered run is ever null or free, the cap computes to **0** and
+LIVE is off — a cap derived from a failed measurement would be unbounded, and that is refused
+in code rather than in a comment.
 
 Four limits are reachable, and **every one of them must resolve to a working page rather
 than to a failure.** No rung may present an error page, a credential field, a login or a
 payment gate, and no rung may misrepresent liveness.
 
-**One of the four is built: rung 2.** Rung 1 has nothing to exhaust until LIVE reasoning
-exists; rung 3's mechanism is a per-visitor row cap that the two-scope design turns into
-two budgets, and building it against one scope would be building it twice; rung 4 is not
-built. The table below is the ladder as designed, with the status of each rung named.
+**All four are built, and each is forced rather than reasoned about** — `npm run gate:ladder`,
+36/36. Each rung is driven by making the limit actually happen: the day's counter is set to its
+cap, every embedding call is refused with a 429, a scope's row budget is filled, and the demo
+plane is pointed at a socket nothing is listening on. `npm run gate:degrade` is an alias for the
+same gate, so every earlier reference to it still means what it meant.
 
 | Rung | Status | Limit reached                        | Behaviour                                                                            | What is still true                          |
 | ---- | ------ | ------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------- |
-| 1    | not built | LIVE reasoning quota exhausted    | switch to REPLAY and state the reason on screen                                       | database behaviour fully live               |
+| 1    | **built and forced** | LIVE reasoning quota exhausted | switch to REPLAY and name rung 1 on screen                                   | database behaviour fully live               |
+| 1b   | **built and forced** | the LIVE reasoning grant is refused | the fleet still runs; this is the runtime shape of brake 3's action        | database behaviour fully live               |
 | 2    | **built and forced** | Bedrock embeddings throttled | deterministic local hash vector, intent marked `embedding_degraded`, dedupe **skipped** | database behaviour fully live, dedupe degraded and labelled |
-| 3    | not built | per-session row cap reached       | session becomes read-only; rows, counters and SQL log stay inspectable                | everything on screen is still real          |
-| 4    | not built | cluster or write path unavailable | pre-recorded walkthrough from S3 and CloudFront behind an explicit banner              | nothing is live, and the banner says so     |
+| 3    | **built and forced** | per-session row cap reached  | the run is refused before it starts; rows, counters and SQL log stay inspectable, and a new session is one click | everything on screen is still real          |
+| 4    | **built and forced** | cluster or write path unavailable | an explicit banner, and nothing claims to be live                        | nothing is live, and the banner says so     |
+
+Rung 1b is not in `04` §5's four. It is here because brake 3's action is an IAM Deny, and a
+brake whose *effect at runtime* has never been exercised is a brake nobody has tested — forcing
+the refusal is what shows the fleet degrades rather than erroring when the grant goes away.
 
 Rung 2 is built and **forced** rather than reasoned about: `npm run gate:degrade`, 7/7.
 Dedupe is skipped rather than run at a threshold of zero, because the show-SQL panel would

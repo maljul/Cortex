@@ -14,23 +14,29 @@ and 4 describe the CockroachDB Cloud Managed MCP Server as the agent's read path
 falsified that — the server executes as SQL user `managed-mcp`, which holds INSERT and
 DELETE on `claims`, and the route was dropped in favour of `cortex_reader` with a SQL
 grant. §C item 3 also describes `cortex init` provisioning a cluster through the ccloud
-CLI; that command is U2 and is **not built**. §D lists Amazon EventBridge and AWS Budgets;
-neither is deployed. B10 and B11 ask what was actually done, so §2 and §3 below are written
-from the repository as it stands and replace §C and §D for submission purposes. `02` itself
-is not edited by this unit.
+CLI; **that command is built as of 2026-08-16 (U2) and it does not provision anything** —
+`ccloud` is installed nowhere in this project, so `init` takes an operator DSN and brings a
+cluster from empty to working, which is a narrower claim than §C's. §D lists Amazon
+EventBridge and AWS Budgets; **Budgets is now deployed and armed, EventBridge is still
+not.** B10 and B11 ask what was actually done, so §2 and §3 below are written from the
+repository as it stands and replace §C and §D for submission purposes. `02` itself is not
+edited by this unit.
 
 Every number below comes from `bench/results/2026-08-12T18-35-38-014Z/summary.md` or from a
-named entry in `docs/verification-log.md`. **Nothing here claims LIVE model reasoning in the
-demo, which is not built** — U24 owns it, the counter table and the measured rate exist, and
-no route calls them.
+named entry in `docs/verification-log.md`. **LIVE model reasoning exists as of 2026-08-16**
+— one deployed function can invoke a reasoning model, one metered run has been paid for, and
+the daily cap is derived from that run rather than chosen. The page a judge opens without a
+LIVE link still replays reviewed patches, and says so per run.
 
-**Revised 2026-08-16.** This file was first drafted on 2026-08-13, when the ten-ticket
-two-arm fleet workload was designed and unbuilt, and it said so. That is no longer true:
-U21, U22 and U23 closed on 2026-08-13 (`npm run gate:workload` 20/20, `npm run gate:async`
-13/13 against the deployed stack), and the rebuilt judge page was deployed on 2026-08-16
-(V56). Left alone, this description would have *understated* the submission — which is the
-same class of error as overstating it, and the reason the draft is re-derived from
-`docs/UNITS.md` rather than trusted.
+**Revised 2026-08-17.** This file was first drafted on 2026-08-13, when the ten-ticket
+two-arm fleet workload was designed and unbuilt, and it said so; the 2026-08-16 revision
+caught up with U21, U22, U23 and the rebuilt judge page (`npm run gate:workload` 20/20,
+`npm run gate:async` 13/13 against the deployed stack, V56). It was still behind by five
+commits. Since that revision: `cortex init` landed (U2), LIVE reasoning was deployed on the
+fleet runner, all four degradation rungs were forced (`npm run gate:ladder`, 36/36), and
+brake 3 was built and armed. Left alone, this description would have *understated* the
+submission — which is the same class of error as overstating it, and the reason the draft is
+re-derived from the repository rather than trusted.
 
 ---
 
@@ -112,16 +118,31 @@ just watched, not from this page — **so your run may not match ours exactly.**
 lane's failures are races, and a race that lands differently loses a different amount. The
 direction is what reproduces; the digits are what the run reports.
 
-The patch bodies each agent applies are committed to the repository and reviewable — **no
-model wrote the code**, and the page says so. What is live is the coordination: the
-embeddings, the dedupe search, the claim, the race decided by a unique index, the
-changefeed, and the losses.
+On the page anyone can open, the patch bodies each agent applies are committed to the
+repository and reviewable — **no model wrote that code**, and the page says so from the run's
+own authorship records rather than from a fixed caption. What is live in every run is the
+coordination: the embeddings, the dedupe search, the claim, the race decided by a unique
+index, the changefeed, and the losses.
+
+**There is a second mode, and judges have it.** A LIVE link — an unguessable token in the
+URL, compared server-side, never echoed, with no field anywhere to type it into — has each
+agent author its own hunks with Claude Haiku 4.5 on Bedrock instead of applying the committed
+patch. Exactly one deployed function holds that permission. When the day's derived budget of
+**30** LIVE runs is spent, or the permission is withdrawn by the cost brake, the agent applies
+the reviewed patch instead and the page names the reason on screen; nothing errors and nothing
+asks for a key. *(LIVE link: pasted into the Devpost submission field at submission time. It
+is deliberately not written down in this repository.)*
 
 **Run it on your own repository:** that is the CLI, and *there* you bring your own cluster
 and your own credentials — which is correct for a tool that writes to your codebase, and is
-a different thing from the demo. The hosted demo never accepts a credential from a browser
-under any name, on any path, behind any panel. There is no such field, and a test asserts
-its absence against the page source and the deployed API.
+a different thing from the demo. `node bin/cortex.mjs init` takes the connection string you
+copy out of the CockroachDB Cloud Console and brings that cluster from empty to working:
+roles created, credentials written to `.env` but never printed and never rotated, schema
+applied, and the three privilege planes then proved by attempting statements against them.
+Run it twice and the second run creates nothing and re-verifies everything. The hosted demo,
+by contrast, never accepts a credential from a browser under any name, on any path, behind
+any panel. There is no such field, and a test asserts its absence against the page source and
+the deployed API.
 
 ## What it is
 
@@ -179,14 +200,18 @@ one on the join was measured returning another tenant's revert history (V14).
 
 ## Architecture
 
-*(Diagram: `docs/architecture.md`. It must show the read plane as `cortex_reader`; the
-managed MCP server is not the route.)*
+*(Diagram: `docs/architecture.md`, committed. It shows the read plane as `cortex_reader` —
+the managed MCP server is not the route — and it draws the reasoning model on the one
+function that can invoke it, which is the fact a diagram is easiest to overstate.)*
 
 Everything is on AWS and in one CockroachDB Cloud cluster. Agents read as a `SELECT`-only
 SQL role over an ordinary Postgres driver. Agents write **only** through three typed MCP
 tools, which is what makes arbitration unavoidable rather than advisory. A changefeed on
 the memory tables carries committed rows to a Lambda, which consolidates a closed intent
-into a durable finding and fans the row out to browsers over a WebSocket.
+into a durable finding and fans the row out to browsers over a WebSocket. Five deployed
+Lambdas hold the whole hosted surface, and **exactly one of them is granted
+`bedrock:InvokeModel` on a reasoning model**, by ARN — the identity probe, the demo router,
+the changefeed sink and the WebSocket handler cannot reason at all.
 
 ## CockroachDB tools, and what the agent actually did with them
 
@@ -224,29 +249,74 @@ so a pooled connection cannot carry one visitor's scope into the next request.
 schemas are closed — an undeclared argument is rejected at the boundary — and a test drives
 `{"sql": "DROP TABLE claims"}` at `cortex_propose` over the wire to prove it.
 
-**Failure modes are built and forced, not described.**
+**Failure modes are built and forced, not described.** `npm run gate:ladder` makes each limit
+actually happen and then asks what the visitor is left holding: **36 checks, 36 pass.** No rung
+may present an error page, a credential field or a payment gate, and none may misrepresent what
+is still live — so each rung is checked on both halves.
 
-- **Degraded embeddings.** `npm run gate:degrade` refuses every Bedrock embedding call with
-  a 429. All four demo beats still run, 51 statements still reach the driver, every affected
-  intent is marked in the database, and dedupe is **skipped rather than run at a threshold
-  of zero** — the show-SQL transcript contains no similarity search at all, because the
-  panel must not show a search the system says did not happen. The mark is a column, not a
-  response field: a hash vector left in the candidate set corrupts every later dedupe
-  decision, long after Bedrock recovers, so `findDuplicate` carries `AND NOT
-  embedding_degraded`.
-- **Serialization conflicts.** Every write path goes through one 40001 retry helper, five
-  attempts with exponential backoff and jitter. The base delay was raised 20ms → 250ms after
-  measurement: at 20ms two colliding agents backed off by a third of the window they
-  collided in and restarted into each other, exhausting the cap on one run in twelve; at
-  250ms that is zero in twelve and the modal retry count is 1.
-- **Exhausted retries.** An agent that loses five times re-plans once, visibly. It is
-  reported as contended and never as an exception, because the demo may not present an error
-  page.
-- **LIVE cost.** A global run counter lives in the cluster and is checked and incremented in
-  the same transaction as the run it authorises. The Bedrock rate is measured from this
-  account's own billing rather than from a pricing page: **$3.30 per 1M input tokens and
-  $16.50 per 1M output**, billed under `Claude Sonnet 4.5 (Amazon Bedrock Edition)`, a
-  service distinct from `Amazon Bedrock`.
+- **Rung 1 — the LIVE budget is spent.** The day's counter is set to its cap and a
+  capability-holding caller runs anyway. The run still starts, comes back REPLAY naming rung 1,
+  states what degraded *and* what is still live, hands the runner no capability, and spends
+  nothing further. A caller with no token and a caller with a wrong token get **byte-identical**
+  answers that mention no quota, no budget and no capability — a page that hinted a gate existed
+  would be its own leak — and the token is never echoed in any response.
+- **Rung 1b — the reasoning permission itself is refused.** This is the runtime shape the cost
+  brake below produces when it fires. A denied `bedrock:InvokeModel` does not throw: the agent
+  still completes its ticket from the reviewed patch, and the refusal is reported rather than
+  swallowed. Content degrades; nothing else does.
+- **Rung 2 — every Bedrock embedding call refused with a 429**, forced on the arm the deployed
+  page actually runs. Dedupe is **skipped rather than run at a threshold of zero** — the
+  show-SQL transcript contains no similarity search at all, because the panel must not show a
+  search the system says did not happen — and every intent written is marked in the database.
+  The mark is a column, not a response field: a hash vector left in the candidate set corrupts
+  every later dedupe decision long after Bedrock recovers, so `findDuplicate` carries
+  `AND NOT embedding_degraded`.
+- **Rung 3 — the per-session row budget is full** (200 rows per scope). The run is refused
+  before it starts rather than failing part-way, with a 200 and not an error status; the
+  response names rung 3 and says a new session is one click; the rows, the counters and the SQL
+  log stay inspectable; and a new session really is one request.
+- **Rung 4 — the write path is unreachable.** The demo plane is pointed at a socket nothing is
+  listening on: 503 naming rung 4, nothing on the page claims to be live, and the demo comes
+  back the moment the cluster does.
+
+**All three cost brakes, in the state each is actually in:**
+
+- **Brake 2 — the global run counter — is built and has been fired.** It lives in the cluster,
+  it is a check and an increment in one statement at SERIALIZABLE, and the slot is spent when it
+  is granted rather than when the run succeeds. Fired at its cap, LIVE stops and every route a
+  judge needs still answers, which is the requirement rule B4 puts on any cost control here.
+- **Brake 3 — an AWS Budget — is built and armed.** **$9, ANNUAL**: the judging window spans two
+  calendar months, and a monthly budget would permit $9 twice against a $9 promise. Its cost
+  filter names `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock
+  Edition)` and deliberately **not** `Amazon Bedrock`, which on this account carries only the
+  Titan embedding line — a Budget filtered on the obvious name would watch an empty meter and
+  never fire. Its action is automatic and attaches a Deny on `bedrock:InvokeModel` to the one
+  role that can reason, and to nothing else: the API, the SPA, the read path and the cluster are
+  untouched, because a brake that took the project offline would be a rules violation rather than
+  a saving. It is armed and has never fired; actual spend against it is $0.00.
+- **Brake 1 is falsified, and its replacement is settled rather than skipped.** Reserved
+  concurrency cannot be set on this account at any value (see the limitations). Its two intents
+  are met by things that do exist: the run counter bounds *spend*, the account's own 10-slot
+  concurrency ceiling bounds *fan-out*, and a managed policy attached to the fleet runner alone
+  can be detached to stop model calls and nothing else.
+**The number the brakes defend is derived, not chosen.** One real LIVE run was metered from
+Bedrock's own `usage` — **16 model calls, 36,892 input and 10,255 output tokens** — and priced
+at the rate this account has actually been billed at, read from Cost Explorer rather than from a
+pricing page: **$3.30 per 1M input tokens and $16.50 per 1M output**. That is **$0.2910 a run**,
+and the daily cap is `floor($9 ÷ $0.2910)` = **30**, computed in code from those two facts. If
+the metered run were absent the cap computes to zero and LIVE is simply off, which is the
+honest expression of "we have not measured what this costs". The rate is Sonnet 4.5's and the
+fleet runs Haiku 4.5, whose own line had not yet appeared on this account's bill — every
+published rate card puts Haiku below Sonnet, so pricing it this way makes the cap a floor and
+the real spend smaller than the brake assumes.
+
+**Serialization conflicts and exhausted retries are measured, not assumed.** Every write path
+goes through one 40001 retry helper, five attempts with exponential backoff and jitter. The base
+delay was raised 20ms → 250ms after measurement: at 20ms two colliding agents backed off by a
+third of the window they collided in and restarted into each other, exhausting the cap on one run
+in twelve; at 250ms that is zero in twelve and the modal retry count is 1. An agent that does
+lose five times re-plans once, visibly, and is reported as contended rather than as an exception,
+because the demo may not present an error page.
 
 **Observability:** every demo run's statements are recorded by a wrapper around the live
 client, so a statement can reach the "show SQL" panel only by having gone to the driver.
@@ -278,14 +348,21 @@ without it.
    authored.** Five agents per arm work eleven tickets against a fourteen-file corpus; the
    coordination is entirely live — real transactions, real embeddings, a race decided by the
    unique index, a real changefeed — and the four beats are *observed* rather than scripted.
-   What is fixed is the code each agent applies: every ticket carries a small checked-in
-   patch, so an agent reads the real file, decides, claims through the one arbitration
-   transaction, applies and closes. **No model wrote the committed code, and the page says
-   so.** The naive lane is worktree isolation with clean merges — what the field actually
-   ships — not a strawman.
-3. **The demo performs no model reasoning.** Its embeddings are live Bedrock calls and its
-   database behaviour is fully live, and the page says exactly that. LIVE reasoning is
-   specified, budgeted and metered but **not built**, so there is currently one mode.
+   What is fixed on the public page is the code each agent applies: every ticket carries a
+   small checked-in patch, so an agent reads the real file, decides, claims through the one
+   arbitration transaction, applies and closes. **No model wrote the committed code**, and the
+   page says who wrote each run's hunks from that run's own records rather than from a caption.
+   The naive lane is worktree isolation with clean merges — what the field actually ships — not
+   a strawman.
+3. **The demo has two modes and the public one replays those patches.** Embeddings are live
+   Bedrock calls and database behaviour is fully live in both. A LIVE link makes the agents
+   author their own hunks with a model; it is capped at 30 runs a day, derived from a $9 budget
+   for the whole event, so a judge can exhaust it — at which point the run degrades to the
+   reviewed patches and says which rung it is on. Two things are worth stating rather than
+   glossing: a model-authored hunk that fails validation falls back to the committed patch, so a
+   LIVE run can be a mixture, and the page reports the split; and the *decision* an informed agent makes is
+   driven in both modes by comparing what recall returned against what consolidation wrote, so no
+   cached model output sits in the causal path either way.
 4. **The demo's naive arm and the benchmark's naive arm are different things.** The
    benchmark's writes a JSON file with last-write-wins; the demo's does the same thing to a
    JSONB cell, because an arm that touches no database executes no statements and so cannot
@@ -293,8 +370,12 @@ without it.
 5. **This account's Lambda concurrency limit is 10, not the AWS default of 1000,** and it
    cannot be raised from the CLI or subdivided. Ten simultaneous visitors can reach a 503.
    It is an account restriction, we have measured it, and the mitigation is to build for 10.
-6. **Reserved concurrency is unavailable on this account at any value,** so one of the three
-   designed cost brakes is falsified rather than implemented.
+6. **Reserved concurrency is unavailable on this account at any value,** so the first of the
+   three designed cost brakes is falsified rather than implemented. The other two are built —
+   one has been fired, one is armed — and brake 1's two intents are met by the run counter, by
+   the account's own concurrency ceiling and by a detachable model-invocation policy. None of
+   those is a concurrency reservation, and calling them one would be the overstatement this
+   list exists to prevent.
 7. **Expired demo rows become unreachable but are not reclaimed.** Expiry is enforced in the
    policy predicate at read time, so a scope goes dark the instant it passes; nothing then
    deletes the rows. A blanket TTL would reach real memory, so the fix is a schema decision
@@ -389,10 +470,22 @@ with, and a judge can run it.
 
 ### 4. ccloud CLI (Agent-Ready) — not used
 
-The one-command provisioning CLI (`cortex init`) is designed and is not built. It is
-deliberately not claimed. The cluster was provisioned by hand; every migration applies
-idempotently through a script in the repository, and the schema re-applies cleanly twice in
-a row.
+**`ccloud` is installed nowhere in this project and nothing here has ever run it.** That is
+the whole of the answer, and it did not change when the CLI landed: `cortex init` was built on
+2026-08-16 and it is deliberately **provisioning-optional**. It takes an operator connection
+string — the one a person copies out of the Cloud Console — and brings a cluster from empty to
+working: it creates the SQL roles by *parsing the migration* rather than from a hardcoded list,
+writes their connection strings into `.env` without ever rotating one, applies the schema, and
+then proves the privilege planes by attempting statements against them. Run it twice and the
+second run creates nothing, appends nothing and re-verifies everything; that is its done-when
+and it was closed by running it twice against the live cluster, both exits 0, with 45 tests
+behind it and the cluster left exactly as found.
+
+So the count stays **2 of 4**. Provisioning a cluster is the one thing `init` does not do, and
+it is the only thing the ccloud tool is. Claiming a third tool on the strength of a CLI that
+never invokes it would be exactly the inflation this section is written to avoid. The entry
+point is `node bin/cortex.mjs init` — `npx cortex` resolves to an unrelated package on the
+public registry and is not this CLI.
 
 ### Beyond the tool list, because B10 asks what the agent did
 
@@ -416,20 +509,21 @@ verified against the live cluster before anything was built on it:
 
 ## 3. B11 — which AWS services were used, and how
 
-*(This replaces `02` §D, which lists two services that are not deployed. See the note at
-the top of this file.)*
+*(This replaces `02` §D, which lists one service that is not deployed and one that now is.
+See the note at the top of this file.)*
 
 | Service | Load-bearing function |
 | --- | --- |
-| **Amazon Bedrock** | Amazon Titan Text Embeddings V2 at 1024 dimensions embeds **every** intent and finding — live calls in the hosted demo, not cassettes. Claude Sonnet 4.5 via the Converse API is the agent reasoner in the benchmark harness; its outputs are recorded once and replayed so the published run reproduces. |
-| **AWS Lambda** | Four functions, and they are the whole hosted surface: the identity probe, the demo API (arbitration, recall, consolidation, the SQL log), the changefeed sink, and WebSocket connect/disconnect. |
+| **Amazon Bedrock** | Amazon Titan Text Embeddings V2 at 1024 dimensions embeds **every** intent and finding — live calls in the hosted demo, not cassettes. **Claude Haiku 4.5 authors the agents' hunks in the demo's LIVE mode**, on the fleet runner alone and scoped by ARN. Claude Sonnet 4.5 via the Converse API is the agent reasoner in the benchmark harness; its outputs are recorded once and replayed so the published run reproduces. |
+| **AWS Lambda** | **Five functions**, and they are the whole hosted surface: the identity probe, the demo API (sessions, runs, state, the SQL log), the fleet runner that performs a visitor's two-arm run off the request path, the changefeed sink that consolidates a closed intent into a finding and fans the row out, and WebSocket connect/disconnect. The runner is the only one that may invoke a reasoning model; the concurrency budget the five share is written into the stack, because this account's ceiling is 10 and a sixth function would take from the same pool. |
 | **Amazon API Gateway** | HTTP API for the demo routes, WebSocket API for the live memory stream, and the **ingress for CockroachDB's own changefeed webhook sink** — the database calls back into the application over it. |
-| **Amazon DynamoDB** | The WebSocket connection registry (so a changefeed row can be fanned out to every live browser) and the per-session SQL transcript the "show SQL" panel reads. |
+| **Amazon DynamoDB** | Two tables: the WebSocket connection registry (so a changefeed row can be fanned out to every live browser) and the per-session SQL transcript the "show SQL" panel reads. Both carry a TTL attribute; neither is memory, which lives in the cluster. |
 | **Amazon S3 + Amazon CloudFront** | Origin and distribution for the demo SPA. Anonymous, no login, no key. |
-| **AWS Secrets Manager** | Every database connection string is a `{{resolve:secretsmanager:...}}` dynamic reference resolved by CloudFormation at deploy time, never a template value. This is not decoration: the first arrangement satisfied the "no credential in the repository" rule as written and left the credential in the synthesized template and in CloudFormation's stored copy. It was found by grepping the build artifact, not by reasoning about the rule. |
-| **Amazon CloudWatch** | Structured logs for all four functions; the changefeed sink logs a consolidation failure and answers 200 anyway, so a stalled feed degrades to a staleness badge rather than blocking an agent. |
+| **AWS Secrets Manager** | Every database connection string, the changefeed's webhook token, the LIVE capability token and the budget alert address are `{{resolve:secretsmanager:...}}` dynamic references resolved by CloudFormation at deploy time, never template values. This is not decoration: the first arrangement satisfied the "no credential in the repository" rule as written and left the credential in the synthesized template and in CloudFormation's stored copy. It was found by grepping the build artifact, not by reasoning about the rule. |
+| **AWS Budgets** | Cost brake 3, and the only automatic bound on LIVE spend: a $9 **annual** cost budget — annual because the judging window spans two calendar months — filtered on the two `(Amazon Bedrock Edition)` Claude services, whose automatic action attaches an IAM Deny on `bedrock:InvokeModel` to the fleet runner's role and to nothing else. Armed, never fired, $0.00 actual. |
+| **Amazon CloudWatch** | Structured logs for all five functions; the changefeed sink logs a consolidation failure and answers 200 anyway, so a stalled feed degrades to a staleness badge rather than blocking an agent. |
 
-**Two services the design calls for and the deployment does not have, stated plainly rather
+**One service the design calls for and the deployment does not have, stated plainly rather
 than listed:**
 
 - **Amazon EventBridge** was specified between the changefeed ingress and consolidation.
@@ -437,16 +531,19 @@ than listed:**
   *separate concurrency pool* for the two consumers — and on an account where reserved
   concurrency cannot be set at any value, there is no pool to separate. It would have added
   a hop and a failure mode for no behaviour this deployment can express.
-- **AWS Budgets** is the third designed cost brake and is not built, because LIVE reasoning
-  is not built and there is nothing yet to meter. One finding is worth publishing anyway: a
-  Budget filtered on the `Amazon Bedrock` service would **never fire**, because Anthropic
-  model spend on this account bills under `Claude Sonnet 4.5 (Amazon Bedrock Edition)`, a
-  separate top-level service. `Amazon Bedrock` on the same days carries only the Titan
-  embedding line.
 
-Six services deployed, each with one clear job. We did not add a seventh for appearance —
-the rule that requires meaningful integration cuts against sprinkling exactly as hard as it
-cuts against omitting.
+**And one finding worth publishing whatever anyone builds:** a Budget filtered on the
+`Amazon Bedrock` service would **never fire**. Anthropic model spend on this account bills
+under `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock
+Edition)`, which Cost Explorer treats as separate top-level services; `Amazon Bedrock` on the
+same days carries only the Titan embedding line. The obvious filter is the one that watches an
+empty meter, and it took reading this account's own bill to find that out.
+
+Nine services deployed, each with one clear job — Bedrock, Lambda, API Gateway, DynamoDB, S3,
+CloudFront, Secrets Manager, Budgets and CloudWatch — plus the IAM policies that are brake 3's
+mechanism rather than a service anyone chose. We did not add a tenth for appearance: the rule
+that requires meaningful integration cuts against sprinkling exactly as hard as it cuts against
+omitting.
 
 ---
 
@@ -456,8 +553,8 @@ cuts against omitting.
 has an entry there with the actual output.)*
 
 We kept a verification log from the first day: what was checked against the live cluster,
-what it returned, and what we did when it disagreed with the documentation. It has 49
-entries. Four spec claims we wrote ourselves were falsified by invoking them, and each read
+what it returned, and what we did when it disagreed with the documentation. It runs to entry
+V57. Four spec claims we wrote ourselves were falsified by invoking them, and each read
 as obviously true until it was invoked. This is the feedback that came out of it, roughly
 in order of how much time each cost.
 
@@ -578,55 +675,66 @@ whole architecture, and that is worth advertising more loudly than it currently 
 **12. Two AWS-side findings that are not yours but affect this cohort.** Reserved concurrency
 cannot be set at any value on an account whose total concurrency is 10, so a common
 cost-control pattern is unavailable to hackathon accounts. And Anthropic model spend bills
-under a separate service name from `Amazon Bedrock`, so the obvious Budget filter watches an
-empty meter. Both are worth a line in your AWS integration guide.
+under a service name of its own — `Claude Haiku 4.5 (Amazon Bedrock Edition)`, `Claude Sonnet
+4.5 (Amazon Bedrock Edition)` — rather than under `Amazon Bedrock`, so the obvious Budget
+filter watches an empty meter. Our Budget names both Claude services for that reason, and we
+found the names by asking Cost Explorer for its own dimension values rather than by guessing.
+Both are worth a line in your AWS integration guide.
 
 ---
 
 ## 5. `02` §F — pre-submission checklist, walked
 
-Walked 2026-08-13. §F is dated 2026-08-17; this is the dry run, and every row marked
-**BLOCKED** or **ACT** needs re-walking on the day.
+**First walked 2026-08-13, re-walked 2026-08-17** — the day §F is dated for. Rows that moved
+between those two walks are re-graded here rather than annotated, and every row still marked
+**BLOCKED** or **ACT** is an act nobody but Julian can perform.
 
 | # | Item | Verdict | Evidence / what is missing |
 | --- | --- | --- | --- |
-| 1 | Rules page re-fetched and diffed | **READY** | Done in §6 below, 2026-08-13. **No change detected.** Re-fetch on 2026-08-17 per §E WATCH-5. |
-| 2 | Repository public, MIT licence visible in About | **BLOCKED** | `gh repo view` reports `"visibility":"PRIVATE"` and `"licenseInfo":null`. A `LICENSE` file landed in the working tree during this unit (U18) and is **uncommitted**, so GitHub has never seen it. Two acts remain: commit it, and flip the repository to public in settings — B2 wants the licence **detectable in the About section**, which is a settings act as well as a file. The licence is **MIT** — Julian's call on 2026-08-13, settling a three-way disagreement in which `LICENSE` and `package.json` said ISC while `02` B2, `spec/09` §1 and the rules' own recommendation said MIT. `LICENSE`, the `package.json` `license` field, `README.md` and `docs/third-party.md` now all say MIT. |
+| 1 | Rules page re-fetched and diffed | **READY** | Fetched and diffed 2026-08-13 (§6 below) and **re-fetched 2026-08-17: no change**, including the deadline, the four-tool list with its minimum of two, and the five equally weighted criteria. §6's method caveat still stands — a fetch returns a model's reading of the page, so Julian's own read of the rules on the day is the stronger form and is the remaining act. |
+| 2 | Repository public, MIT licence visible in About | **BLOCKED — one settings act, and it is the last one** | The `LICENSE` file is **committed and pushed**; origin matches HEAD, so the only thing GitHub is missing is permission to look. The repository is still private, and flipping it is a settings act in Julian's account that no script here can perform. B2 wants the licence **detectable in the About section**, which needs both the file and the visibility. The licence is **MIT** — Julian's call on 2026-08-13, settling a three-way disagreement in which `LICENSE` and `package.json` said ISC while `02` B2, `spec/09` §1 and the rules' own recommendation said MIT. `LICENSE`, the `package.json` `license` field, `README.md` and `docs/third-party.md` all say MIT. |
 | 3 | README has setup, run instructions, prior-work disclosure, third-party licences | **READY** | `README.md` and `docs/third-party.md` are committed (U18, 2026-08-16). The first screen carries the two-metric table, the demo URL and the try-it / run-it split; prior work is disclosed under A9; third-party licences are enumerated with their tallies and the regeneration commands. Row 16 — the clean-clone reproduction the README documents — now passes. |
-| 4 | Demo URL loads anonymously, no key, no login | **READY, pending Julian's own act** | The CloudFront page was fetched anonymously on 2026-08-13 and serves the three panels, the run button, the arm toggle and the show-SQL control. §F's full form is a **private window on a machine that never touched this project**, which is Julian's act and not a script's. |
-| 5 | No credential input field anywhere in the demo UI | **READY** | Three layers. A test scans the page source for any input, form or credential-shaped name including commented out; the rendered DOM was driven in a browser and has three buttons and zero inputs; and the deployed API refuses a credential-shaped field in the body **and** on the query string with `400 {"field":"query.dsn"}`, proved by the same `curl` returning 404 before the fix and 400 after. Re-drive the DOM after any deploy. |
-| 6 | All four degradation rungs exercised by forcing the limit | **BLOCKED — 1 of 4** | Rung 2 (embeddings throttled) is built and forced: `npm run gate:degrade`, 7/7. Rung 1 (LIVE quota exhausted → REPLAY) needs LIVE reasoning, which is not built. Rung 3 (per-session row cap) is deferred to the unit that owns the state route. Rung 4 (cluster unreachable → pre-recorded walkthrough behind a banner) is not built. **This row cannot go green before those units land, and the Devpost description in §1 does not claim it.** |
-| 7 | Each of the three cost brakes fired deliberately, demo stayed reachable | **BLOCKED — 1 of 3, and one is falsified** | Brake 2 (global run counter, `LIVE_RUNS_PER_DAY = 10`) is built and its privilege confinement is asserted by attempting the refusals; it has never been *fired*, because no route calls it yet. Brake 1 (reserved concurrency of 2) is **falsified on this account at any value** and nothing was substituted. Brake 3 (Budget alarm) is not built, and carries the finding that it must filter on `Claude Sonnet 4.5 (Amazon Bedrock Edition)` or it will watch an empty meter. |
-| 8 | README and Devpost both state the zero-setup promise, and that BYO-credentials is CLI-only | **PARTIAL** | §1's "How to try it" says both, in the same breath, deliberately. The README's first screen makes the same split; it is uncommitted, so the row closes when U18's work is committed. |
+| 4 | Demo URL loads anonymously, no key, no login | **READY, pending Julian's own act** | The CloudFront page was fetched anonymously on 2026-08-13, and the deployed API was driven anonymously end to end again on 2026-08-17 — `npm run gate:async` against the redeployed stack: a run started, 90 fleet events and one terminal message off the socket, 43 changefeed rows. **The page itself has been rebuilt since that fetch** (the judge redesign, deployed 2026-08-16), so the fetch on record is of an older page. §F's full form is a **private window on a machine that never touched this project**, which is Julian's act and not a script's, and it covers both. |
+| 5 | No credential input field anywhere in the demo UI | **READY, with one act on the day** | Three layers. A test scans the page source for any input, form or credential-shaped name including commented out, and it runs against the page as it is now; the deployed API refuses a credential-shaped field in the body **and** on the query string with `400 {"field":"query.dsn"}`, proved by the same `curl` returning 404 before the fix and 400 after. The third layer is stale by design: the rendered DOM was driven in a browser on 2026-08-13, and the page has been rebuilt and redeployed since, so **re-drive the deployed DOM on the day**. The LIVE capability does not weaken this — it is a URL parameter compared server-side, never a field, and it is never echoed back into the page. |
+| 6 | All four degradation rungs exercised by forcing the limit | **READY — 4 of 4, plus a variant** | `npm run gate:ladder`, **36/36**, each rung forced by making its limit actually happen: rung 1 sets the day's LIVE counter to its cap and runs anyway; rung 1b refuses the `bedrock:InvokeModel` grant itself, which is the runtime shape the cost brake produces; rung 2 refuses every embedding call with a 429 **on the arm the deployed page runs**, not on a path it no longer calls; rung 3 fills a scope's 200-row budget; rung 4 points the demo plane at a socket nothing is listening on. Every rung is checked on both halves of `04` §5 invariant 2 — what degraded and what is still true — and `npm run gate:degrade` is an alias for the same script, so the earlier rung-2 evidence is not lost. |
+| 7 | Each of the three cost brakes fired deliberately, demo stayed reachable | **READY, with one honest caveat** | Brake 2 (the global run counter) was **fired**: driven to its cap, LIVE stopped, and the run, state, SQL-log and session routes all still answered — which is the rule B4 half of this row. Brake 3 (the Budget) is **built and armed**: $9, ANNUAL, filtered on the two `(Amazon Bedrock Edition)` Claude services, automatic action attaching an IAM Deny on `bedrock:InvokeModel` to the runner's role alone; read back from the account as `STANDBY`, HEALTHY, $0.00 actual. **The caveat: the Budget itself has never fired**, because firing it means spending $9, and what was forced instead is the state it produces — rung 1b runs the fleet with that permission denied and the agents complete their tickets from the reviewed patches. Brake 1 (reserved concurrency of 2) stays **falsified on this account at any value**; its replacement is settled and named in §1 rather than left blank. |
+| 8 | README and Devpost both state the zero-setup promise, and that BYO-credentials is CLI-only | **READY** | §1's "How to try it" says both, in the same breath, deliberately. The README's first screen makes the same split, and it is committed and pushed — the reason this row read PARTIAL is spent. |
 | 9 | Weekly anonymous reachability check scheduled through 2026-09-15 | **ACT — not scheduled** | Nothing schedules it. §E WATCH-4 is explicit that checking the cluster is unpaused is **not** the same test and will not catch a broken deploy, an expired certificate, or a guardrail that fired and never reset. The check is: open the demo URL in a private window on a machine that has never touched this project and run a scenario end to end. |
-| 10 | LIVE mode works and its daily cap degrades gracefully to REPLAY | **BLOCKED** | LIVE reasoning is not built. The counter table, its atomic check-and-increment and the measured Bedrock rate exist; nothing calls them. §1 states this as a limitation rather than working around it. |
-| 11 | Video under 3:00, public, English, shows terminal and memory layer, no third-party marks | **BLOCKED** | Not recorded. **One constraint this walk adds:** `07` §4 and §5 say the video is recorded in LIVE mode. LIVE reasoning does not exist, so that instruction cannot be followed as written, and narrating the demo as live *inference* would breach A7. What the footage can honestly show is live database behaviour and live embeddings — which is what the deployed page itself says. |
-| 12 | Devpost description contains the benchmark table and the architecture diagram | **PARTIAL** | Table: **ready**, §1, quoted from the committed results directory with its limitations attached. Diagram: `docs/architecture.md` is committed and its Mermaid source shows the read plane as `cortex_reader`. **What remains is presentational** — §1 still carries a pointer, and Devpost renders no Mermaid, so the diagram must be exported to an image and attached before the description is pasted. |
-| 13 | B10 and B11 answers pasted from sections C and D | **READY, with a deliberate deviation** | **Do not paste §C and §D.** §C describes an abandoned read path and an unbuilt CLI; §D lists two services that are not deployed. §2 and §3 of this file are the answers, rewritten from the repository. This row's wording in `02` §F is now wrong and should be re-pointed when §C and §D are corrected. |
+| 10 | LIVE mode works and its daily cap degrades gracefully to REPLAY | **READY, with one paste act** | LIVE reasoning is built and deployed on the fleet runner alone, and one real run has been metered and paid for — 16 model calls, 36,892 input and 10,255 output tokens, $0.2910 — from which the cap of **30 runs a day** is computed in code rather than chosen. Rung 1 forces the degradation: at the cap a capability holder still gets a run, in REPLAY, naming rung 1 and saying what is still live, with no capability passed on and nothing further spent. **The act:** the LIVE link has to be pasted into the Devpost submission field on the day. It is deliberately written down nowhere in this repository. |
+| 11 | Video under 3:00, public, English, shows terminal and memory layer, no third-party marks | **BLOCKED** | Not recorded, and it is the largest remaining piece of work. **The constraint the 2026-08-13 walk added is now lifted:** `07` §4 and §5 say the video is recorded in LIVE mode, and LIVE mode now exists, so the instruction can be followed as written and narrating live inference is accurate rather than an A7 breach. Recording in LIVE spends slots from the day's 30. |
+| 12 | Devpost description contains the benchmark table and the architecture diagram | **PARTIAL** | Table: **ready**, §1, quoted from the committed results directory with its limitations attached. Diagram: `docs/architecture.md` is committed, its Mermaid source shows the read plane as `cortex_reader`, and it was corrected when LIVE landed — it now draws Claude Haiku 4.5 on the fleet runner alone and labels the Budget built, where an earlier version said no deployed function could invoke a reasoning model at all. **What remains is presentational** — §1 carries a pointer, and Devpost renders no Mermaid, so the diagram must be exported to an image and attached before the description is pasted. |
+| 13 | B10 and B11 answers pasted from sections C and D | **READY, with a deliberate deviation** | **Do not paste §C and §D.** §C describes an abandoned read path and a CLI provisioning clusters through a tool this project has never run; §D lists a service that is not deployed beside one that now is. §2 and §3 of this file are the answers, rewritten from the repository. This row's wording in `02` §F is now wrong and should be re-pointed when §C and §D are corrected. |
 | 14 | Optional feedback field completed in detail | **READY** | §4, twelve items, each traceable to a verification-log entry with real output. |
-| 15 | AWS Budget alarm active; cluster not near free-tier limits | **PARTIAL** | Budget: **not built** (row 7). Cluster: **healthy** — 2.81M of 60M Request Units, 4.7%, read from the Console after two weeks of heavy use. The reading is Console-only; the Cloud API returns 404 for every usage endpoint. What is exhaustible is burst throughput, which refills with rest. |
+| 15 | AWS Budget alarm active; cluster not near free-tier limits | **READY** | Budget: **built and armed** — `cortex-live-reasoning`, $9 ANNUAL, filtered on the two `(Amazon Bedrock Edition)` Claude services, automatic IAM Deny action on the runner's role; read back from the account as `STANDBY` and HEALTHY with $0.00 actual (row 7). Cluster: **healthy** — 2.81M of 60M Request Units, 4.7%, read from the Console after two weeks of heavy use. The reading is Console-only; the Cloud API returns 404 for every usage endpoint. What is exhaustible is burst throughput, which refills with rest. |
 | 16 | Benchmark results reproduce from a clean clone | **READY** | **Done, V57, 2026-08-16.** Clone to an empty directory, `npm ci`, `npx tsc --noEmit` clean, `npm run bench:results`: every coordination row identical to the published table, only `claim_p50` (732 → 778) and `claim_p95` (818 → 967) moved, both arms recording `mode=replay` and `liveCalls: {embed: 0, reason: 0}`. It also found a reproduction blocker — the committed recipe named `CORTEX_DSN` where the CORTEX arm runs on `CORTEX_WRITER_DSN` — now corrected in place with no published number moved. **Caveat:** the clone was taken from a local path, because the repository is still private (row 2). |
 
-**Summary: 7 ready, 3 partial, 5 blocked, 1 act.** Nothing blocked is blocked on this
-unit. U18 landed on 2026-08-16 and took rows 3 and 16 green and row 12 down to a
-presentational step. The remainder waits on U19 (video), U24 (LIVE, rungs 1 and 3, the
-brakes), U25/U26's cold read, one repository-settings act and one scheduling act — the last
-three all Julian's.
+**Summary: 12 ready, 1 partial, 2 blocked, 1 act.** Five rows changed verdict since the
+2026-08-16 revision and all five moved forward: rows 6, 7, 10 and 15 on LIVE reasoning, the
+forced ladder and the armed Budget, and row 8 because the README is committed and pushed. Three
+of the twelve ready rows still carry an act on the day — open the demo cold from an untouched
+machine (row 4), re-drive the deployed DOM (row 5), paste the LIVE link (row 10).
 
-**The three rows most likely to be misread on 2026-08-17**, because each looks closer to
-green than it is: row 6 is 1 rung of 4, not 4; row 7 is 1 brake of 3 and one of the other
-two is falsified rather than pending; and row 16 has never been attempted by anyone.
+**What is genuinely left is not code.** The video (row 11), flipping the repository to public
+(row 2), and scheduling the weekly reachability check (row 9). All three are Julian's, and the
+first is the only one that takes real time.
+
+**The three rows most likely to be misread on 2026-08-17**, because each reads greener or
+redder than it is: row 7 says READY and the Budget has **never fired** — what was forced is the
+state it produces, not the Budget itself, and firing it for real would mean spending the whole
+budget; row 5 says READY on three layers of which the browser layer predates the current page;
+and row 2 is one settings click, not a piece of work, which is exactly the kind of row that gets
+left until after the deadline.
 
 ---
 
 ## 6. Rules diff
 
-**Fetched 2026-08-13** from `https://cockroachdb-ai.devpost.com/rules` and
-`https://cockroachdb-ai.devpost.com/`, and diffed against `spec/02-COMPLIANCE-MATRIX.md`,
-which was audited 2026-07-31.
+**Fetched 2026-08-13 and re-fetched 2026-08-17** from
+`https://cockroachdb-ai.devpost.com/rules` and `https://cockroachdb-ai.devpost.com/`, and
+diffed against `spec/02-COMPLIANCE-MATRIX.md`, which was audited 2026-07-31.
 
-**No change detected.** Every clause `02` relies on is still present and still says what
-`02` says it says. The four verified by verbatim quote on the second fetch, because they are
+**No change detected, on either fetch.** Every clause `02` relies on is still present and
+still says what `02` says it says. The four verified by verbatim quote, because they are
 the load-bearing ones:
 
 - **B4** — "The Entrant must make the Project available free of charge and without any
@@ -658,58 +766,75 @@ overview page names the same two "Technical Implementation" and "Production Read
 `02` and `01` use the rules page's wording. No action; noted so nobody treats it as an
 amendment on 2026-08-17.
 
-**Method caveat, and it is the reason to re-walk this on the day.** The fetch returns a
-model's reading of the page, not the page. The four clauses above were re-fetched with a
-verbatim-quote demand precisely because a summariser can drop a clause and produce a
-false negative. On 2026-08-17, read the rules page with your own eyes; treat this diff as
-evidence that nothing moved between 2026-07-31 and 2026-08-13, not as a substitute for
+**Method caveat, and it is why the 2026-08-17 re-fetch does not close this.** The fetch
+returns a model's reading of the page, not the page. The four clauses above were re-fetched
+with a verbatim-quote demand precisely because a summariser can drop a clause and produce a
+false negative. Read the rules page with your own eyes before submitting; treat this diff as
+evidence that nothing moved between 2026-07-31 and 2026-08-17, not as a substitute for
 the required check.
 
 ---
 
 ## 7. Claims in §1–§4 not backed by a committed artifact
 
-Everything here is either an unbuilt thing this draft is careful not to claim, or a claim
-whose evidence is a live-cluster measurement recorded in `docs/verification-log.md` rather
-than a file a judge can run. Listed so nobody has to take the draft on trust.
+Everything here is either an act still outstanding, or a claim whose evidence is a live-cluster
+or AWS-account measurement recorded in `docs/verification-log.md` rather than a file a judge can
+run. Listed so nobody has to take the draft on trust. Items that closed since the last revision
+are re-graded in place rather than struck out, because what a claim used to lack is part of
+knowing what it now has.
 
-**Not backed by an artifact — these are pointers to work that does not exist yet:**
+**Still an act rather than an artifact — one of the three items here shrank to nothing and
+that is recorded rather than deleted:**
 
-1. **The architecture diagram** (§1). `docs/architecture.md` appeared in the working tree
-   while this file was being written and is uncommitted and unread by this unit; U18 owns
-   it. §1 carries a placeholder pointer, not a claim, and the pointer must be replaced
-   before the description is pasted.
+1. **The architecture diagram** (§1). `docs/architecture.md` is now committed (U18), and it
+   was corrected again when LIVE reasoning landed, so §1's pointer is a pointer to a real
+   file rather than to intended work. What is left is presentational: Devpost renders no
+   Mermaid, so the diagram must be exported to an image and attached.
 2. **The demo URL's anonymity from a clean machine** (§1, §5 row 4). Verified anonymously
    over the network from here; §F's stronger form is Julian's act on a machine that never
    touched the project.
-3. **"A clean clone reproduces the benchmark"** is *not* claimed in §1, deliberately, because
-   nobody has tried it. `summary.md`'s reproducibility text is quoted as the results
-   directory's own claim.
+3. **"A clean clone reproduces the benchmark"** — this read "not claimed, because nobody has
+   tried it" until 2026-08-16, when somebody did (V57). It reproduces: every coordination row
+   identical, both arms recording `mode=replay` and no live calls. The clone was taken from a
+   local path because the repository is still private, so the last hop a judge takes — clone
+   from GitHub — is the one nobody has walked.
 
-**Backed only by a verification-log measurement, not by a runnable artifact:**
+**Backed only by a verification-log or account measurement, not by a runnable artifact:**
 
 4. **The Bedrock rate ($3.30 / $16.50)** — read from this account's Cost Explorer. Not
-   reproducible by a judge, and the AWS Price List API does not carry Sonnet 4.5 at all.
-5. **The Request Unit figure (2.81M of 60M, 4.7%)** — Console-only; every Cloud API usage
+   reproducible by a judge, and the AWS Price List API does not carry Sonnet 4.5 at all. It is
+   Sonnet's rate standing in for Haiku's, which had not yet appeared on this account's bill;
+   that substitution makes the derived cap a floor and is stated wherever the cap is.
+5. **The metered LIVE run (16 calls, 36,892 in, 10,255 out, $0.2910)** — summed from Bedrock's
+   own `usage` over one real run, with two truncated calls charged at a bound rather than
+   dropped. A judge can watch a LIVE run; they cannot re-derive this figure.
+6. **Brake 3's armed state** (`STANDBY`, HEALTHY, $0.00 actual) — read back from the AWS
+   account. The Budget, its filter, its action and its annual period are all in the committed
+   CDK stack and asserted there; the *state* is an account fact.
+7. **The Request Unit figure (2.81M of 60M, 4.7%)** — Console-only; every Cloud API usage
    endpoint returns 404.
-6. **The managed MCP server measurements** (`managed-mcp`, 23502 vs 42501) — reproducible
+8. **The managed MCP server measurements** (`managed-mcp`, 23502 vs 42501) — reproducible
    only with a Cloud service account at Cluster Operator, which a judge will not have.
-7. **The changefeed delivery figure (~126ms)** — `npm run gate:stream` reproduces it, but
+9. **The changefeed delivery figure (~126ms)** — `npm run gate:stream` reproduces it, but
    only against a deployed stack with a running changefeed job, not from a clean clone.
-8. **The suite figure (338 tests across 29 files, ~600s)** — recorded in the verification
-   log on 2026-08-13. This unit did not run the suite; §1 does not quote a test count, only
-   the specific assertions each claim depends on.
-9. **The retry-backoff measurement (1/12 → 0/12 exhaustions at 250ms)** — a 12-run probe
-   recorded in the log; the committed test asserts behaviour relative to the constant, not
-   the failure rate.
+10. **The suite figure (423 tests across 34 files, ~600s)** — recorded in the verification log
+    on 2026-08-13. The tree now carries 39 test files; nothing in this revision ran the suite,
+    so that figure is the last one measured rather than the current one. §1 quotes no test
+    count at all, only the specific assertions each claim depends on.
+11. **The retry-backoff measurement (1/12 → 0/12 exhaustions at 250ms)** — a 12-run probe
+    recorded in the log; the committed test asserts behaviour relative to the constant, not
+    the failure rate.
 
 **Two claims in `02` that this file deliberately contradicts, so the contradiction is
 visible rather than silent:**
 
-10. `02` A4 says "4 of 4 [CockroachDB tools] used". **Two of four are used** (Distributed
+12. `02` A4 says "4 of 4 [CockroachDB tools] used". **Two of four are used** (Distributed
     Vector Indexing, Agent Skills). The managed MCP server was measured and rejected; the
-    ccloud CLI is not used at all. Two still satisfies the rule's minimum of two.
-11. `02` §C item 4 says "the agent consumes `cockroachlabs/cockroachdb-skills` for schema
+    ccloud CLI is not used at all, and `cortex init` being built does not change that —
+    `ccloud` is installed nowhere here and nothing has ever invoked it, so the CLI does
+    everything *after* provisioning and claims nothing about provisioning. Two still satisfies
+    the rule's minimum of two.
+13. `02` §C item 4 says "the agent consumes `cockroachlabs/cockroachdb-skills` for schema
     and query decisions". **There is no reference to that repository anywhere in `src/`,
     `scripts/`, `skills/`, `infra/` or `package.json`** — only in `spec/`. §2 above claims
     the publishing direction only, which is real and tested. If the consuming direction is

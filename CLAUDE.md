@@ -113,20 +113,35 @@ What does not belong in a unit list, and so lives here:
   constant — `test/retry.test.ts` asserts against `BASE_DELAY_MS` rather than literals and
   needed no edit. The cap stays at five: raising it would contradict §5. `replanOnce` stays
   too; it is §5's own instruction, not a workaround for it.
-- **LIVE reasoning is still not built, but both things that blocked it are now closed
-  (U17, V36, 2026-08-12).** `04` §5 brake 2's global run counter is built on a **seventh
-  table**, `live_run_budget` — Julian's call, reasoning in `docs/DECISIONS.md`. It carries
-  no `repo_id` because §5's counter is global, and that exemption from invariant 5 is
-  asserted against `information_schema` so it cannot widen. `cortex_demo` reaches today's
-  row and no other day, and holds no DELETE.
-  **The cap is `LIVE_RUNS_PER_DAY = 10`, not §5's 40**, because the Bedrock rate is now
-  measured: **$3.30 per 1M input, $16.50 per 1M output**, taken from this account's own
-  billing after AWS's pricing page failed twice (V30) and its **Price List API turned out
-  not to carry Sonnet 4.5 at all**. At that rate §5's own default costs $19–36 through
-  2026-09-15 against §5's own "single-digit dollars" — the deviation is in
-  `docs/SPEC-DELTA.md`. **Cost Explorer bills it under `Claude Sonnet 4.5 (Amazon Bedrock
-  Edition)`, a service distinct from `Amazon Bedrock`** — so brake 3's Budget must filter on
-  that name or it will watch a meter carrying only the Titan line and never fire.
+- **LIVE reasoning is built, deployed, metered and braked (U17 + U24, 2026-08-16).** `04` §5
+  brake 2's global run counter is built on a **seventh table**, `live_run_budget` — Julian's
+  call, reasoning in `docs/DECISIONS.md`. It carries no `repo_id` because §5's counter is
+  global, and that exemption from invariant 5 is asserted against `information_schema` so it
+  cannot widen. `cortex_demo` reaches today's row and no other day, and holds no DELETE.
+  **The cap is not a literal: `LIVE_RUNS_PER_DAY` is derived in `src/memory/live-budget.ts`**
+  as `LIVE_BUDGET_USD` ÷ the cost of one metered run. It was a written `10` until U24 and is
+  **30** now, from a real two-arm LIVE run on 2026-08-16 — **16 model calls, 36,892 input and
+  10,255 output tokens** off Bedrock's own `usage`, **$0.2910 a run** at the measured rate. If
+  the metered run were `null` or free the cap computes to **0** and LIVE is simply off.
+  The rate is **$3.30 per 1M input, $16.50 per 1M output**, taken from this account's own
+  billing after AWS's pricing page failed twice (V30) and its **Price List API turned out not
+  to carry Sonnet 4.5 at all**. §5's own default of 40 a day is hundreds of dollars across the
+  judging window against its own "single-digit dollars" — the deviation is in
+  `docs/SPEC-DELTA.md`. **Cost Explorer bills reasoning under `Claude Haiku 4.5 (Amazon Bedrock
+  Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock Edition)`, services distinct from `Amazon
+  Bedrock`** — and brake 3's Budget filters on those two names, because `Amazon Bedrock`
+  carries only the Titan line and a Budget on it would never fire.
+  **LIVE runs on exactly one function.** `LiveReasoningPolicy` allows `bedrock:InvokeModel` on
+  Claude Haiku 4.5 by ARN and is attached to the fleet runner's role and nothing else;
+  `LiveReasoningDenyPolicy` mirrors it ARN for ARN with Effect Deny and is attached to nothing
+  until brake 3 fires. **Brake 3 is armed:** AWS Budget `cortex-live-reasoning`, **$9 ANNUAL**
+  — annual because the judging window spans two calendar months and a monthly $9 permits $9
+  twice — action `APPLY_IAM_POLICY`, AUTOMATIC, status STANDBY. It is a **bound, not an
+  interlock**: Budgets evaluate cost data that refreshes a few times a day, so spend can
+  overshoot inside one refresh window. **Brake 1 stays falsified** — AWS refuses a concurrency
+  reservation at every value on this account — and its intent is met by three things instead: the
+  global counter bounds spend, the account's own 10-slot concurrency ceiling bounds fan-out,
+  and detaching `LiveReasoningPolicy` stops model calls and nothing else.
 - **Abandonment is memory now, and a finding is embedded on the work rather than the obstacle
   (U21, V39, 2026-08-13).** `03` §4.4 said consolidation fires on rows transitioning to `done`,
   and three places implemented it — so an abandoned intent's `abandonReason` was written down
@@ -278,7 +293,10 @@ What does not belong in a unit list, and so lives here:
   scanned**: a path names a route, not a field, and the router 404s anything it does not know.
   **Deployed and proved live 2026-08-13 (V46):** the same `curl` returns 404 before and
   `400 {"field":"query.dsn"}` after, with a plain `?session=` still routing normally.
-- **`04` §5 rung 2 is built and forced (U17, V37): `npm run gate:degrade`, 7/7.** A throttled
+- **`04` §5's whole ladder is built and forced: `npm run gate:ladder`, 36/36 — all four rungs,
+  a rung 1b, and all three brakes.** Rung 1b forces the runtime shape of brake 3's IAM Deny: the
+  `bedrock:InvokeModel` grant refused, the fleet completing anyway on reviewed patches.
+  **Rung 2 was the first one forced (U17, V37) and was 7/7 on its own.** A throttled
   Bedrock yields a deterministic local vector, the intent is marked
   (`intents.embedding_degraded`, a `03` §2 addition — `docs/SPEC-DELTA.md`), and dedupe is
   **skipped rather than run with a threshold of zero**, because the show-SQL panel would
@@ -398,10 +416,15 @@ What does not belong in a unit list, and so lives here:
   B2 and `09` §1; all four places now agree), `docs/architecture.md`, `docs/third-party.md`.
   **Five factual errors were found in the diagram by reading the CDK stack rather than the
   prose beside it**, the load-bearing one being Claude Sonnet 4.5 drawn inside the AWS
-  boundary: every `bedrock:InvokeModel` grant is scoped by ARN to the Titan embedding model,
-  so **no deployed function can invoke a reasoning model at all.** Depicting LIVE reasoning
-  as wired is what A7 forbids. AWS Budgets and degradation rungs 1, 3 and 4 are now labelled
-  **not built** rather than listed as though they exist.
+  boundary while every `bedrock:InvokeModel` grant was scoped by ARN to the Titan embedding
+  model. Depicting LIVE reasoning as wired when it is not is what A7 forbids.
+  **That correction was itself overtaken on 2026-08-16 and `docs/architecture.md` carries the
+  new state.** `LiveReasoningPolicy` grants `bedrock:InvokeModel` on Claude Haiku 4.5 by ARN to
+  the fleet runner's role, so "no deployed function can invoke a reasoning model" is now
+  **false** — it is exactly one function — and AWS Budgets and rungs 1, 3 and 4 are built rather
+  than "not built". If a doc anywhere still says otherwise, read the CDK stack and correct it.
+  `README.md`'s command table still describes `gate:degrade` as forcing only the
+  embedding-throttle rung, which is the whole ladder now.
 - Reason model: **resolved and invoked, V18, 2026-08-10.** `.env` sets
   `BEDROCK_REASON_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0`; `npm run
   probe:reason` calls it and it answers correctly in ~3.3s. LIVE reasoning is no longer
@@ -467,6 +490,17 @@ only checking did.
   silently in code. Three spec claims have been falsified so far (V1 opclass, V5
   index isolation, Bedrock v5 entitlement), and every one of them read as obviously
   true until it was invoked.
+- **`BUNDLE_REVISION` proves a deploy landed. It does not prove the deployed bundle matches the
+  tree, and on 2026-08-17 that gap served the headline claim inverted.** The marker is bumped by
+  hand when a *handler* file is edited. A fix to a file that is merely **bundled into** a handler
+  changes deployed behaviour while the marker does not move — `e35cacc` edited
+  `src/demo/workload.ts`, the runner's `BUNDLE_REVISION` read 4 on both sides of it, the
+  deployed bundle had been built twenty-five minutes before the fix existed, and the public URL
+  went on reporting CORTEX losing more writes than the naive lane until it was redeployed the
+  next day. The check that works is downloading the deployed artifact and grepping it
+  for the fix's own symbol: `aws lambda get-function`, unzip, `grep -c <symbol>` — 0 before, 4
+  after. Do that after every deploy that fixes behaviour, not just after one that edits a
+  handler.
 - **Do not assert in a comment or a doc what the tests do not check.** If a comment
   claims an invariant, there is a test for it or the comment is a lie.
 - **Correct documents in place; never append a contradiction.** When something
@@ -530,7 +564,12 @@ ESM throughout — `"type": "module"`, and relative imports carry `.js`.
 `npm test` · `npx tsc --noEmit` · `npm run db:check` · `npm run sql` ·
 `npm run env:doctor` · `npm run serve` (MCP on stdio) · `npm run gate:contend` ·
 `npm run gate:stream` (hosted; needs the deployed stack and a running changefeed) ·
-`npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) · `npm run gate:degrade` (forces `04` §5 rung 2) ·
+`npm run gate:consolidate` (hosted; 8/8 — checks 5-8 are the abandoned path, V46) ·
+`npm run gate:ladder` (36/36 — forces all four of `04` §5's degradation rungs, a rung 1b, and all
+three brakes; `npm run gate:degrade` is an **alias for the same script**, kept because that name
+is cited across `docs/`. Add `-- --meter` to perform one real LIVE run and derive the cap from
+Bedrock's own `usage`; **only `--meter` calls a reasoning model** — the plain run spends
+embeddings and cluster time and nothing else) ·
 `npm run gate:workload` (U21's and U23's done-when; 20/20, but **two checks are race-dependent and
 18/20 is an honest run** — V51 — two scopes, both arms, four beats, ~60s of live cluster time *from here*
 and 6–9s deployed, and it needs a **running changefeed** or beat 4 honestly reports nothing known) ·

@@ -5853,3 +5853,619 @@ The clone was taken from a local path, not from a public URL, because the reposi
 still private (`gh repo view` reports `"visibility":"PRIVATE"`). The reproduction is proved;
 the *availability* of the thing being cloned is a repository-settings act and is B1/B2's,
 not this unit's.
+
+---
+
+## V58 — U24: a metered LIVE run, and the cap derived from it
+
+**2026-08-16, into the small hours of 2026-08-17.** Six commits — `ffed18c`, `49b6c0e`,
+`44fa8e5`, `fbca43f`, `1dea222`, `0ded856` — against one done-when quoted verbatim from
+`docs/UNITS.md`: *"one metered LIVE run exists and the cap is derived from it, not
+estimated."* Both halves hold now, and the second is arithmetic over the first rather than
+a number somebody chose. `6096bd3` is the page half and is recorded at the end of this
+entry.
+
+### The seam: an agent that writes rather than one that recites
+
+`src/demo/author.ts` (`ffed18c`). Until it existed, `applyAndSave` called
+`appliedPatches(task, informed)` and got committed text back, so the coordination was
+entirely live while the content was fixed and every run produced a byte-identical pair of
+applications. A `PatchAuthor` answers "what does this agent write". `committedAuthor` is the
+previous behaviour unchanged and stays the REPLAY path; `modelAuthor` hands the agent its
+statement, the bytes it just read and whatever `recall()` returned, and the model authors
+the edit.
+
+**Asserted by construction and by test, not measured: the arms differ by what is in the
+prompt and by nothing else.** Same model, same statement, same files, same ceiling; the
+cortex request carries `findings` and the naive one carries an empty array, because that
+stack has no verb with which to ask. A consequence stated up front rather than discovered
+later: an uninformed model sometimes gets it right anyway, so the naive lane fails on some
+runs and not others. A lane that failed every time would be a script.
+
+Validation, in order: parses as JSON, tolerating the markdown fence Haiku emits; names only
+a file the agent was handed; anchors exactly once in the bytes it read; and the patched
+source **compiles** under `node:vm` and is **never executed** — the composed app runs later
+in the browser's sandboxed iframe, which is where untrusted code belongs. Every failure
+falls back to the reviewed patch and is reported, never thrown: `04` §5 invariant 1 admits
+no error page behind the run button.
+
+Model is `us.anthropic.claude-haiku-4-5-20251001-v1:0`, named separately from the
+benchmark's Sonnet constant because the cassette key includes the model and a shared
+constant would invalidate `08` §4's published table. Entitlement was invoked, not read out
+of a catalogue: it answered in **~1470ms**. `FLEET_MAX_OUTPUT_TOKENS = 1400` is a contract,
+so the expensive half of the cost model is bounded rather than projected. The $9 whole-event
+budget is Julian's call, and it is `04` §5's own "single-digit dollars".
+
+**Two limits recorded in place rather than papered over.** Of three real mutations against
+the new tests, two are killed and one is not: deleting the ambiguity check leaves everything
+green, because `applyPatch` refuses the same case in the same words. Two layers, no test
+that can tell them apart, and now no comment claiming there is. Separately, one test written
+as a rejection case passed as an acceptance one, which is how the compile check's honest
+limit got documented — `return }{;` inside a function body is valid JavaScript, because ASI
+ends the `return`, `}` closes the function and `{;}` is a bare block. Parsing is all a parse
+check decides; semantic nonsense is the acceptance oracle's job.
+
+### The corpus had to have something in it to reason about
+
+`44fa8e5`. The corpus was fourteen files of 400–1600 bytes, which is why a ticket finished
+in milliseconds and why the run read as staged. It is now **1,696 lines / 53,581 bytes**,
+2.9x by bytes, every ticket module 96–178 lines. The added substance is behaviour rather
+than padding: integer minor units with round-half-away-from-zero and a largest-remainder
+allocation whose parts sum to the whole; stock as record minus reservations with a two-step
+reserve window; billable weight as the greater of actual and volumetric; pagination over a
+*stable* sort whose tie-break exists because two orders share a `placedAt` to the second; a
+status transition graph with `cancelled` deliberately outside the ranking; capped
+exponential retry with an outbox/failed split.
+
+Every ticket now needs a collaborator module, and `test/app-bundle.test.ts` carries that as
+a seventeen-pair dependency table that fails if the corpus is ever flattened back into
+self-contained files.
+
+**The spoilers are gone, and that is the part that would have quietly ruined it.** The old
+comments said things like "R3 is only correct if it knows I3 moved money to integer minor
+units". Committed patches do not read comments; a model does. Left in, they hand the answer
+to the uninformed agent and delete the interlock they describe. No ticket id or interlock
+explanation remains in any bundled file; the design lives in `bench/demo-app/README.md`,
+which is not in `APP_FILES`.
+
+**All eleven statements, both closure notes and every task id are byte-identical**, so
+V38's 253 measured Titan distances and V49's reachability numbers stand without
+re-measurement. Only anchors and patch bodies moved.
+
+Interlocks are now **executed rather than text-matched**, which had to happen before a model
+wrote anything: once the tree does not contain the committed patch string, every text check
+quietly passes. `bench/demo-app/acceptance.ts` runs the composed app — nine ticket checks
+and four composition checks — and each returns `observed` evidence rather than a bare
+boolean, with `error` as a third verdict because a tree that throws is a different fact from
+one that answers wrongly. What prints is the evidence:
+
+```
+naive: shipping renders £0.03; the tariff for 0.75kg is £3.37
+3 on the shelf; first order of 2 accepted, second accepted, shelf left at -1
+2 banner(s): "Order A-1015 is confirmed…" / "Order A-1015 is confirmed…"
+```
+
+R3's check deliberately accepts either denomination, because which one is right is a fact
+about `lib/money.js` that the shipping agent cannot learn on its own. That is what lets it
+pass in both lanes while interlock 1 fails in one.
+
+### The oracle's fence was in the wrong place
+
+`1dea222`. The acceptance oracle is withheld so an agent cannot read the checks it is graded
+against — but the first version enforced that by scanning all of `src/`, `scripts/`, `bench/`
+and `infra/lambda/` for any import of it. That is broader than the rule, and it forbade the
+two callers the oracle exists for: `gate-workload.mts` and `attribution.ts` were left
+matching the reviewed patch's text, which is exact under REPLAY and worthless the moment a
+model authors the code.
+
+The fence is now around **the prompt**: `src/demo/author.ts` may not import the oracle, and
+no forty-character window of the oracle's source may appear in the prompt any ticket
+produces. That second half is a runtime assertion over the real `modelAuthor` rather than a
+statement about today's import graph, and it was mutation-tested by leaking the oracle into
+`buildPrompt`.
+
+**A bare identifier is not a fingerprint.** The first version of that runtime check asserted
+the prompt contained none of the oracle's exported names and went red on every ticket: the
+oracle exports a helper called `failed`, and the corpus's `notify/email.js` has an
+outbox/failed split. It was reporting a leak that was the English language.
+
+With behavioural checks in place, attribution's single-variant restriction is gone — a
+behavioural check asks whether the feature *works*, which both correct variants satisfy, so
+I3, C3 and R3 are covered. **What is still not covered is unchanged and not overstated:**
+interlocks 1 and 2 leave every patch present in both trees and fail by composition, which is
+the second axis `docs/UNITS.md` describes and which no code has.
+
+### The metered run
+
+Two real LIVE runs against the real cluster and real Bedrock, both arms, eleven tickets
+each, collected by `npm run gate:ladder -- --meter`. `METERED_LIVE_RUN` in
+`src/memory/live-budget.ts` carries the second one:
+
+```
+at            2026-08-16
+calls         16
+inputTokens   36892
+outputTokens  10255
+cost          $0.2910
+```
+
+**Measured, and the boundary of the measurement matters.** The token figures come from
+Bedrock's own `usage` block. Two of the sixteen calls are **charged rather than reported**:
+`modelAuthor` threw on `stop_reason === 'max_tokens'` *above* its own return, so a truncated
+call was billed by AWS and reported to nobody. The first metered run came out at **$0.2478**
+against a true **$0.2910** — enough to move the derived cap by a whole run. A cost model that
+under-reports is worse than one that estimates, because it looks measured. Truncation is now
+reported rather than thrown, the answer is still refused, and a test reproduces the original
+ordering and fails on it.
+
+The two truncated calls are charged at a **bound, not an estimate**: output at exactly
+`FLEET_MAX_OUTPUT_TOKENS`, because hitting the ceiling is the definition of the failure, and
+input at the largest prompt any call in the run reported. The meter prints the measured and
+the charged figures side by side so the size of the correction is visible.
+
+**The rate is a substitution, and it is the one thing here to read carefully.**
+`MEASURED_REASON_RATE_USD_PER_MTOK` is $3.30/$16.50 — **Sonnet 4.5's** billed rate from this
+account's Cost Explorer (V36), and the fleet runs Haiku 4.5. Haiku's own rate was not
+confirmable: Cost Explorer lags roughly a day and 2026-08-16 is this account's first Haiku
+usage, so there is no billed line to read. The choice was between writing an estimate into
+config, which this repository does not do, and pricing the run at the one reasoning rate this
+account has been billed at. Every published rate card puts Haiku below Sonnet, so the derived
+cap is a **floor**: when the Haiku line appears the cap can only rise. `npm run gate:ladder`
+re-asks Cost Explorer for the Haiku service line on every run, so tightening it is a check
+rather than something to remember.
+
+**Two runs minutes apart reported the same 30,506 measured input tokens, the same 16 calls
+and the same 2 truncations.** The prompt is the corpus and the ticket, so the input side is
+deterministic; only the output side moved — 7,455 and 8,915 measured — which is the model
+writing. The figures above are the second run's, taken with the instrumentation that can
+charge a truncation, so **this is not a worst case**: the first run's output was about a
+fifth higher.
+
+**Authorship quality, measured and worth knowing before the video is recorded:** 10 of 16
+authoring attempts in the first run and 12 of 16 in the second returned model-authored
+patches. The rest fell back, on reported reasons of "response was not JSON" and truncation,
+and the meter partitions `authored` from `fell back` so the page can say which.
+
+For comparison, design §7.3 estimated a run at ≈50 calls, ≈75k input and 15k output from a
+secondary source. The measurement is roughly a third of the calls and half the input.
+
+### The cap is computed, and the computation forced a decision
+
+```
+LIVE_BUDGET_USD          9
+liveRunCostUsd(run)      0.29095
+LIVE_RUNS_PER_DAY        floor(9 / 0.29095) = 30
+```
+
+`LIVE_RUNS_PER_DAY` is now derived in code, never written. `test/live-budget.test.ts`'s
+`expect(...).toBe(10)` is gone, replaced by a recomputation of design §7.3's formula, because
+a literal there would have gone on passing through exactly the drift `docs/UNITS.md` had
+recorded. If `METERED_LIVE_RUN` were `null`, or if the run had cost nothing — which is what a
+run in which no call reached Bedrock looks like — the cap computes to **0** and LIVE is
+simply unavailable. Deliberately not clamped to at least 1: a run this project cannot afford
+once is a run it cannot offer.
+
+**The question `docs/UNITS.md` refused to guess at is answered by the arithmetic, not by the
+argument.** Is a whole-event budget honestly enforced by a per-UTC-day counter? No. The
+obvious construction is `cap = budget ÷ (days × cost)`, and on the measured numbers that is
+**0.9978**, which floors to zero. There is no daily integer meaning "thirty runs over
+thirty-one days": a daily counter cannot express a cumulative budget, and at this budget and
+this cost it quantises to nothing at all or to the whole thing. So the counter is given the
+job it can do — bound the day — and the cumulative bound stays where `04` §5 put it, on brake
+3 (V59). Trying to make brake 2 do brake 3's job is what produced the zero.
+
+The two live side by side in the tree and mean different things, which is worth knowing
+before reading either: the `--meter` path prints §7.3's formula literally, so its `cap` line
+reads 0 on these numbers, while the shipped `LIVE_RUNS_PER_DAY` is budget ÷ cost. Thirty-one
+maxed days at the shipped cap is `LIVE_UNBRAKED_WINDOW_USD` = **$270.58**, and that figure is
+printed on every run precisely so it cannot be forgotten. It is what brake 3 exists to stop.
+
+### How the LIVE path is reached at all
+
+**The capability is `live` on the query string**, compared with `timingSafeEqual` behind a
+length guard, never interpolated, never echoed, never logged. `POST /demo/run` authorises;
+the runner **re-compares against its own copy of the secret**, because it receives a payload
+it cannot authenticate and a `live: true` field in it would be a claim rather than a proof.
+An anonymous run and a wrong-token run are byte-identical and neither mentions that a gate
+exists — asserted by `gate:ladder`'s rung 1, which diffs the two bodies and greps both for
+the words quota, budget, token, capability and remain.
+
+`cortex/live-token` is a `{{resolve:secretsmanager:...}}` dynamic reference like every DSN,
+never a template value, and `scripts/deploy-secrets.mts` grew a keep-or-create helper rather
+than a second block that could drift. It is deliberately **never rotated once it exists**: it
+goes into the link pasted into the submission, and rotating it would silently turn a judge's
+LIVE link into a REPLAY one with no error anywhere.
+
+`fbca43f` is the stack half. **Bedrock reasoning is granted to the runner alone**, with both
+ARN kinds — the account-scoped inference profile and the AWS-owned foundation model behind
+it. The three routing regions were not taken on faith: `aws bedrock get-inference-profile` on
+this account returns exactly `us-east-1`, `us-east-2` and `us-west-2`. Sonnet 4.5 is
+deliberately **not** granted, because `bench/reason.ts` calls it from a laptop and never from
+a Lambda, and a grant would authorise something no deployed code does. The kill switch is a
+separate managed policy attached only to the runner, so detaching it stops LIVE reasoning and
+touches nothing else.
+
+**The runner's timeout went 180s → 900s, and the comment labels the critical path a target
+rather than a measurement**, because no LIVE fleet run had been timed end to end when it was
+set. It is safe because `infra/lambda/runner.ts` derives its watchdog from
+`getRemainingTimeInMillis()`, so the terminal event still fires before the sandbox dies.
+
+### The page half (`6096bd3`)
+
+Two things the run could always prove and the page never showed. **Concurrency, made
+visible:** the agents have run concurrently inside an arm since U21 and nothing rendered it,
+so "five agents worked this together" was a sentence rather than a picture. There is now one
+lane per agent per arm on a shared scale, every bar built from fleet events already on the
+wire; a blocked span draws to its holder, a deduped or spared agent's bar stops early, and
+collision bands mark where two naive agents' read→save windows overlap on one file. **No
+synthetic serial baseline exists**, deliberately: a made-up "what this would have cost
+sequentially" is precisely the fabrication `07` §1 forbids.
+
+**The mode line inverted, and it had to.** It used to append a fixed sentence saying a person
+wrote and reviewed the code — true while the runner made no model call, false the moment
+`modelAuthor` runs. It is now per run and derived: whether the code was model-authored or
+replayed, that database behaviour, arbitration, races and the changefeed are live in **both**
+modes, and how many hunks the model actually wrote versus how many fell back. Varying
+outcomes are framed before the run rather than excused after it, and the page distinguishes
+"not observed on this run" from "did not happen" from "not measured".
+
+### Verification
+
+```
+npm run gate:ladder                       36/36
+npm run gate:workload                     INVARIANTS 15/15 · OBSERVED 13/13
+npm test (U24's own files)                61 tests
+npx tsc --noEmit (root and infra/cdk)     clean
+bash scripts/gate-mechanical.sh --report  PASS
+```
+
+Earlier in the sequence: `44fa8e5` ran `gate:workload` 21/21 against the real cluster with
+120/120 across the seven touched suites; `fbca43f` ran seven mutations against the stack test
+and all seven fail it, including attaching the reasoning policy to a second role and
+repointing the model constant, with `cdk synth` clean and 19 infra tests green.
+
+**Still open, and none of it closable here:** the video (U19) — and note the 2026-08-13 walk's
+constraint has lifted, since `07` §4/§5 asks for LIVE mode and LIVE mode now exists; U25/U26's
+independent cold read; and the repository's visibility.
+
+---
+
+## V59 — Brake 3 is built and armed, and every rung of the ladder is forced
+
+**2026-08-16, read back from the account 2026-08-17.** `ec9e15b` plus
+`scripts/gate-ladder.mts`. Until this, stopping LIVE was a human noticing, and V58 measured
+what that was worth: $270.58 of unbraked window against a $9 budget.
+
+### The filter is measured, and it is where this project has already been bitten
+
+V36 found that Anthropic spend does not bill under `Amazon Bedrock` — that service carries
+only the Titan line — so a Budget filtered on it watches an empty meter and never fires. U24
+recommended falling back to an account-wide filter because the Haiku service name could not
+be confirmed. It can now:
+
+```
+$ aws ce get-dimension-values --dimension SERVICE
+Amazon Bedrock
+Claude Haiku 4.5 (Amazon Bedrock Edition)
+Claude Sonnet 4.5 (Amazon Bedrock Edition)
+```
+
+So the filter names the two Claude services exactly. Sonnet is included although the fleet
+runs Haiku, because `bench/reason.ts` calls Sonnet and a brake that ignores half the
+reasoning bill has a hole.
+
+**ANNUALLY, not MONTHLY.** The judging window runs to 2026-09-15, which spans two calendar
+months, so a $9 monthly budget would permit $9 in August and $9 again in September — $18
+against a $9 promise.
+
+### What the account actually holds
+
+Read back from AWS on **2026-08-17**, not from the template and not from `cdk.out/`:
+
+```
+budget          cortex-live-reasoning
+type            COST
+limit           $9
+timeUnit        ANNUALLY
+cost filter     Claude Haiku 4.5 (Amazon Bedrock Edition)
+                Claude Sonnet 4.5 (Amazon Bedrock Edition)
+action          APPLY_IAM_POLICY → LiveReasoningDenyPolicy
+approval        AUTOMATIC
+status          STANDBY
+ActualSpend     $0.0
+HealthStatus    HEALTHY
+```
+
+`STANDBY` is what an armed brake that has never fired looks like. Alongside it,
+`LiveReasoningPolicy` allows `bedrock:InvokeModel` on Claude Haiku 4.5 by ARN — three
+regional foundation-model ARNs plus the `us.` inference profile — and is attached to the
+**fleet runner's role and nothing else**; `LiveReasoningDenyPolicy` mirrors it ARN for ARN
+with `Effect: Deny` and is attached to nothing.
+
+**What firing does, and what it deliberately does not.** An explicit Deny beats an Allow in
+IAM, so LIVE stops on the next invocation. The Titan grant is a different statement on
+different ARNs, no other function is targeted, and the API, the SPA, the read path and the
+cluster are untouched — `04` §5 makes a wider action a rules violation under B4, not a bug. A
+visitor then sees a working demo, because `modelAuthor` falls back to reviewed patches on
+`AccessDenied` like any other failure. That is rung 1 reached by mechanism rather than by a
+branch.
+
+The alert subscriber is a `{{resolve:secretsmanager:...}}` reference;
+`scripts/deploy-secrets.mts` creates `cortex/budget-alert-email` from `.env` and fails loudly
+rather than letting CloudFormation fail halfway with the tempting fix being to paste an
+address into the stack. There is no address literal anywhere in the template.
+
+### Two findings from mutation-testing, and the second is the useful one
+
+An existing assertion counted `inferenceProfileGrant(` call sites and expected two. Brake 3
+legitimately makes it three, because the deny must name the *same* ARNs as the allow or it
+covers less than the grant. Counting was a proxy; the rule is about Allow, and the test now
+separates the two policies and checks each for what it is.
+
+**And a mutation that missed its target found a real hole.** Widening the first
+`actions: ['bedrock:InvokeModel']` in the file left all 25 assertions green — that line is a
+Titan embedding grant, and the three embedding grants were pinned on neither scope nor verb,
+so any of them could have been handed every Bedrock action with the suite passing. There is
+now a stack-wide assertion that no policy grants a wildcard action, with a non-vacuity check,
+so a fourth grant added later is covered without anyone remembering to.
+
+27 tests. Six mutations run — wrong filter, wrong period, manual approval, a budget firing at
+a different number than the runner plans against, and widening either policy — and all six
+fail it.
+
+### The whole ladder, forced
+
+`npm run gate:ladder`, **36/36**. `npm run gate:degrade` is now an alias for the same script,
+so there is one ladder rather than two. It forces, in order:
+
+| Section | What is forced |
+| --- | --- |
+| RUNG 1 | the LIVE quota is exhausted and the page says so |
+| RUNG 1b | the LIVE reasoning grant is refused and the fleet still works |
+| RUNG 2 | every embedding call is refused, on `runArm` |
+| RUNG 3 | the session row budget is full and the session stays inspectable |
+| RUNG 4 | the write path is unreachable and nothing claims to be live |
+| BRAKES | brake 2 fired, brake 1's replacement settled, brake 3 asserted |
+
+**Rung 1b exists because the runtime shape of brake 3's action needed forcing and the
+deployed policy could not be the thing detached to force it.** Detaching
+`LiveReasoningPolicy` on a live stack to prove a point is a change to production made by a
+gate, so rung 1b forces the same shape in process: `modelAuthor` is given an invoke that
+throws `AccessDenied`, and the checks are that the call does not throw upward, that the agent
+still applies its ticket from the reviewed patch, and that the refusal is *reported* rather
+than swallowed. It is the other end of rung 1 and the shape both the IAM kill switch and
+brake 3's action produce at runtime.
+
+**A defect this gate found in code written the day before.** `cortexTicket` threw
+unconditionally when `applyAndSave` returned null, on the reasoning that a second cortex
+agent is deduped before it ever reads. True — while dedupe runs. Rung 2 skips dedupe entirely
+by design, and the moment it does, the second half of a dedupe pair proceeds exactly as the
+naive lane's does and finds its anchor gone. So the rung `04` §5 singles out as the one most
+likely to fire unnoticed produced a **throw behind the run button**, which is §5 invariant 1's
+own failure. The assertion was right about arbitration and wrong about what else could put a
+null there: it now throws only with a real embedding, and reports the degraded case the way
+the naive lane reports the same event. That work counts as duplicate work done, because it
+was — skipping dedupe is what buys it.
+
+### Brake 1's replacement, settled rather than assumed
+
+`04` §5 brake 1 is "reserved concurrency of 2 on the LIVE Lambda", and it is falsified on
+this account (V26): the account-wide limit is 10, it cannot be raised from the CLI, and it
+cannot be subdivided at any value. §5 constrains any replacement to target the LIVE reasoning
+function and nothing else. This is an argument, recorded in `scripts/gate-ladder.mts` beside
+the check it justifies, not a measurement — and it names three things that now exist:
+
+- the **global LIVE run counter**, which bounds *spend* and touches nothing else. A spike of
+  visitors past the cap all get REPLAY runs, and the database, the API, the SPA and the read
+  path are untouched, which is exactly rule B4's requirement of a cost control.
+- the account's own **10-slot concurrency ceiling**, which bounds *fan-out* — the physical
+  property §5 wanted brake 1 for — by accident of the very restriction that falsified it.
+- **`LiveReasoningPolicy`**, stronger in kind: a managed policy attached to the runner alone,
+  whose detachment stops model calls and nothing else. Rung 1b forces its runtime shape.
+
+### What a green ladder does not prove, stated by the gate itself
+
+Brake 3 is **asserted to exist in the stack source and read back from the account; it has
+never been fired against a real bill.** Firing it would mean spending the budget it protects.
+What is checked is that the Budget, its action and the deny policy are there, that the filter
+names the services the spend actually lands on, and that the period bounds the event rather
+than the month — each mutation-tested in `test/infra-stack.test.ts`. The gate prints that
+paragraph on every pass rather than leaving it to a reader.
+
+**And the residual that replaces the one it closes.** AWS Budgets evaluate against cost data
+that refreshes a few times a day, not continuously, so the brake is a *bound* and not an
+interlock: spend can overshoot within one refresh window before the Deny lands. Two things
+keep the overshoot small and neither is a substitute for knowing about it — LIVE is reachable
+only by a holder of the capability token, which goes into the Devpost submission and nowhere
+else, and the run is priced at a dearer model's rate, so thirty runs of actual Haiku spend is
+nearer $3 than $9.
+
+---
+
+## V60 — The lost-writes meter was inverted, and the deployed bundle served it for a day
+
+**2026-08-17.** `e35cacc`, and the redeploy `f09fe34` that was needed because the fix landed
+twenty-five minutes after the bundle that was live. This is the most consequential defect
+found since the demo was built, and nothing in the repository caught it.
+
+### How it was found: by running the deployed page
+
+**Julian ran the deployed page in LIVE mode and the meter reported CORTEX 8 lost writes
+against the naive lane's 6.** That is this project's headline claim inverted on the surface a
+judge reads first. It was an accounting error and not a result.
+
+`lostWrites` took its "acknowledged" side from `appliedPatches(taskById(...))` — **the
+ticket's reviewed patch** — and filtered it by whether that exact text appears in the final
+tree. A model authors different text. So every model-authored hunk failed the `includes`
+check and was counted as lost, and the arm that used the model *more* accrued more phantom
+losses: CORTEX authored 18 hunks to the naive lane's 11, so CORTEX looked worse in direct
+proportion to how much of the feature it exercised.
+
+**Why it survived every test and every gate.** Under REPLAY the two quantities are the same
+string — the committed text *is* what was written — so the figure is correct on every path
+that calls no model. `npm run gate:workload` had been green over it all day. It is the same
+text-matching mistake `src/demo/attribution.ts` and `scripts/gate-workload.mts` were moved off
+the day before (V58, `1dea222`), still living in the meter; the sweep that fixed the other two
+did not reach it. Three instances of one class in two days is the honest reading.
+
+### The fix, and why the guard is on the source
+
+The readback now compares against the hunks each agent **actually applied**, recorded by
+`applyAndSave` in a `writtenByTicket` map because that is the only place that knows which of
+the two it was: under REPLAY the ticket's reviewed patch, under LIVE whatever the model
+authored and validation accepted.
+
+The guard is deliberately on the source rather than on behaviour. Seeing this fail requires a
+model to write something different, which costs real money every time the suite runs. So the
+test asserts that the acknowledged side comes from recorded hunks and that `appliedPatches` is
+not what the readback consults, and it goes red when the original line is put back. That is
+weaker than a behavioural test and is written down as such rather than dressed up.
+
+Local REPLAY after the fix, unchanged as expected: `gate:workload` INVARIANTS 15/15 ·
+OBSERVED 13/13, reporting cortex 0 lost writes and 0 collisions against naive 2 and 3.
+
+### The deployed bundle predated the fix by twenty-five minutes
+
+`e35cacc` fixed `lostWrites` at **01:27**. The deployed bundles were built at **00:59** and
+CloudFormation last updated `DemoFn` and `RunnerFn` at **01:02**. So the public URL served the
+accounting error for the whole interval, and in LIVE mode it reported CORTEX losing more
+writes than the naive lane.
+
+Proved rather than inferred, both ways — `aws lambda get-function` on `RunnerFn`, unzipped,
+then grepped:
+
+```
+grep -c writtenByTicket   (deployed bundle, before)   0
+grep -c writtenByTicket   (deployed bundle, after)    4
+grep -c writtenByTicket   (working tree)              4
+```
+
+### `BUNDLE_REVISION` structurally cannot catch this, and now says so
+
+The marker exists so a redeploy and a no-op are distinguishable from outside, and it is
+bumped by hand when the handler file is edited. `e35cacc` edited `src/demo/workload.ts`,
+which is *bundled into* the runner — **deployed behaviour changed while `runner.ts` did
+not**, so the marker read 4 on both sides of the fix. It proves a deploy landed; it does not
+prove the bundle is current with the tree. The comment on the constant carries that now,
+since nothing else did.
+
+Redeployed 2026-08-17: demo `7 → 8`, runner `4 → 5`. `npm run gate:async` against the
+redeployed stack:
+
+```
+fleet events              90
+terminal messages         1
+runner messages after it  0
+real changefeed rows      43
+file collisions           cortex 0 · naive 2
+GATE PASSED
+```
+
+**What that does not establish.** `gate:async` runs REPLAY, where the two quantities are the
+same string, so it cannot exercise the fix. The bundle grep is the evidence that the fix is
+deployed; a LIVE run against the redeployed stack is what would exercise it, and this entry
+does not record one.
+
+---
+
+## V61 — The `/ship` walk, 2026-08-17
+
+**2026-08-17.** `02` §F walked on the day it is dated for. The 2026-08-13 dry run in
+`docs/submission-devpost.md` §5 came out 7 ready, 3 partial, 5 blocked, 1 act; five of those
+rows moved on 2026-08-16–17 and two did not move at all. **Report only** — nothing below was
+fixed by the walk.
+
+### The rules re-fetch
+
+**No change.** The rules page and overview were re-fetched and diffed against
+`spec/02-COMPLIANCE-MATRIX.md`: submission period still closes **2026-08-18 17:00 ET**,
+judging still runs to **2026-09-15 17:00 ET**, B2's About-section clause, B4's availability
+clause, A11, the four CockroachDB tools with a minimum of two, the AWS list with a minimum of
+one, the sub-three-minute public video, and five equally weighted criteria with **Agentic
+Memory Design still first**.
+
+**Two caveats, and both are reasons to do it once more.** The fetch ran at **2026-08-16
+20:21 ET**, so an amendment posted at any point on Monday 2026-08-17 lands after it and this
+walk would not see it — §11.5 lets the sponsor amend at any time. And the fetch returns a
+model's reading of the page rather than the page, which is why the load-bearing clauses were
+re-read with a verbatim-quote demand on 2026-08-13. **One more read of the rules page is owed
+immediately before the description is pasted.**
+
+### `02` §F, walked
+
+| # | Item | Verdict | Evidence |
+| --- | --- | --- | --- |
+| 1 | Rules re-fetched and diffed | **PASS, with one fetch owed** | No change. Fetched 2026-08-16 20:21 ET; see the caveats above. |
+| 2 | Repository public, MIT licence visible in About | **FAIL — Julian's act** | `gh repo view` today returns `"visibility":"PRIVATE"` with `"licenseInfo":{"key":"mit"}`. The licence half moved: on 2026-08-13 `licenseInfo` was `null` because `LICENSE` was uncommitted, and GitHub now detects MIT. The visibility half is a settings act and is unchanged. HEAD has been pushed, so origin matches. |
+| 3 | README: setup, run, prior work, third-party licences | **PASS** | `README.md` committed; prior work and dependencies under its own heading, licence tallies in `docs/third-party.md`. |
+| 4 | Demo URL loads anonymously, no key, no login | **PASS from here; the stronger form is open** | The redeployed page and every route answered anonymously today (V60). §F's own wording is a private window on a machine that never touched the project, which is Julian's act and the same act as U26's cold read. |
+| 5 | No credential input field anywhere in the demo UI | **PASS** | `infra/site/index.html` contains **zero** `<input`, `<form`, `<textarea` or `<select`, measured against the committed source; `test/site.test.ts` scans for credential-shaped names including commented out; and the API refuses a credential-shaped field in the body **and** on the query string (V45, deployed V46). |
+| 6 | All four degradation rungs exercised by forcing the limit | **PASS** | `npm run gate:ladder` 36/36 forces rungs 1, 1b, 2, 3 and 4 (V59). This row was **1 of 4** on 2026-08-13. |
+| 7 | Each of the three cost brakes fired deliberately, demo reachable afterwards | **PARTIAL, and honestly so** | Brake 2 is fired by the gate — counter at cap, run answers 202 in REPLAY, every route a judge needs still answers. Brake 1 is falsified on this account and its replacement is settled by argument, not by a firing (V59). Brake 3 is built, deployed and **armed but never fired**: `STANDBY`. Firing it means spending the $9 it protects, so what exists is a read-back of the account plus six mutations against the stack test. |
+| 8 | README and Devpost state the zero-setup promise, and BYO-credentials as CLI-only | **PASS for the README; Devpost is Julian's act** | README line 17 carries "no account, no key, no cluster"; line 20 carries "you bring your own free CockroachDB cluster" under a separate run-it-yourself heading. |
+| 9 | Weekly anonymous reachability check scheduled through 2026-09-15 | **FAIL — not scheduled** | Nothing schedules it, unchanged from the dry run. §E WATCH-4 is explicit that checking the cluster is unpaused is **not** the same test and will not catch a broken deploy, an expired certificate, or a guardrail that fired and never reset. |
+| 10 | LIVE mode works and its daily cap degrades gracefully to REPLAY | **PASS** | Rung 1 forces exactly this: with the counter at `LIVE_RUNS_PER_DAY`, `POST /demo/run` answers 202 with `reasoning.mode === 'replay'`, and `/demo/state`, `/demo/sql-log` and `/demo/session` all still answer (V58, V59). **Blocked** on 2026-08-13. |
+| 11 | Video under 3:00, public, English, shows terminal and memory layer | **FAIL — not recorded** | U19. One constraint has lifted: the dry run noted that `07` §4/§5 asks for LIVE mode and LIVE reasoning did not exist, so the instruction could not be followed without breaching A7. It exists now and the instruction is followable. |
+| 12 | Devpost description carries the benchmark table and the architecture diagram | **PARTIAL** | Table ready, quoted from the committed results directory with its limitations. Diagram: Devpost renders no Mermaid, so `docs/architecture.md` must be exported to an image — presentational, and Julian's act. See the finding below. |
+| 13 | B10 and B11 answers pasted from §C and §D | **READY, with the same deliberate deviation** | Paste `docs/submission-devpost.md` §2 and §3, not `02` §C and §D: §C describes the managed MCP server as the read path, which V17 falsified, and a `cortex init` that provisions a cluster through the ccloud CLI. **One line of §D became true this week** — "AWS Budgets … the budget action is scoped to the LIVE reasoning function alone" is now exactly what is deployed (V59). Amazon EventBridge is still not deployed, and §D's S3 row still lists artifacts that live in git. |
+| 14 | Optional feedback field completed in detail | **READY** | `docs/submission-devpost.md` §4, twelve items, each pointing at an entry in this file. |
+| 15 | AWS Budget alarm active; cluster not near free-tier limits | **PASS** | Budget `cortex-live-reasoning` read back from the account today: `STANDBY`, `ActualSpend $0.0`, `HealthStatus HEALTHY` (V59). Cluster: 2.81M of 60M Request Units, 4.7%, read from the Console on 2026-08-13; the Cloud API returns 404 for every usage endpoint, so that reading cannot be automated. **Partial** on 2026-08-13, when the Budget did not exist. |
+| 16 | Benchmark results reproduce from a clean clone | **PASS** | V57, run rather than reasoned about. Caveat unchanged: the clone was taken from a local path because the repository is private (row 2). |
+
+**Summary: 9 pass, 2 partial, 2 ready-to-paste, 3 fail.** Every failing row is an act rather
+than a build — repository visibility, the video, and a scheduled reachability check — and all
+three are Julian's.
+
+### Two documented commands do not work, measured today
+
+Both are in `README.md`, which is what a judge runs.
+
+**`npx cortex` does not run this CLI.** `package.json` declares `"bin": {"cortex":
+"bin/cortex.mjs"}`, but `node_modules/.bin/cortex` does not exist in this checkout, so `npx`
+falls through to the public registry — where `cortex` is an unrelated package, **v6.2.3, "an
+npm-like package manager for browsers"**. `npx --no-install cortex --version` fails naming
+`cortex@6.2.3`. The form that works and is the one under test is:
+
+```
+$ node bin/cortex.mjs --version
+1.0.0
+```
+
+`README.md` names `npx cortex init` and `npx cortex doctor` in five places, and
+`spec/05-INTERFACES.md`, `spec/07-DEMO-AND-SUBMISSION.md` and `spec/08-BUILD-PLAN.md` D1 all
+describe the same form. A judge following the README gets a stranger's package or an error,
+not this CLI.
+
+**`npm run serve` breaks the MCP stdio contract before the client sees a frame.** npm prints
+its lifecycle banner — `> cortex@1.0.0 serve` — on **stdout**, which is where the stdio
+transport says only JSON-RPC frames go. Six candidate invocations were measured. Two are
+clean: `npm run --silent serve`, and the repository's own `node_modules/.bin/tsx` invoked on
+an absolute path to `scripts/serve-mcp.mts`, which also works from a foreign working
+directory. `node --import tsx <abs path>` **fails** from a foreign cwd, and
+`npx tsx <abs path>` works but silently downloads `tsx` from the registry. `README.md`
+documents the banner-emitting form.
+
+Neither is fixed by this entry, and both are recorded here rather than left in a session
+transcript, because a finding held only in scrollback is not a finding. The fix for both is a
+`README.md` edit; nothing in `src/` is wrong.
+
+### One documentation claim that U24 made false
+
+`docs/architecture.md` as committed says **"No deployed function can invoke a reasoning
+model, and the diagram says so deliberately."** That was true when U18 wrote it and stopped
+being true the moment `fbca43f`'s stack change was deployed and `LiveReasoningPolicy` landed
+on the fleet runner's role (V58, V59). It bears on §F row 12, since that file is the diagram
+the Devpost description points at. Recorded here as found; correcting it is not this entry's
+act.
+
+### The mechanical gate, run as part of the walk
+
+```
+$ bash scripts/gate-mechanical.sh --report
+sql-containment        PASS  no SQL outside src/memory/ and src/db/
+env-ignored            PASS  git check-ignore .env matches
+credentials            PASS  no credential pattern in all history (placeholders excluded)
+```
+
+The `credentials` row is the one this repository's own history has broken four times in a
+day (V42, V43), and it is green over the whole of `git log -p --all`.

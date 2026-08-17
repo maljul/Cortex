@@ -723,14 +723,24 @@ flagged off. That is invariant 8, and the SPA is the surface it was written abou
 **Second silent break:** the show-SQL panel printing SQL the system did not run. It is
 the "prove it" panel; a hand-written sample there is worse than no panel.
 
-### U17 — Guardrails and all four degradation rungs 🔶 **brake 2 and rung 2 done; also owns LIVE reasoning**
+### U17 — Guardrails and all four degradation rungs 🔶 **ladder built and forced 36/36; the private-window clause is U26's**
 
-**Done so far (2026-08-12, V36 + V37).** Both of the things this unit was blocked on are
-closed, and the two pieces that did not depend on LIVE reasoning are built and forced.
+**The ladder is closed (2026-08-16 into the small hours of 08-17 — commits `fbca43f`,
+`ec9e15b`, `0ded856`).**
+`npm run gate:ladder` forces **all four rungs, a rung 1b, and all three brakes: 36/36**.
+`npm run gate:degrade` is an alias for the same script — one gate under two names, because the
+name it was built under is cited across this file and moving it would break every citation.
+The only part of this unit's done-when still open is its last clause, a private window on a
+machine that never touched the project, which is Julian's act and belongs with U26's cold read.
 
-- **Brake 2 is built: `live_run_budget`, a seventh table, capped at 10 LIVE runs a day.**
+**Where it started (2026-08-12, V36 + V37).** Both of the things this unit was blocked on
+closed here, and the two pieces that did not depend on LIVE reasoning were built and forced.
+
+- **Brake 2 is built: `live_run_budget`, a seventh table, one row per UTC day.**
   Julian's call on where the counter lives (a new table with its own narrow policy, not a
-  singleton row on `repos` and not DynamoDB) and on the cap. Reasoning in `docs/DECISIONS.md`.
+  singleton row on `repos` and not DynamoDB). Reasoning in `docs/DECISIONS.md`. The cap it
+  enforces was a literal `10` when it was written and is **derived in code** since U24 —
+  `LIVE_RUNS_PER_DAY` is computed from a metered run, and comes out at 30.
   `cortex_demo` reaches exactly today's row and holds no DELETE — a principal that can drop
   today's row can reset the brake that governs it. `test/privilege-planes.test.ts` attempts
   all three refusals rather than trusting the grant list.
@@ -740,12 +750,15 @@ closed, and the two pieces that did not depend on LIVE reasoning are built and f
   `Claude Sonnet 4.5 (Amazon Bedrock Edition)` is a **service of its own**, separate from
   `Amazon Bedrock`, at **$3.30 per 1M input and $16.50 per 1M output**. V36 has the commands.
 - **`04` §5's own default of 40 runs a day breaks `04` §5's own budget**, and that is why the
-  cap is 10: at the measured rate 40/day is $19–36 through 2026-09-15 against §5's
-  "single-digit dollars". Recorded in `docs/SPEC-DELTA.md`.
+  cap is not §5's. At the measured rate and U24's metered run, 40 a day across the judging
+  window is over **$360** against §5's "single-digit dollars". The replacement was a literal
+  10 written here; U24 replaced it with a derived 30. Recorded in `docs/SPEC-DELTA.md`.
 - **A finding brake 3 depends on:** an AWS Budget filtered on the `Amazon Bedrock` service
   would **never fire**, because the reasoning spend is billed under a different service name
-  entirely. `Amazon Bedrock` on the same days carries only the Titan embedding line.
-- **Rung 2 is built and forced — `npm run gate:degrade`, 7/7 (V37).** Every embedding call
+  entirely. `Amazon Bedrock` on the same days carries only the Titan embedding line. Brake 3
+  was built on that finding — see the bullet below.
+- **Rung 2 is built and forced — 7/7 on its own when it was written (V37), and now one section
+  of `npm run gate:ladder`'s 36.** Every embedding call
   refused with a 429; all four beats still ran, 51 statements reached the driver, every intent
   written was marked in the database, and the show-SQL transcript contains no similarity
   search at all. Forced first because §5 names it the rung most likely to fire unnoticed.
@@ -753,39 +766,60 @@ closed, and the two pieces that did not depend on LIVE reasoning are built and f
   column is not primarily a UI flag, it is what keeps a hash vector out of every later dedupe
   candidate set.
 
-**The rest of this unit is displaced, not dropped — Julian's call on 2026-08-12** after
-`docs/superpowers/specs/2026-08-12-fleet-demo-design.md` landed mid-unit. Where each piece went:
+**The rest of this unit was displaced, not dropped — Julian's call on 2026-08-12** after
+`docs/superpowers/specs/2026-08-12-fleet-demo-design.md` landed mid-unit. Where each piece went,
+and **all of it landed with U24 on 2026-08-16, before U26 rather than after it**:
 
-- **Rung 1** → **U24**, which owns LIVE. It needs LIVE reasoning to have something to exhaust,
-  and §11 reassigned LIVE there.
+- **Rung 1** (LIVE quota exhausted → REPLAY, stated on screen) → **U24**, which owns LIVE. It
+  needed LIVE reasoning to have something to exhaust, and §11 reassigned LIVE there. Built and
+  forced, together with a **rung 1b** the ladder adds: the `bedrock:InvokeModel` grant refused at
+  runtime, which is the shape brake 3 produces when it fires. The fleet still completes; the
+  model author falls back to reviewed patches on AccessDenied like any other failure.
 - **Rung 3** → **U24/U25's state route.** Its mechanism is `DEMO_SESSION_ROW_CAP`, and design
-  §4.1 gives each visitor **two** scopes and therefore two budgets. Building it against one
-  scope now is building it twice.
-- **Rung 4** (cluster unavailable → pre-recorded walkthrough behind an explicit banner),
-  **the brake 1 replacement**, and **brake 3** survive the redesign untouched. Picked up after
-  U26 — except that design §7.2 says the global run counter *may already be* the brake 1
-  replacement, which U24 confirms rather than assumes.
+  §4.1 gives each visitor **two** scopes and therefore two budgets. Built, and forced by filling
+  a session's row budget and then asserting the session is still inspectable and a new one is
+  still one click.
+- **Rung 4** (cluster unavailable → pre-recorded walkthrough behind an explicit banner) is built
+  and forced by pointing the demo plane's DSN at an unreachable write path.
+- **Brake 3** is built and armed (`ec9e15b`): an **ANNUAL** $9 cost budget named
+  `cortex-live-reasoning`, filtered on `Claude Haiku 4.5 (Amazon Bedrock Edition)` and
+  `Claude Sonnet 4.5 (Amazon Bedrock Edition)` — the two service names
+  `aws ce get-dimension-values --dimension SERVICE` actually returns, not `Amazon Bedrock` —
+  whose action attaches a Deny on `bedrock:InvokeModel` to the fleet runner's role and to nothing
+  else. **Annual, not monthly**, because the judging window spans two calendar months and a $9
+  monthly budget permits $9 in August and $9 again in September.
+- **The brake 1 replacement** is settled, and the paragraph further down that used to name a
+  candidate now names the answer.
 - **The last clause of the done-when** — a private window on a machine that never touched the
-  project — is Julian's act, not a script's, and it belongs with U26's cold read.
+  project — is Julian's act, not a script's, and it belongs with U26's cold read. It is the only
+  part of this unit still open.
+
 **Added 2026-08-12, Julian's call.** U16b §3c proposed giving each demo agent one real
 Bedrock call. It is deferred here rather than built there, because its prerequisite *is* this
 unit's work: `04` §5 brake 2 — a global run counter in CockroachDB, default 40 LIVE runs a day
 — is what authorises a LIVE run at all, and rung 1 (quota exhausted → REPLAY, stated on
 screen) is the same mechanism seen from the other end. Building the counter inside U16b would
 have meant U16b deciding U17's ladder.
-Two things this unit inherits with it:
-- **The counter needs a table `03` §2 does not define**, so adding it is a schema decision
-  taken deliberately here. It must be checked and incremented **in the same transaction as
-  the run it authorises**, or concurrent visitors race past it.
-- **The Bedrock rate for Sonnet 4.5 is TBD.** `04` §5 and U16b §6 both require the real
-  per-token figure written down before LIVE is enabled; two fetches of AWS's pricing page did
-  not return it (V30) and this repository does not write placeholder numbers. The token
-  volume *is* known from the committed cassettes: ~501 input and ~72 output tokens per call,
-  so five agents is on the order of 3k tokens per run.
-- `07` §4's mode line becomes a real two-value mode at that point, which closes the
-  `docs/SPEC-DELTA.md` entry about it. `bench/reason.ts` is the reasoner to reuse — do not
-  write a second one — and Sonnet 4.5 is pre-4.6, so `output_config.effort` **errors** on it
-  and `thinking` must be omitted rather than configured.
+What this unit inherited with it, and where each landed — all three are resolved:
+- **The counter needs a table `03` §2 does not define**, so adding it was a schema decision
+  taken deliberately here. It asked for the check and the increment to be **in the same
+  transaction as the run it authorises**, or concurrent visitors race past it. The race is
+  closed and the shared transaction is not what closes it: a demo run is deliberately *many*
+  transactions, several of them concurrent with each other, so there is no single one to join.
+  **SERIALIZABLE is the brake** — measured in `src/memory/live-budget.ts`, where ten concurrent
+  callers against a cap of three get exactly three slots even when the cap is moved out of the
+  statement into a branch. A slot is spent when it is granted rather than when the run succeeds,
+  which is the safe direction.
+- **The Bedrock rate for Sonnet 4.5 was TBD, and V36 measured it** — $3.30 per 1M input,
+  $16.50 per 1M output, from this account's own billing after two fetches of AWS's pricing page
+  failed (V30) and its Price List API turned out not to carry the model at all. The cassette
+  token volume this bullet used to reason from — ~501 input and ~72 output tokens per call —
+  described the old five-agent scenario and is superseded by U24's metered fleet run.
+- **`07` §4's mode line is a real two-value mode now**, and the page derives it per run rather
+  than appending a fixed sentence (U25, `6096bd3`). `bench/reason.ts` remains the reasoner for
+  the benchmark — do not write a second one — and Sonnet 4.5 is pre-4.6, so
+  `output_config.effort` **errors** on it and `thinking` must be omitted rather than configured.
+  The fleet runs Haiku 4.5, which is a separate grant and a separate ARN.
 
 **Done when:** "each rung forced deliberately and each produces a working page; each
 brake fired deliberately and the demo stayed reachable; no credential field anywhere in
@@ -811,12 +845,22 @@ increase". It is: absorb overflow. Build for 10 and treat any lift as a bonus.**
 set on this account at *any* value — the unreserved floor is 10 and the ceiling is also 10
 — so the pool cannot be subdivided either, and the LIVE function cannot be given a
 physical cap of 2 the way §5 assumes. U14 deliberately substituted nothing.
-**This unit picks the replacement**, and §5 constrains the choice hard: whatever it is, it
-must target the LIVE reasoning function and nothing else, because a brake that disables
-the API, the SPA, the read path or the cluster is a rules violation under B4. API Gateway
-route-level throttling is the obvious candidate and has not been evaluated.
-A fifth rung is the likely shape — concurrency exhausted → a queued or cached page that
-says so — and it must not be an error status, per invariant 1.
+**This unit deferred picking the replacement to U24, and U24 settled it** — the reasoning is
+in `scripts/gate-ladder.mts` above the check that asserts it. §5 constrains the choice hard:
+whatever it is must target the LIVE reasoning function and nothing else, because a brake that
+disables the API, the SPA, the read path or the cluster is a rules violation under B4. The
+answer is that brake 1's *intent* is met by three things that now exist, none of them a
+concurrency reservation:
+- the **global LIVE run counter**, which bounds *spend* and touches nothing else. Past the cap
+  a visitor gets a REPLAY run and a sentence saying why; the database, the API, the SPA and the
+  read path are untouched, which is exactly what B4 requires of a cost control.
+- the account's own **10-slot concurrency ceiling**, which bounds *fan-out* — the physical
+  property §5 wanted brake 1 for — by accident of the very restriction that falsified brake 1.
+- **`LiveReasoningPolicy`**, a managed policy in `infra/cdk/` attached to the fleet runner's
+  role and to nothing else, whose detachment stops model calls and stops nothing else.
+API Gateway route-level throttling was the obvious candidate and was not needed. **No fifth
+rung was added**: rung 1b forces the runtime shape of the third of those, and what a visitor
+gets is a completed run authored from reviewed patches, not an error status.
 **The last clause of the done-when is a separate act:** a private window, on a machine
 that never touched this project. Not localhost, not a logged-in browser.
 
@@ -1273,50 +1317,107 @@ renders them yet. The naive lane's `fileCollisions` is the number that makes its
 as evidence rather than as bad luck, and `conflicting_edits` must be labelled as the benchmark's
 metric or a reader will take its 0 as a contradiction.
 
-### U24 — LIVE: the run counter, the capability link, the metered cap 🔶 **prerequisite re-verified 2026-08-16; LIVE runner still open**
+### U24 — LIVE: the run counter, the capability link, the metered cap ✅ 2026-08-16
 **Done when:** "one metered LIVE run exists and the cap is derived from it, not estimated."
 *(design §11, verbatim)*
 **Specs:** `04` §5, `05` §5, `07` §4
 **Already banked from U17 (V36):** the counter table exists — `live_run_budget`, one row per
 UTC day, atomic check-and-increment, `cortex_demo` confined to today's row with no DELETE. The
 Bedrock rate is measured and no longer TBD: **$3.30 per 1M input, $16.50 per 1M output.**
-**What this unit must still do:** re-derive the cap. `LIVE_RUNS_PER_DAY = 10` was measured
-against the *old* five-call scenario and is wrong for this workload by roughly an order of
-magnitude — at design §7.3's 50 model calls per run it is **$0.495 per run measured**, so ten
-a day for 34 days is **$168** and single-digit dollars is about **18 runs for the whole
-event**. Design §7.3's formula is `cap = remaining LIVE budget ÷ measured cost of one metered
-run`, and the metered run is this unit's job. Julian's call on 2026-08-12 was to leave the
-constant at 10 until then, because it gates nothing — no route calls `authoriseLiveRun`.
-**Verify live first:** `npm run probe:reason` — entitlement is an account fact that can change
-without this repository knowing — and then the metered run's own Bedrock `usage` figures.
-**V54 re-verified that first prerequisite:** the live probe reached the entitled Sonnet 4.5
-model in 2104ms and returned Bedrock usage (31 input, 14 output tokens). It did **not** satisfy
-this unit's done-when. The fleet runner still exports `RUNNER_MAKES_MODEL_CALLS = false`, returns
-`wastedTokens: null`, and has IAM permission for Titan embeddings only; there is therefore no
-LIVE fleet run whose cost can be measured. The route still never calls `authoriseLiveRun`, and
-the stack contains neither the capability secret nor a Budget resource. The old cap stays at 10
-because changing it before the metered run would put another estimate into config.
 
-**The implementation boundary is now explicit rather than guessed.** Completing U24 needs one
-reasoning contract for the design's read → decide → patch calls, a LIVE-only execution boundary
-that brake 3 can stop without disabling public replay, and a decision about how the whole-event
-budget produced by §7.3 is enforced by the already-chosen per-UTC-day counter. None is supplied
-by the current runner, and silently choosing among them would be an architecture change rather
-than finishing a wired path.
+**Closed by two real LIVE runs on 2026-08-16, both arms, eleven tickets each, against the real
+cluster and real Bedrock** (`0ded856`, committed just after midnight). From Bedrock's own
+`usage`: **16 model calls, 36,892 input and 10,255 output tokens**, which at the measured rate is
+**$0.2910 a run**. `METERED_LIVE_RUN` in `src/memory/live-budget.ts` carries those figures, and
+`LIVE_RUNS_PER_DAY` is **computed** from them by design §7.3's own formula — `cap = LIVE budget ÷
+measured cost of one metered run` — so at `LIVE_BUDGET_USD = 9` it comes out at **30**. The cap is
+a literal nowhere, test included: `test/live-budget.test.ts`'s old
+`expect(LIVE_RUNS_PER_DAY).toBe(10)` is gone, replaced by a recomputation of the formula, because
+a literal there would have gone on passing through exactly the drift this entry used to record.
+**If the metered run were `null` or free the cap computes to 0 and LIVE is simply unavailable** —
+design §7.3's "until both exist, the config carries TBD and LIVE stays disabled", expressed as a
+value rather than a comment.
+
+**Two of the sixteen calls are charged rather than reported, and that correction is what makes
+this a measurement.** `modelAuthor` threw on `stop_reason === 'max_tokens'` *above* its own
+return, so a truncated call was billed by AWS and reported to nobody. Metering from
+`AuthorResult.usage` alone came out at **$0.2478** against a true **$0.2910** — enough to move
+the derived cap by a whole run. Truncation is now reported rather than thrown, the answer is
+still refused, and `scripts/gate-ladder.mts` charges those calls at a bound rather than an
+estimate: output at exactly `FLEET_MAX_OUTPUT_TOKENS`, which is *why* the call stopped, and
+input at the largest prompt any call in the run reported. A cost model that under-reports is
+worse than one that estimates, because it looks measured.
+
+**Two runs minutes apart reported the same 30,506 measured input tokens, the same 16 calls and
+the same 2 truncations** — the prompt is the corpus and the ticket, so the input side is
+deterministic; only the output moved, 7,455 then 8,915. The committed figures are the second
+run's, so this is **not** a worst case. It is nonetheless conservative overall, because it is
+priced at Sonnet 4.5's confirmed rate while the fleet runs Haiku 4.5, whose own line had not yet
+appeared in Cost Explorer. That substitution makes the cap a **floor**: when the Haiku rate
+lands it can only rise. Re-derive if the corpus, the ticket set or the prompt changes.
+
+**Authorship quality, worth knowing before U19's recording: 10 of 16 and then 12 of 16 hunks
+were actually model-authored.** The rest fell back — three "response was not JSON", two
+truncations — and the meter partitions them, so the page can say which.
+
+**The route calls `authoriseLiveRun` now**, which is the half of this that used to gate nothing:
+`src/demo/api.ts` authorises, and `infra/lambda/runner.ts` **re-compares the capability against
+its own copy of the secret**, because it receives a payload it cannot authenticate and a
+`live: true` field in it would be a claim rather than a proof. Neither module imports the other;
+both import `src/memory/live-budget.ts`. The capability is `live` on the query string, compared
+with `timingSafeEqual` behind a length guard, never interpolated, never echoed, never logged; an
+anonymous run and a wrong-token run are byte-identical and neither mentions that a gate exists.
+**The stack carries both pieces it used to lack:** the capability secret, as a
+`{{resolve:secretsmanager:...}}` dynamic reference, and brake 3's Budget, budget action and
+`LiveReasoningDenyPolicy` (`ec9e15b`).
+
+**The arithmetic forced the decision this entry refused to guess at.** A whole-event budget is
+**not** honestly enforced by a per-UTC-day counter, and the measurement proves it where the
+argument could not: the obvious construction, `cap = budget ÷ (days × cost)`, comes out at
+**0.9978**, which floors to zero. There is no daily integer meaning "thirty runs over thirty-one
+days" — a daily counter cannot express a cumulative budget, and at this budget and this cost it
+quantises to nothing at all or to the whole thing. So brake 2 is given the job it can do, bound
+the day, and the cumulative bound stays where `04` §5 put it, on brake 3. Trying to make brake 2
+do brake 3's job is what produced the zero. **The residual, because there is always one:** AWS
+Budgets evaluate against cost data that refreshes a few times a day, so brake 3 is a *bound*, not
+an interlock, and spend can overshoot inside one refresh window.
+
+**Settled here, which is what U17 deferred:** the global counter is **part of** `04` §5's brake 1
+replacement and not the whole of it. Design §7.2 said it might be and refused to assume; the
+answer, with the reasoning in `scripts/gate-ladder.mts`, is the counter (bounds spend) plus the
+account's own 10-slot concurrency ceiling (bounds fan-out) plus `LiveReasoningPolicy`, attached
+to the fleet runner's role and nothing else. U17's entry carries the full form.
+**Rungs 1, 3 and 4 came with this unit**, because LIVE is what rung 1 exhausts:
+`npm run gate:ladder` forces all four rungs, a rung 1b and all three brakes — **36/36**.
+**A defect that gate found in a day-old file.** `cortexTicket` threw unconditionally when
+`applyAndSave` returned null, reasoning that a second cortex agent is deduped before it ever
+reads. True — while dedupe runs. Rung 2 skips dedupe by design, and the moment it does, the
+second half of a dedupe pair proceeds exactly as the naive lane's does and finds its anchor gone.
+So the rung `04` §5 singles out as the one most likely to fire unnoticed produced a **throw
+behind the run button**, which is §5 invariant 1's own failure. It now throws only with a real
+embedding, and reports the degraded case the way the naive lane reports the same event; that work
+counts as duplicate work done, because it was.
+**Verify live first:** `npm run probe:reason` — entitlement is an account fact that can change
+without this repository knowing — and then the metered run's own Bedrock `usage` figures. **V54
+re-verified the first prerequisite** on 2026-08-16: the probe reached the entitled Sonnet 4.5
+model in 2104ms and returned Bedrock usage (31 input, 14 output tokens). It did not satisfy the
+done-when on its own, and said so; the metered fleet run above is what did.
 **Silent break:** the capability token. Three ways it goes wrong and each has cost this
 project or a sibling of it real time: it reaches an input element (invariant 8, and
 `test/site.test.ts` is the guard); it is interpolated into SQL or a template rather than
 **compared** (invariant 7 — a URL parameter is the most agent-reachable path there is); or it
 lands in `cdk.out/` as a template value instead of a `{{resolve:secretsmanager:...}}` dynamic
-reference, which is exactly how the first DSN arrangement leaked and why that rule exists.
-**Also settle here:** whether the global counter *is* `04` §5's brake 1 replacement. Design
-§7.2 says it may be and refuses to assume it; brake 1 as §5 writes it is falsified on this
-account (V26) and U17 substituted nothing.
-**And carry in a finding brake 3 depends on:** an AWS Budget filtered on the `Amazon Bedrock`
-service **will never fire**. The reasoning spend bills under `Claude Sonnet 4.5 (Amazon
-Bedrock Edition)`, a separate service; `Amazon Bedrock` carries only the Titan embedding line.
+reference, which is exactly how the first DSN arrangement leaked and why that rule exists. All
+three held: the token is compared, the page reduces it to a boolean before rendering and has zero
+input elements, and the secret is a dynamic reference.
+**And the finding brake 3 depended on was spent, not just carried.** An AWS Budget filtered on
+the `Amazon Bedrock` service would never have fired, because that service carries only the Titan
+embedding line. `aws ce get-dimension-values --dimension SERVICE` returned all three names, so
+the Budget filters on `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon
+Bedrock Edition)` exactly. Sonnet is included although the fleet runs Haiku, because
+`bench/reason.ts` calls Sonnet and a brake that ignores half the reasoning bill has a hole.
 
-### U25 — The new SPA 🔶 **implementation complete 2026-08-16; independent cold read still open**
+### U25 — The new SPA 🔶 **implementation complete 2026-08-17; independent cold read still open**
 **Done when:** "the four beats read clearly to someone who has not seen it."
 *(design §11, verbatim — the same sentence U16 was held to)*
 **Specs:** `07` §2, `07` §3, `02` §B
@@ -1349,11 +1450,32 @@ accepts tenant-scoped committed rows from both. That prevents duplicate fleet ev
 the naive arm's real changefeed rows visible. Both final states and SQL transcripts were already
 fetched per scope; the missing second row stream was the last browser-to-system wiring gap.
 
+**Two things the run could always prove and the page never showed, added 2026-08-17 (`6096bd3`).**
+A **timeline**: one lane per agent per arm on a shared scale, every bar built from the fleet
+events already on the wire. A blocked span draws to the holder; a deduped or spared agent's bar
+**stops early**, and the empty remainder is the point, because that is time and money never spent;
+collision bands mark where two naive agents' read→save windows overlap on one file, and the cortex
+lane has none because a cortex agent holds its claim across read, work and save. Nothing is
+manufactured for the comparison — there is no synthetic serial baseline, because a made-up "what
+this would have cost sequentially" is precisely the fabrication `07` §1 forbids. And the **mode
+line inverted, and had to**: it used to append a fixed sentence saying a person wrote and reviewed
+the code, which was true while the runner made no model call and false the moment `modelAuthor`
+runs. It is now derived per run — whether the code was model-authored or replayed, that database
+behaviour, arbitration, races and the changefeed are live in **both** modes, and how many hunks
+the model actually wrote versus how many fell back. Varying outcomes are framed before the run
+rather than excused after it: an uninformed model sometimes gets the money representation right
+and interlock 1 honestly does not fire, so the page distinguishes "not observed on this run" from
+"did not happen" from "not measured", the discipline the meter already applied to measured zero,
+N/A and TBD. 86 site tests; the inline script is parsed with `node --check`, because a syntax
+error there renders a blank frame with no error anywhere; zero inputs, forms, textareas or
+selects, asserted against the source.
+
 **Why this remains partial:** Julian approved the direction and supplied the judge-facing
 revision, but the done-when specifically requires someone unfamiliar with the project. V53/V55
 prove the bindings, security surface, syntax and result derivation; they do not turn an owner read
-into an independent cold read. The current deployed page is unchanged, as design decision 7
-requires, until U26.
+into an independent cold read. Design decision 7 held the old page in front of visitors until the
+new one passed its checks; the new page has been the deployed one since V56, and U26 carries the
+deploy.
 
 **If time runs out, this is what gets cut** (design §11). The current page then renders the new
 run through its existing three panels: uglier, real, already gate-passed, and nothing built is
@@ -1366,25 +1488,43 @@ Design §9 motion rule 3 — beat 3's winner is decided by the unique index, so 
 be pre-positioned to win, and a page that animates one is depicting a determinism the system
 does not have. Rule A7.
 
-### U26 — Deploy and cold read 🔶 **deployed 2026-08-16; Julian's cold run still open**
+### U26 — Deploy and cold read 🔶 **redeployed 2026-08-17; Julian's cold run still open**
 **Done when:** "Julian opens the deployed page cold and the run reads." *(design §11, verbatim)*
 **Specs:** `02` §B, `04` §5
 **Verify live first:** `node infra/bundle.mjs` before `npx cdk deploy`. Nothing runs it
 automatically and a stale bundle deploys silently, which is why the handler carries a
-`BUNDLE_REVISION` bumped by hand.
+`BUNDLE_REVISION` bumped by hand — and why that marker is not sufficient on its own, below.
 **Silent break:** the deploy appearing to succeed while serving the previous bundle. U14 built
-the revision marker for this and it only helps if it is bumped.
+the revision marker for this, and **the break happened anyway on 2026-08-17, in the one shape
+the marker cannot catch** — see below.
 **This one cannot be closed by a script**, exactly as U16 could not. Design §13 names the risk
 plainly: the rebuilt page may be correct and less readable than the one it replaces, and only a
 cold read rules that out.
 
 **Published in V56:** https://d11xbslgdgomdp.cloudfront.net. The deployment injected the current
 CloudFormation API and WebSocket outputs, invalidated the distribution, and a cache-busted fetch
-returned the new two-scope runtime, judge workflow and CORTEX hub at HTTP 200. Immediately before
-publication, `npm run gate:async` passed the complete hosted runner path: anonymous two-scope
-session, 202 in 542ms, 98 fleet events across both arms, one terminal event, zero undelivered and
-43 real changefeed rows. **Still required to close this unit:** Julian opens that URL without
-project context, runs it once, and says whether the four beats read.
+returned the new two-scope runtime, judge workflow and CORTEX hub at HTTP 200.
+
+**Redeployed 2026-08-17 (`f09fe34`), because the deployed runner was serving the headline claim
+inverted.** `e35cacc` fixed `lostWrites` at 01:27; the bundles were built at 00:59 and
+CloudFormation last updated `DemoFn` and `RunnerFn` at 01:02 — twenty-five minutes before the fix
+existed. So the public URL had been serving the accounting error the whole time, and in LIVE mode
+it reported **CORTEX losing more writes than the naive lane**. Proved rather than inferred, both
+ways: `aws lambda get-function` on `RunnerFn`, unzipped, `grep -c writtenByTicket` returned **0**
+before and **4** after, against 4 in the tree. Demo revision 7 → 8, runner 4 → 5.
+**`BUNDLE_REVISION` could not have caught this, and the constant's own comment now says so.** The
+marker is bumped when a *handler* file is edited. `e35cacc` edited `src/demo/workload.ts`, which
+is merely **bundled into** the runner — deployed behaviour changed while `infra/lambda/runner.ts`
+did not, so the marker read 4 on both sides of the fix. It proves a deploy landed; it does not
+prove the bundle is current with the tree. The check that does is downloading the deployed bundle
+and grepping it for the fix's own symbol.
+**`npm run gate:async` passed against the redeployed stack**: 90 fleet events, one terminal
+message and nothing after it, 43 real changefeed rows, cortex **0** collisions against naive
+**2**. The gate runs REPLAY, where the two sides of the `lostWrites` readback are the same string,
+so it cannot exercise the fix — the bundle grep is the evidence that the fix is deployed, and a
+LIVE run is what exercises it.
+**Still required to close this unit:** Julian opens that URL without project context, runs it
+once, and says whether the four beats read.
 
 ---
 
@@ -1492,8 +1632,15 @@ the video to show the project **functioning**, and A7 requires it to function as
   socket in ~126ms — and it is far more convincing than the architecture diagram it
   corresponds to. Run it after `npm run changefeed status` shows a running job.
 - **A credential-shaped field being refused by the hosted API**, in one `curl`:
-  `-d '{"dsn":"postgresql://u:p@h/db"}'` comes back 400 with the reason. `02` B3 is a
-  rule most submissions can only assert; this shows it being enforced.
+  a credential-shaped value on the body or the query string comes back 400 naming the field.
+  `02` B3 is a rule most submissions can only assert; this shows it being enforced. Do not
+  paste the string into this file to describe the take — quote the verdict.
+- **`npm run gate:ladder`** (new, from U24). All four of `04` §5's degradation rungs, a rung 1b
+  and all three brakes forced deliberately in one command: **36/36**, and every rung ends in a
+  working page rather than an error. `npm run gate:degrade` is the same script under its older
+  name. It is the shortest evidence for the whole guardrail story, which is otherwise a
+  paragraph of claims. Only `-- --meter` calls a reasoning model; the plain run spends
+  embeddings and cluster time, so a take costs nothing that needs rationing.
 
 ### U20 — Devpost description, B10 and B11 answers, feedback field ✅ 2026-08-16
 **Closed by `docs/submission-devpost.md`** — the description, the B10 and B11 answers, the
