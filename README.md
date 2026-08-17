@@ -146,11 +146,47 @@ embeddings. The only difference is where the shared state lives. Model reasoning
 replayed; **database behaviour is live in both arms** — the NAIVE arm really does lose
 writes to its JSON file and is not scripted to.
 
+### Where this loses
+
+The claim is not that arbitration beats isolation. It is that **arbitration wins above a
+coordination-risk threshold, and below it ordinary isolation is faster** — `p · L > H + B`,
+where `p` is the chance two agents working independently cause a costly integration
+failure, `L` the cost of repairing one, `H` the overhead every proposal pays whether it
+was needed or not, `B` the expected cost of blocking and of false dedupe.
+
+Take `H` at `claim_p50` above, 732 ms — a floor, since a proposal also embeds its statement
+and that latency is uncontended — and `B` at zero, both generous to CORTEX. Break-even is
+then **p > 1.2%** against a sixty-second repair and **p > 0.24%** against a five-minute one.
+This corpus was built with 43.3% contending tasks so the failure modes occur at all, which
+puts it far above its own break-even. A repository with little overlap sits below the line,
+and there this mechanism is overhead.
+
+The worst thing it can do is not slowness. **A false dedupe does not delay work — it tells
+an agent that work it was about to start is already done.** That asymmetry is why the
+dedupe constant is chosen for precision, and why the sweep publishes false positives rather
+than only catches.
+
 ### Limitations, stated by the author
 
 These are quoted from the same `summary.md`. They are load-bearing, not decoration, and
-two of the rows above mean less than they look like they mean.
+several of the rows above mean less than they look like they mean.
 
+- **The duplicate pairs were revised after their distances were measured.** The six
+  equivalent pairs were written first and then embedded, and nothing separated — all six
+  landed between 0.4380 and 0.7068 with the closest non-pair at 0.4293. Rewritten as
+  ordinary rephrasings rather than adversarial ones they separate at (0.3630, 0.4293).
+  Reading them aloud never revealed it; only measuring did. So this corpus's positives were
+  chosen partly on the detector's own scores, and `duplicate_work_rate` is measured in part
+  on cases the corpus was shaped to catch. An externally authored corpus is what would
+  settle it, and this is not one.
+- **The NAIVE arm here is "no coordination", not "worktree isolation"** — a shared JSON
+  file with last-write-wins, a local vector store, no arbitration and no dedupe. The hosted
+  demo compares against a different baseline (a vector store plus a job lock, in two
+  transactions). Neither is a measurement of git worktrees and this table is not one.
+- **`lost_writes` counts bytes actually overwritten**, not features lost after a clean
+  merge — the naive arm rewrites the shared file whole from a stale snapshot. Nothing in
+  this harness integrates branches, so clean-merge feature loss is measured elsewhere, by
+  executing the composed application rather than by diffing it.
 - **Small synthetic corpus.** 40 fixture files, 30 tasks, one workload shape. Overlap was
   chosen so the failure modes appear at all; a repository with less overlap would show
   less difference.

@@ -108,8 +108,61 @@ followed the other. All four are in this directory.
 None at this seed. That is a claim about one workload at one seed, not about
 the mechanism; the limitations below are the honest reading of it.
 
+## Where this mechanism loses
+
+Every figure above comes from one workload built with deliberately high overlap, so
+the honest claim is not that arbitration beats isolation. It is narrower, and it has
+a threshold.
+
+**Arbitration pays when `p · L > H + B`** — `p` the probability that two agents
+working independently cause a costly integration failure, `L` what repairing one
+costs, `H` the overhead arbitration charges every proposal whether or not it turned
+out to be needed, `B` the expected cost of blocking and of false dedupe.
+
+`H` is **at least** `claim_p50` above, 732 ms, and really larger: a proposal also
+embeds its statement, and this harness serialises, so that latency carries no
+contention. Taking `H` at that floor and `B` at zero — both generous to CORTEX —
+break-even is **p > 1.2%** against a sixty-second repair and **p > 0.24%** against a
+five-minute one. Below its own break-even this mechanism is overhead and ordinary
+isolation is faster.
+
+Nothing in the table contradicts that. The corpus was built with 43.3% contending and
+20.0% redundant tasks (`06` §4) so that the failure modes occur at all; a repository
+with less overlap sits lower on that curve, and below some point it sits under the
+line.
+
+The sharpest case against this mechanism is not slowness. **A false dedupe is the
+most expensive thing it can do** — it does not delay work, it tells an agent that
+work it was about to start is already finished. That asymmetry is why the dedupe
+constant is chosen for precision rather than recall, and why the sweep beside this
+file publishes its false positives rather than only its catches.
+
 ## Limitations, stated by the author
 
+- **The duplicate pairs were revised after their distances were measured, and that
+  bounds what `duplicate_work_rate` proves.** The six semantically-equivalent pairs
+  were written first and then embedded: all six landed between 0.4380 and 0.7068 with
+  the closest non-pair at 0.4293, so nothing separated. They were rewritten as
+  ordinary rephrasings rather than adversarial ones, and now separate at (0.3630,
+  0.4293). Reading them aloud never revealed it; only measuring did. It is disclosed
+  here rather than smoothed over, and it is a real limit rather than a formality:
+  these positives were selected conditional on the detector's own scores, so this row
+  measures the mechanism partly on cases it was shaped to catch. An externally
+  authored corpus is what would settle it, and this one is not that.
+- **The NAIVE arm here is "no coordination", not "worktree isolation".** `06` §2
+  defines it as a shared JSON file with last-write-wins, a separate local vector
+  store, no arbitration and no dedupe, and that is what `bench/arms/naive.ts`
+  implements. The hosted demo compares against a **different** baseline — a vector
+  store plus a job lock, running the same two statements in two transactions — so the
+  two answer two different questions. Neither is a measurement of git worktrees, and
+  this table should not be read as one.
+- **`lost_writes` counts bytes actually overwritten, not features lost after a clean
+  merge.** The naive arm rewrites the shared JSON file whole from a pre-work snapshot,
+  so a completion record is literally clobbered by a stale one, and the metric is the
+  set difference over what survived. It is not a measure of two correct patches
+  merging cleanly into a broken tree: nothing in this harness integrates branches at
+  all. That failure mode is real and is measured elsewhere, by executing the composed
+  application rather than by diffing it.
 - **Small synthetic corpus.** 40 fixture files, 30 tasks, one workload shape.
   Overlap was chosen so the failure modes appear at all (`06` §4); a repository
   with less overlap would show less difference, and that is a real caveat rather
