@@ -86,7 +86,7 @@ interface HttpResult {
  * Bumped by hand on each redeploy, as the identity handler's is. Without it a redeploy
  * and a no-op are indistinguishable from outside.
  */
-const BUNDLE_REVISION = 7;
+const BUNDLE_REVISION = 8;
 
 function decodeBody(event: HttpEvent): unknown {
   if (!event.body) return undefined;

@@ -45,7 +45,16 @@ interface LambdaContext {
   getRemainingTimeInMillis?: () => number;
 }
 
-const BUNDLE_REVISION = 4;
+/**
+ * Bumped by hand on each redeploy, as the demo and identity handlers' are.
+ *
+ * It cannot detect every stale deploy, and 2026-08-17 is why this says so. `e35cacc` fixed
+ * `lostWrites` in `src/demo/workload.ts`, which is bundled *into* this handler — deployed
+ * behaviour changed while this file did not, so the marker read 4 on both sides of the fix
+ * and the deployed runner reported the project's headline claim inverted. The marker proves
+ * a deploy landed; it does not prove the bundle is current with the tree.
+ */
+const BUNDLE_REVISION = 5;
 
 /**
  * How much of the sandbox's remaining life is reserved for ending the run properly.
