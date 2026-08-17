@@ -82,6 +82,11 @@ export interface Contested {
   holder: string;
   intentId: string;
   expiresAt: Date;
+  /**
+   * What the holder said it was doing. Null only if the intent row is unreachable — see
+   * `CONTESTED_HOLDERS_SQL`, which left-joins rather than dropping the contested key.
+   */
+  holderStatement: string | null;
 }
 
 export type ProposeResult =
@@ -181,11 +186,30 @@ export const CLAIM_ACQUIRE_SQL = `INSERT INTO claims (repo_id, resource_key, int
           WHERE claims.expires_at <= now()
          RETURNING resource_key, expires_at`;
 
-/** Who holds the keys an agent could not get. Invariant 3, and shared with the naive lane. */
-export const CONTESTED_HOLDERS_SQL = `SELECT resource_key, holder, intent_id, expires_at
-       FROM claims
-      WHERE repo_id = $1 AND resource_key = ANY($2::STRING[])
-      ORDER BY resource_key`;
+/**
+ * Who holds the keys an agent could not get. Invariant 3, and shared with the naive lane.
+ *
+ * The join carries the holder's **statement**, not just its id. Invariant 3 is "a blocked agent
+ * learns the holder and its intent, so it can re-plan rather than poll" — and a bare UUID is not
+ * an intent an agent can re-plan around. It cannot dereference one either: reads go through
+ * `cortex_reader` (`04` §2), so an id returned on the write plane names a row this agent has no
+ * tool here to fetch. The skill promised the statement before this query returned it; a real
+ * fleet run in V63 is what caught the gap.
+ *
+ * **LEFT, not INNER.** An inner join drops a contested key whose intent row cannot be seen, which
+ * turns "someone holds this" into "nothing holds this" — invariant 3 failing open, silently, in
+ * exactly the case it exists for. A null statement is a worse answer than a full one and a far
+ * better one than a missing row.
+ *
+ * Invariant 5 holds on both sides: `c.repo_id = $1` filters the claims, and the join predicate
+ * pins the intent to the same repo rather than trusting the id to be unique across tenants.
+ */
+export const CONTESTED_HOLDERS_SQL = `SELECT c.resource_key, c.holder, c.intent_id, c.expires_at,
+             i.statement AS holder_statement
+       FROM claims c
+       LEFT JOIN intents i ON i.repo_id = c.repo_id AND i.id = c.intent_id
+      WHERE c.repo_id = $1 AND c.resource_key = ANY($2::STRING[])
+      ORDER BY c.resource_key`;
 
 async function findDuplicate(
   client: PoolClient,
@@ -225,6 +249,7 @@ async function contestedHolders(
     holder: row.holder as string,
     intentId: row.intent_id as string,
     expiresAt: row.expires_at as Date,
+    holderStatement: (row.holder_statement as string | null) ?? null,
   }));
 }
 

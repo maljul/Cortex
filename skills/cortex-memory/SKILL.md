@@ -113,9 +113,19 @@ The outcome is the answer to your task, and if it says the work was reverted, th
 still the answer.
 
 **`blocked`** — another agent holds one or more of your keys. The decision names the
-holder, their intent, and when their lease expires. **Re-plan around the contested
-keys**: work on something else, split your task to touch only the keys you can get, or
-wait for the named expiry if there is genuinely nothing else to do.
+holder, `holderStatement` — what they are actually doing, in their words — their intent
+id, and when their lease expires. **Re-plan around the contested keys**: read the holder's
+statement, then work on something else, or split your task to touch only the keys you can
+still get.
+
+**Do not sleep until `expiresAt`.** It is an upper bound, not an estimate. A holder that
+finishes calls `cortex_close`, which releases its claims in the same transaction — so the
+key is normally free long before the lease lapses, and **nothing will tell you when**. The
+lease is what expires if the holder *dies*; it is not a schedule. Waiting it out is the
+one delay guaranteed to be longer than the work requires, and the cost is measured: an
+agent that followed an earlier version of this paragraph idled **8m51s** on a key that was
+already free. If the contested keys are genuinely the only thing you can work on, say so
+and stop — an agent that reports a block is worth more than one that sleeps through it.
 
 **Never poll, and never retry through a block.** A block is a normal return value, not
 an error. Retrying it in a loop turns a fleet into a queue, which is the exact failure

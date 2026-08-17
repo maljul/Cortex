@@ -190,6 +190,11 @@ export async function naiveClaim(input: NaiveProposeInput): Promise<NaiveClaimDe
           holder: row.holder as string,
           intentId: row.intent_id as string,
           expiresAt: row.expires_at as Date,
+          // Same statement, same columns, same shape as `propose()`. This lane never
+          // surfaces the field, so carrying it changes nothing here — but dropping it
+          // would make the two lanes read different rows out of one query, which is the
+          // drift `06` §2 forbids.
+          holderStatement: (row.holder_statement as string | null) ?? null,
         })),
       };
     }

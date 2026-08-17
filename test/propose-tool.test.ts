@@ -209,8 +209,16 @@ describe('cortex_propose over stdio', () => {
     expect(second.decision).toBe('blocked');
     // `05` §1: contested: Array<{ key, holder, intentId }>. Without the holder the
     // only thing a blocked agent can do is poll.
+    // `holderStatement` crosses the boundary with the id. The id alone cannot be
+    // dereferenced from the write plane — `04` §2 puts reads on `cortex_reader` — so an
+    // agent handed only an id has nothing to re-plan around. V63 watched one wait instead.
     expect(second.contested).toEqual([
-      expect.objectContaining({ key, holder: 'agent-1', intentId: first.intentId }),
+      expect.objectContaining({
+        key,
+        holder: 'agent-1',
+        intentId: first.intentId,
+        holderStatement: UNRELATED.a,
+      }),
     ]);
   });
 

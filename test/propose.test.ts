@@ -124,6 +124,46 @@ describe('propose — arbitration (§4.2)', () => {
     if (first.decision === 'granted') {
       expect(second.contested[0]!.intentId).toBe(first.intentId);
     }
+    // Invariant 3 says the blocked agent learns the holder *and its intent*. An id is not
+    // an intent it can act on — the write plane has no tool to dereference one, so before
+    // this the only thing a blocked agent could do with it was wait (V63, 8m51s).
+    expect(second.contested[0]!.holderStatement).toBe('rewrite the login route');
+  });
+
+  // The left join in CONTESTED_HOLDERS_SQL is load-bearing: an inner join would drop this
+  // row entirely and report "nothing holds the key" to an agent that is, in fact, blocked.
+  // Forced by deleting the intent out from under a live claim, which no code path does but
+  // which is exactly the state an inner join fails open on.
+  it('still names a contested key whose intent row cannot be read', async () => {
+    const repo = freshRepo();
+    const first = await propose({
+      repoId: repo,
+      agentId: 'agent-1',
+      statement: 'hold the key while the intent goes missing',
+      resourceKeys: ['file:src/orphan.ts'],
+      embedding: vector(11),
+    });
+    expect(first.decision).toBe('granted');
+    if (first.decision !== 'granted') return;
+
+    await getPool().query('DELETE FROM intents WHERE repo_id = $1 AND id = $2', [
+      repo,
+      first.intentId,
+    ]);
+
+    const second = await propose({
+      repoId: repo,
+      agentId: 'agent-2',
+      statement: 'a wholly different piece of work on the orphaned path',
+      resourceKeys: ['file:src/orphan.ts'],
+      embedding: vector(888),
+    });
+
+    expect(second.decision).toBe('blocked');
+    if (second.decision !== 'blocked') return;
+    expect(second.contested).toHaveLength(1);
+    expect(second.contested[0]!.holder).toBe('agent-1');
+    expect(second.contested[0]!.holderStatement).toBeNull();
   });
 
   // §8 test 2 + §4.2 invariant 1

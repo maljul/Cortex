@@ -62,8 +62,12 @@ const IMPLEMENTED_BY: Record<string, string> = {
  * docs/SPEC-DELTA.md rather than reconciled by choosing one and ignoring the other.
  *
  * Fields §1 does not list are added, never renamed: `distance` and `status` on a
- * dedupe, `expiresAt` on a contested key. The last one is what lets a blocked agent
- * decide whether to re-plan or to come back, which is invariant 3's whole purpose.
+ * dedupe, `expiresAt` and `holderStatement` on a contested key. Those last two are what
+ * let a blocked agent decide whether to re-plan or to come back, which is invariant 3's
+ * whole purpose — and `holderStatement` is the half that makes re-planning possible at
+ * all, because an intent id cannot be dereferenced from the write plane (`04` §2 puts
+ * reads on `cortex_reader`). V63 measured an agent given only the id: it waited out the
+ * lease instead.
  */
 function asDecision(result: ProposeResult): Record<string, unknown> {
   switch (result.decision) {
@@ -91,6 +95,7 @@ function asDecision(result: ProposeResult): Record<string, unknown> {
           holder: contested.holder,
           intentId: contested.intentId,
           expiresAt: contested.expiresAt.toISOString(),
+          holderStatement: contested.holderStatement,
         })),
       };
   }
