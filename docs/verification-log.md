@@ -6573,3 +6573,111 @@ Two links added to the topbar, deployed, and read back from CloudFront with a ca
 anchors present, and `<input`/`<form` count **0** on the served HTML. Invariant 8 against the
 bytes a visitor receives, which is stronger than the source scan `test/site.test.ts` performs.
 The links resolve only once the repository is public, which is still Julian's act.
+
+## V63 — CORTEX driven by real model agents, and three defects only that could find
+
+**2026-08-17/18.** Every harness in this repository until now either replays cassettes
+(`bench/`), makes no model call on purpose (`gate:workload`), or runs two scripted `tsx`
+processes (`gate:contend`). None of them tests the thing the tool descriptions claim to be:
+prompt surface that makes an unmodified agent call `cortex_propose` before it writes a file.
+Four agents per arm were handed `skills/cortex-memory/SKILL.md` and a ticket, and were
+**never told to use CORTEX**. A naive control arm ran the same tickets with no MCP tools, so
+a null result was falsifiable. Seven predictions were written down before the run.
+
+**Evidence status, stated plainly.** The session scratchpad holding the agent transcripts
+and the readback SQL output was cleared before this entry was written, so the figures below
+are reconstructed from the run rather than pasted from a live terminal. V62 exists because
+entries were once written from commit messages instead of from a re-run; this entry is
+marked the same way rather than dressed up as pasted output. The two distances are the ones
+worth re-deriving with `npm run measure:statements` before anything is built on them. What
+is **not** reconstructed is everything in the three sections below marked *(re-verified)* —
+those were re-run against the cluster while making the fixes, and are quoted from that.
+
+### The mechanism worked, unprompted
+
+| agent | decision | evidence |
+|---|---|---|
+| c1 | `deduped` | distance **0.0906**, holder c2, status `in_flight` — adopted the outcome and made no edit |
+| c2 | `granted` | closed `done`, keys released |
+| c3 | `blocked` | holder named, re-planned, **re-read the file before writing** |
+| c4 | `granted` | proposed 12:19:46.421, wrote 12:20:02 — propose precedes write, settled by timestamp |
+
+Six of seven predictions held. c3 is the one worth keeping: blocked, it re-read rather than
+writing from its pre-block copy, and said so — *"Had I edited from my pre-block read, I would
+have reverted both silently, with no error."* That is invariant 3 doing the job it exists for.
+
+**The dedupe threshold survives agent-authored statements.** A true duplicate at **0.0906**;
+different work on the same file at **0.5830**. `DEFAULT_DEDUPE_THRESHOLD` is 0.39, with room
+on both sides. V23 set that constant from statements written by hand for the sweep; this is
+the first evidence it separates phrasing the agents produced themselves.
+
+### Three defects, and what each one cost
+
+**1. A blocked agent idles for the whole lease.** c2 released `file:lib/money.js` at 12:19:05;
+c3 re-proposed at 12:27:56 — **8m51s on a key that was already free**. c3 was not
+misbehaving: SKILL.md §4 told it to *"wait for the named expiry if there is genuinely nothing
+else to do"*, and §6 told it never to poll. There is no non-polling way to wait — the
+changefeed watches `claims`, but a release is a `DELETE` and the sink drops deletes because
+`after: null` carries no scope. `05` §4 never authorised waiting; it says re-plan, never poll.
+The clause was an unforced addition to the skill and is now deleted.
+*(re-verified)* Worse, §4 promised the decision *"names the holder, their intent"* while
+`CONTESTED_HOLDERS_SQL` returned an intent **id** — and the write plane has no tool to
+dereference one, since reads are `cortex_reader` (`04` §2). The query now left-joins
+`intents` for the holder's statement. LEFT, not INNER: an inner join would drop a contested
+key whose intent row is unreadable and report "nothing holds this" to an agent that is
+blocked — invariant 3 failing open in the one case it exists for. Both halves are tested,
+the null branch by orphaning a live claim.
+
+**2. A deduped proposal left no database trace.** Four agents, **three** intent rows.
+`intents.deduped_of` and `status = 'deduped'` were declared in `03` §2 and written by
+nothing: three references repo-wide, all reads, zero tests, always null — and the always-null
+field shipped to the browser over `GET /demo/state`, where the SPA never read it. `03` §4.2
+mandates ROLLBACK and `propose.ts` said so in a comment: *"a deduped intent leaves no row."*
+The consequence is that **duplicate work avoided — the headline claim — was not auditable
+from the database**, against `07` §1's "every number comes from the database"; it was a
+`.filter().length` over an in-process array. *(re-verified)* The row now commits on the same
+snapshot as the search that justified it, taking no claims. It is terminal with no new guard:
+`DEDUPE_CANDIDATE_SQL` admits only `in_flight` and `done`, `CONSOLIDATES` only `done` and
+`abandoned`, `close()` only `in_flight`. A chain test proves the first — a third proposal
+dedupes against the real work, never against the second's rejection.
+
+**3. Prediction P6 was falsified, and it narrows a published claim.** The naive control arm
+lost **no** writes. Cause: the agents' editing tool refuses a write to a file changed since it
+was read — one agent completed its whole task and was rejected at write time, another re-read
+and rebased. `06` §2 defines that arm as a JSON file with last-write-wins, so the published
+`lost_writes: 21 → 0` is measured against a baseline with **no optimistic concurrency at
+all**, weaker than a real fleet on a modern toolchain. What survives is a difference in
+**kind** — arbitration is explicit and holds whatever does the writing, where the toolchain's
+guard is per-file, per-tool and would not survive a shell redirect. This run does **not**
+demonstrate a difference in magnitude and must not be presented as one. Published as a
+limitation in `bench/results/`, in the generator as well as the artifact. No number moved.
+
+### Cost, reported straight
+
+CORTEX **307,059** tokens against naive **287,962** — **+6.6%**. Longest agent 772.8s against
+151.8s, almost all of it finding 1's idle. Both arms produced the same final tree. Both wasted
+roughly one agent on the duplicate ticket: CORTEX stopped c1 at *propose* (63,591 tokens),
+the control arm stopped n1 at *write* (73,840) — about 10k apart. Arbitration was not cheaper
+here. It was earlier, and it did not depend on which tool happened to do the writing.
+
+### What the run could not settle
+
+**c2's propose-versus-write ordering.** Its own ordered log shows `node --check lib/money.js`
+printing an edited header *before* its `cortex_propose` call — the one thing the tool
+description forbids. Timestamps cannot settle it, because c3 later overwrote the same file, so
+the mtime belongs to c3's write. c4's ordering *was* settled this way and was correct.
+**Re-run with per-write timestamps before believing either reading.**
+
+**The read half of the published skill is unusable as shipped.** All four agents independently
+found `CORTEX_READER_DSN` and `CORTEX_REPO` unset in their own environment. The MCP server
+loads `.env` itself, so writes worked; §2's recall SQL is issued by the *agent*, and nothing
+supplies it those variables. Every agent refused to fabricate a result, which is the right
+call and is also why the gap was visible. Not fixed here — it is a setup-surface question,
+not a code one.
+
+### The re-measured row cost *(re-verified)*
+
+`npm run gate:workload` after the change: **INVARIANTS 15/15, OBSERVED 13/13, 63361ms**, with
+`both scopes stayed inside the row cap — cortex 26, naive 32`. The cortex arm rose 24 → 26,
+exactly the two dedupes the run performs. **`FLEET_RUN_ROW_COST` stays 32**, because the naive
+lane bounds it and that lane writes no such row.

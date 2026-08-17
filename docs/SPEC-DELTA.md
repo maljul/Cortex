@@ -13,6 +13,38 @@ is not undone by a later reader.
 
 ## Open
 
+### `03` §4.2 says ROLLBACK on a dedupe; the dedupe now commits its own row *(2026-08-18, V63)*
+
+`03` §4.2 writes the dedupe branch as *"if min(dist) < DEDUPE_THRESHOLD, **ROLLBACK** and
+return `{ decision: 'deduped', … }`"*. `propose()` now inserts an intent with
+`status = 'deduped'` and `deduped_of` set, acquires no claims, and commits.
+
+**This resolves a contradiction inside `03` itself rather than departing from it.** §2
+declares `intents.deduped_of` with the comment *"set when status = 'deduped'"* and admits
+`'deduped'` in the `status` CHECK. §4.2's rollback makes both unreachable. The two cannot
+both be honoured, and the rollback reading had won by default since the schema was written:
+`deduped_of` was read by `src/memory/demo.ts` and written by nothing, always null, all the
+way to the browser over `GET /demo/state`.
+
+The reason for choosing §2's reading is `07` §1 — *every number comes from the database*.
+Duplicate work avoided is the claim this project leads with, and under §4.2 it was a
+`.filter().length` over an in-process array, checkable against the cluster by nobody.
+
+**Invariant 1 is untouched, and the distinction matters.** The invariant is that a similarity
+check and a claim insert never land in *different* transactions. This row is written on the
+same client, in the same `withRetry` callback, on the same snapshot as the search that
+justified it, and takes no claims. What would have falsified the thesis is rolling back and
+then writing the audit row from a second transaction — two transactions around one decision,
+which is the exact shape `src/memory/naive-lane.ts` exists to be the counterexample to.
+
+`'deduped'` is terminal without any new guard: `DEDUPE_CANDIDATE_SQL` admits only `in_flight`
+and `done`, `consolidate.ts`'s `CONSOLIDATES` only `done` and `abandoned`, and `close.ts`
+updates only `in_flight` rows.
+
+**Closes when:** `03` §4.2's dedupe branch is rewritten to commit the row it declares in §2,
+or §2 drops `deduped_of` and the `'deduped'` status and §4.2 stands. Reasoning in
+`docs/DECISIONS.md`, 2026-08-18.
+
 ### `07` §4's mode line claims cached reasoning that does not happen *(2026-08-12, U16)*
 
 §4 requires "an always-visible line in REPLAY: `replay mode: agent reasoning is cached, all

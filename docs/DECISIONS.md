@@ -1207,3 +1207,67 @@ beside a lost hunk, which cannot both be true.
 The window is the interval in which two agents can both believe they hold the current file: from
 the read to the completion of the save. Anything wider counts the mechanism working as failure;
 anything narrower misses the round trip in which the loss actually happens.
+
+## 2026-08-18 — a deduped proposal commits its row instead of rolling back
+
+**2026-08-18.** `03` §2 declares `intents.deduped_of` and a `'deduped'` status. `03` §4.2
+says ROLLBACK on dedupe. Both are in one spec file and they contradict each other; §4.2 won,
+so the column was written by nothing for the life of the project and `src/memory/demo.ts`
+read a value that could only ever be null. Nobody noticed because no test could: the absence
+of a row looks exactly like a row that was never needed.
+
+What made it worth changing rather than filing is `07` §1 — *every number comes from the
+database*. Duplicate work avoided is the claim this project leads with, and it was a
+`.filter().length` over an in-process array. A judge who queried the cluster for it would
+have found nothing at all.
+
+The row commits on the **same snapshot** as the search that justified it and acquires no
+claims. Invariant 1 forbids a claim resting on a similarity check from a *different*
+transaction; committing that check's own conclusion is not that. The alternative — roll back,
+then write the audit row from a second transaction — was rejected outright: two transactions
+around one decision is precisely the shape `src/memory/naive-lane.ts` exists to be the
+counterexample to, and building it into `propose()` would have handed the comparison away.
+
+No new guard was needed to keep the status terminal. `DEDUPE_CANDIDATE_SQL` admits only
+`in_flight` and `done`; `CONSOLIDATES` admits only `done` and `abandoned`; `close()` updates
+only `in_flight`. Three filters that already existed, none widened. `sql/001_init.sql` was
+not touched — the column and the CHECK value were already there.
+
+**Rejected:** dropping `deduped_of` and narrowing the CHECK instead. It is the cheaper change
+and it settles the contradiction the other way, but it deletes the only place the mechanism's
+central claim could ever be checked against the database.
+
+**Scope:** outside the unit ladder. `docs/UNITS.md` has no unit for this and every remaining
+unit is an act only Julian can perform. Directed by Julian on 2026-08-18 after a live
+multi-agent run (V63) surfaced it; recorded here so a later reader does not read it as
+invented scope.
+
+## 2026-08-18 — a blocked agent is told what the holder is doing, not just its id
+
+**2026-08-18.** Invariant 3 is *"a blocked agent learns the holder and its intent, so it can
+re-plan rather than poll"*, and `CONTESTED_HOLDERS_SQL` returned an intent id. An id is not
+an intent an agent can act on, and it cannot even be exchanged for one: reads go through
+`cortex_reader` (`04` §2), so an id handed back on the write plane names a row the receiving
+agent has no tool there to fetch. The published skill had been promising the statement for
+months. V63 measured what an agent does when it gets the id instead — it waits: 8m51s on a
+key that had been free almost the whole time.
+
+The join is **LEFT**. An inner join drops a contested key whose intent row cannot be read,
+which turns *"someone holds this"* into *"nothing holds this"* — invariant 3 failing open,
+silently, in exactly the situation it exists for. A null statement is a worse answer than a
+full one and a far better one than a missing row.
+
+Two things were deliberately **not** built. A wait or notify channel: heartbeat and lease
+extension were cut on 2026-08-09 (`08` §6 item 6), and `03` §5 says claim acquisition must
+not wait — a server-side wait would reverse both. And a fourth MCP tool: `05` §3's surface is
+three tools, pinned verbatim by `test/mcp.test.ts`. The response payload was extended
+instead, which `src/mcp/server.ts` already establishes as the permitted direction — *"fields
+§1 does not list are added, never renamed"*.
+
+The other half was prose. SKILL.md §4 offered *"or wait for the named expiry if there is
+genuinely nothing else to do"*, which `05` §4 never authorised — it says re-plan, never poll —
+and which contradicted the skill's own next paragraph, because nothing reports an early
+release: the changefeed watches `claims`, but a release is a DELETE and the sink drops
+deletes, `after: null` carrying no scope. `expiresAt` is now documented as the upper bound it
+is. `close()` releases claims in the same transaction, so the common case is that the key
+frees early and nobody is told.
