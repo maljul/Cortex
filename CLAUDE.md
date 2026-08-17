@@ -363,8 +363,16 @@ What does not belong in a unit list, and so lives here:
   `USING (true) WITH CHECK (true)`, so the same rows are reachable either way, and invariant 7
   already blocks the agent-reachable path. It buys that the published table is true, and a test
   holds it there.
-  **Suite 423/423 across 34 files, 629.83s against the
-  real cluster (2026-08-13, V52)** — 170 after U15 (down from 174 because 13 blanket demo
+  **Suite 671/671 across 42 files, 935.66s against the real cluster (2026-08-17).** The growth
+  history below stops at 423 because tracking every increment stopped being useful once U24, U25
+  and the ladder landed; the figure to compare against is this one.
+  **The old 423/34/629.83s figure is why the ~600s health rule needs restating rather than
+  repeating.** 935s is not saturation — the suite is 59% larger than the run that set the 590s
+  baseline, and this run had zero failures with the cluster answering `db:check` in 1.5s before
+  it. Compare a duration against the count of tests that produced it, or a growing suite reads
+  as a degrading cluster for ever. What still holds unchanged: a *multiple* of the expected
+  duration, or individual tests hanging in the hundreds of seconds, is saturation (V43).
+  Growth history to 423, kept: 170 after U15 (down from 174 because 13 blanket demo
   assertions became 9 sharper ones, not because anything was removed), U14 added 27, U16
   took it to 249, U16b to 256, V33's `test/recall-truth.test.ts` to 265, V34's skill
   threshold assertion to 266, U17's `test/live-budget.test.ts` plus two privilege-plane
@@ -374,11 +382,16 @@ What does not belong in a unit list, and so lives here:
   query-string cases in `test/demo-plane.test.ts` to 338. U22's `test/run-stream.test.ts` (8) and
   five live route cases in `test/demo-plane.test.ts` took 397 to 410, and U23's
   `test/conflicts.test.ts` (12) plus the artifact case took it to 423.
-  **~600s is a cluster health check as much as a suite result** (589s, 608s and 633s on three rested
-  runs the same day; that spread is noise, a multiple is not). The same suite on the same tree
-  took 2504s and then hung outright on the fourth back-to-back run of one day (V43). A duration
-  far off 590s means the cluster is saturated, not that the code changed. **Do not run the suite
-  back to back** — one run, then let it rest.
+  **Duration is a cluster health check as much as a suite result**, but only against the right
+  baseline: 589s, 608s and 633s on three rested runs of the *423-test* suite, and 935.66s on one
+  rested run of the *671-test* suite. That spread is noise; a multiple is not. The same suite on
+  the same tree took 2504s and then hung outright on the fourth back-to-back run of one day
+  (V43). **Do not run the suite back to back** — one run, then let it rest.
+  **`npm test` outruns a foreground shell.** At ~935s it exceeds the 600s ceiling a tooling
+  harness will typically kill it at, and vitest buffers its summary to the very end, so a killed
+  run leaves a log with nothing in it and tells you nothing while having cost the cluster the
+  whole ten minutes. Launch it detached (`nohup npm test > /tmp/suite.log 2>&1 &`) and poll the
+  log for `Test Files`.
   **It is a rate limit, not a budget.** Julian read the Console on 2026-08-13: **2.81M of 60M
   Request Units, 4.7%**, after two weeks of benchmarks, sweeps, gates, a deployed demo and four
   suite runs in one morning. So nothing needs rationing before ship and the ceiling is not

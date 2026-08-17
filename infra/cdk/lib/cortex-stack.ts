@@ -399,8 +399,13 @@ export class CortexStack extends cdk.Stack {
         // that has to be able to refuse. `POST /demo/run` authorises, and then invokes this
         // function with a payload it cannot authenticate — so LIVE mode arriving as a field in
         // that payload is a claim, not a proof, and re-checking it here is what makes it one.
-        // At the time of writing the runner does not read this variable; it is present so that
-        // wiring the check is a code change rather than a redeploy.
+        // The runner reads it, though not by this name at the call site: `liveAuthor` calls
+        // `liveCapabilityGranted`, whose `expected` parameter defaults to the LIVE_TOKEN variable
+        // of the function's own environment (`src/memory/live-budget.ts`). This comment said the
+        // runner did not read it, which was true when the variable was added ahead of the check
+        // and false once U24 wired it — and a grep for LIVE_TOKEN in `infra/lambda/runner.ts`
+        // still finds nothing, so the stale version was not merely wrong, it was wrong in the way
+        // that survives being checked.
         LIVE_TOKEN: liveToken,
       },
     });
@@ -443,13 +448,17 @@ export class CortexStack extends cdk.Stack {
      * It is this policy, and the only thing it can take away is the ability to invoke a
      * reasoning model.
      *
-     * **This is the action, not the whole of brake 3.** §5 wants an AWS Budget that fires it
-     * automatically above a low-double-digit threshold, and there is no Budget resource in this
-     * stack — firing it is a human decision today. When one is added it must filter on `Claude
-     * Sonnet 4.5 (Amazon Bedrock Edition)`, or whatever the fleet model's equivalent service
-     * name turns out to be: Cost Explorer bills reasoning under a service distinct from
-     * `Amazon Bedrock`, which carries only the Titan embedding line (V36). A Budget watching
-     * `Amazon Bedrock` would never fire.
+     * **This is the action. The Budget that fires it is `LiveReasoningBudget`, below in this
+     * same file.** This paragraph said "there is no Budget resource in this stack — firing it is
+     * a human decision today" until 2026-08-17, and it was true when written and false about a
+     * hundred lines later once `ec9e15b` landed. Corrected here rather than left standing.
+     *
+     * The service-name finding it carried is spent rather than pending, and it is the reason the
+     * Budget's `costFilters` reads the way it does: Cost Explorer bills reasoning under
+     * `Claude Haiku 4.5 (Amazon Bedrock Edition)` and `Claude Sonnet 4.5 (Amazon Bedrock
+     * Edition)`, services **distinct** from `Amazon Bedrock`, which carries only the Titan
+     * embedding line (V36). A Budget watching `Amazon Bedrock` would never fire, and that is a
+     * brake that looks armed and is not.
      *
      * **How an operator fires it.** Both `RunnerRoleName` and `LiveReasoningPolicyArn` are
      * stack outputs so the command can be assembled without reading this file:

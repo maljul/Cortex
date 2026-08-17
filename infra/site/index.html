@@ -139,6 +139,32 @@
       white-space: nowrap;
     }
 
+    /* A judge landing here had no route to the source at all until 2026-08-17. */
+    .topbar-links {
+      display: flex;
+      gap: 1.15rem;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .topbar-links a {
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .69rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      padding-bottom: 2px;
+      transition: color .18s ease, border-color .18s ease;
+    }
+
+    .topbar-links a:hover,
+    .topbar-links a:focus-visible {
+      color: var(--accent-soft, #5CBCAA);
+      border-bottom-color: currentColor;
+    }
+
     .hero {
       min-height: 100dvh;
       padding-top: 72px;
@@ -1745,6 +1771,8 @@
 
     @media (max-width: 820px) {
       .topbar-meta { display: none; }
+      .topbar-links { gap: .9rem; }
+      .topbar-links a { font-size: .62rem; }
       .hero-inner { grid-template-columns: 1fr; padding-top: 4.8rem; }
       .hero-mark { min-height: 48vh; border-left: 0; border-top: 1px solid var(--border); }
       .mark-caption { right: 1rem; }
@@ -1824,6 +1852,10 @@
     <div class="shell topbar-inner">
       <span class="wordmark">CORTEX</span>
       <span class="topbar-meta">Arbitrated shared memory / CockroachDB</span>
+      <nav class="topbar-links" aria-label="Project links">
+        <a href="https://github.com/maljul/Cortex" rel="noopener noreferrer" target="_blank">Source</a>
+        <a href="https://github.com/maljul/Cortex/blob/main/docs/integration.md" rel="noopener noreferrer" target="_blank">Wire it into your agent</a>
+      </nav>
     </div>
   </header>
 

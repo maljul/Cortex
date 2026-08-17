@@ -389,30 +389,38 @@ async function rungTwo(): Promise<void> {
 
   try {
     /**
-     * **The one that does not hold, and forcing it is the only way anybody was going to find
+     * **The one that did not hold, and forcing it is the only way anybody was going to find
      * out.** `04` §5 invariant 4 in one line.
      *
      * `scripts/gate-degrade.mts` proved this rung against `runScenario`, which `POST /demo/run`
      * stopped calling when U21 landed. On `runArm` — the path the deployed page runs — a
-     * throttled Bedrock takes the demo down: rung 2 skips dedupe by design, so the cortex
-     * lane's sequenced duplicate pair is no longer deduplicated, both agents reach the same
-     * file, the second one's anchor is gone, `applyAndSave` returns `null`, and `cortexTicket`
-     * throws on an assertion whose own comment says the case cannot arise. It can, under
+     * throttled Bedrock took the demo down: rung 2 skips dedupe by design, so the cortex
+     * lane's sequenced duplicate pair was no longer deduplicated, both agents reached the same
+     * file, the second one's anchor was gone, `applyAndSave` returned `null`, and `cortexTicket`
+     * threw on an assertion whose own comment said the case could not arise. It could, under
      * exactly this rung.
      *
-     * That is `04` §5 invariant 1 broken on the path behind the run button — and broken in the
+     * That was `04` §5 invariant 1 broken on the path behind the run button — and broken in the
      * shape `src/demo/run.ts`'s header names as the silent break, because `streamRun` converts
      * the throw into a terminal `failed` message rather than an error page. The letter of
      * invariant 1 survives; a judge watching gets half a fleet and a stack trace's message.
+     *
+     * **Fixed in `src/demo/workload.ts`, and the fix is narrower than the assertion was.** The
+     * throw is kept where it still holds — with a real embedding, two cortex agents on one file
+     * *is* an arbitration failure — and dropped where it never did: under a degraded embedding
+     * it is the documented cost of this rung, reported the way the naive lane reports the same
+     * event. So this check now passes, and it is left here as the thing that caught it. Past
+     * tense above is deliberate: the condition is gone, and a comment describing a fixed defect
+     * as live is the failure this repository names first.
      */
     check(
       'the arm produced a run, not an error (§5 invariant 1)',
       threw === null && result !== null,
       threw === null
         ? `${Date.now() - started}ms`
-        : `threw: ${(threw as Error).message} — src/demo/workload.ts's applyAndSave returned ` +
-          'null because dedupe was skipped, which is what this rung does. Not fixable from ' +
-          'this unit’s file set.',
+        : `threw: ${(threw as Error).message} — this rung regressed. ` +
+          "`applyAndSave` returning null under a degraded embedding is expected and is handled " +
+          'in `src/demo/workload.ts`; a throw here means that handling is gone.',
     );
 
     // Everything below is asked of statements that already reached the driver and rows that are
