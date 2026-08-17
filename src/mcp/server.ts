@@ -81,6 +81,7 @@ function asDecision(result: ProposeResult): Record<string, unknown> {
     case 'deduped':
       return {
         decision: 'deduped',
+        intentId: result.intentId,
         ofIntentId: result.of,
         holder: result.holder,
         status: result.status,

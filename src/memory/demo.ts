@@ -55,10 +55,17 @@ export const DEMO_SESSION_ROW_CAP = 200;
 /**
  * Rows one fleet run writes into one scope, and therefore what rung 3's preflight must clear.
  *
- * **Measured (V50), not budgeted:** a full run costs 24 rows in the cortex scope and 32 in the
- * naive one. The larger of the two is the figure here, because a visitor's two scopes are
- * checked against one constant and the check must be the one that cannot start a run it can
- * only half-finish.
+ * **Measured (V50, re-measured V63), not budgeted:** a full run costs **26** rows in the cortex
+ * scope and 32 in the naive one. The larger of the two is the figure here, because a visitor's
+ * two scopes are checked against one constant and the check must be the one that cannot start a
+ * run it can only half-finish.
+ *
+ * The cortex figure was 24 until a deduped proposal began committing its own row (V63); the run
+ * dedupes twice, so it rose by exactly two. **The constant did not move**, because the naive lane
+ * still bounds it — the naive lane runs the same search and writes no such row, so only the
+ * cortex arm grew. Re-measure with `npm run gate:workload`, which prints both scopes, rather
+ * than deriving it: if the cortex arm ever passes 32 this constant is wrong and the preflight
+ * starts runs it cannot finish.
  *
  * It is deliberately not a fraction of `DEMO_SESSION_ROW_CAP`. The cap is sized off the demo
  * (`03` §7, roughly six runs of headroom) and this is sized off the run; tying one to the

@@ -93,6 +93,8 @@ export type ProposeResult =
   | { decision: 'granted'; intentId: string; keys: string[]; expiresAt: Date }
   | {
       decision: 'deduped';
+      /** This proposal's own row, recorded as `status = 'deduped'`. See below. */
+      intentId: string;
       of: string;
       holder: string;
       status: string;
@@ -104,10 +106,17 @@ export type ProposeResult =
 /**
  * Carries a decision out through `withRetry`'s rollback path.
  *
- * `deduped` and `blocked` are outcomes, not failures, but both must roll back —
- * a deduped intent leaves no row, and a partial claim set must leave none either
- * (§4.2 invariant 1). Throwing is how the transaction is abandoned while the
- * answer survives; `withRetry` rethrows anything that is not a 40001.
+ * `blocked` is an outcome, not a failure, but it must roll back: a partial claim set
+ * must leave none (§4.2 invariant 1). Throwing is how the transaction is abandoned
+ * while the answer survives; `withRetry` rethrows anything that is not a 40001.
+ *
+ * **`deduped` no longer travels this way.** It used to, and the comment here used to read
+ * "a deduped intent leaves no row" — which was true, and was the bug. `03` §2 declares
+ * `intents.deduped_of` and a `'deduped'` status; §4.2 says ROLLBACK; the two contradict
+ * each other and §4.2 won for months, so the column was written by nothing and the
+ * project's headline claim — duplicate work avoided — was not auditable from the database
+ * at all, against `07` §1. A dedupe now commits its row and returns normally. See
+ * `DEDUPED_INTENT_INSERT_SQL`. Recorded in docs/SPEC-DELTA.md.
  */
 class Decided extends Error {
   constructor(readonly result: ProposeResult) {
@@ -155,6 +164,34 @@ export const DEDUPE_CANDIDATE_SQL = `SELECT id, agent_id, status, outcome, embed
         AND NOT embedding_degraded
       ORDER BY embedding <=> $2
       LIMIT 5`;
+
+/**
+ * The row a *deduped* proposal leaves behind, so that avoided work is a fact in the
+ * database rather than only a return value.
+ *
+ * **This does not split the arbitration transaction.** It runs on the same snapshot as the
+ * search that justified it — same client, same `withRetry` callback — and acquires no
+ * claims, which is invariant 2's all-or-nothing at its zero end. Invariant 1 is about a
+ * similarity check and a claim insert landing in *different* transactions; committing the
+ * search's own conclusion beside it is the opposite of that. Writing this row from a
+ * second transaction after a rollback is what would have been indefensible, because two
+ * transactions around one decision is precisely what `naive-lane.ts` exists to be the
+ * counterexample to.
+ *
+ * `status = 'deduped'` is terminal by construction and nothing had to be added to make it
+ * so: `DEDUPE_CANDIDATE_SQL` admits only `in_flight` and `done`, so these rows can never
+ * become dedupe candidates; `consolidate.ts`'s CONSOLIDATES admits only `done` and
+ * `abandoned`, so they never produce a finding; and `close.ts` updates only rows that are
+ * `in_flight`, so they cannot be closed. Three existing filters, none of them widened.
+ *
+ * `embedding_degraded` is omitted because it defaults false and this path is unreachable
+ * when the embedding is degraded — `04` §5 rung 2 skips dedupe entirely rather than running
+ * it at a threshold of zero.
+ */
+export const DEDUPED_INTENT_INSERT_SQL = `INSERT INTO intents
+           (repo_id, agent_id, statement, resource_keys, embedding, status, deduped_of)
+         VALUES ($1, $2, $3, $4::STRING[], $5, 'deduped', $6)
+         RETURNING id`;
 
 /** The intent row an agent's proposal creates. Shared with the naive lane; see above. */
 export const INTENT_INSERT_SQL = `INSERT INTO intents
@@ -211,12 +248,15 @@ export const CONTESTED_HOLDERS_SQL = `SELECT c.resource_key, c.holder, c.intent_
       WHERE c.repo_id = $1 AND c.resource_key = ANY($2::STRING[])
       ORDER BY c.resource_key`;
 
+/** What the search found, before this proposal's own row exists to be named alongside it. */
+type DuplicateOf = Omit<Extract<ProposeResult, { decision: 'deduped' }>, 'decision' | 'intentId'>;
+
 async function findDuplicate(
   client: PoolClient,
   repoId: string,
   vector: string,
   threshold: number,
-): Promise<ProposeResult | null> {
+): Promise<DuplicateOf | null> {
   const { rows } = await client.query(DEDUPE_CANDIDATE_SQL, [repoId, vector]);
 
   const nearest = rows[0] as
@@ -228,7 +268,6 @@ async function findDuplicate(
   // §4.2 invariant 4: a deduped agent receives the prior outcome, not a rejection.
   // That is what turns arbitration into memory.
   return {
-    decision: 'deduped',
     of: nearest.id,
     holder: nearest.agent_id,
     status: nearest.status,
@@ -291,7 +330,25 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
       // it was skipped — the panel exists to be the one thing that cannot lie.
       if (!degradedEmbedding) {
         const duplicate = await findDuplicate(client, repoId, vector, dedupeThreshold);
-        if (duplicate) throw new Decided(duplicate);
+        if (duplicate) {
+          // Commit, do not throw. The proposal is recorded as having happened and having
+          // been answered by prior work — no claims, so nothing is held. Returning here
+          // rather than falling through is what keeps this on one snapshot.
+          const { rows } = await client.query(DEDUPED_INTENT_INSERT_SQL, [
+            repoId,
+            agentId,
+            statement,
+            keys,
+            vector,
+            duplicate.of,
+          ]);
+
+          return {
+            decision: 'deduped' as const,
+            intentId: (rows[0] as { id: string }).id,
+            ...duplicate,
+          };
+        }
       }
 
       const { rows: intentRows } = await client.query(INTENT_INSERT_SQL, [

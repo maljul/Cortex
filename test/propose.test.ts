@@ -262,22 +262,27 @@ describe('propose — arbitration (§4.2)', () => {
     if (first.decision === 'granted') expect(second.of).toBe(first.intentId);
   });
 
-  // §4.2 invariant 2 — dedupe and claim share one snapshot, so a dedupe leaves
-  // nothing behind. A read-then-write across two transactions would have written
-  // the intent before discovering the duplicate.
-  it('writes no intent and no claim when it dedupes', async () => {
+  // §4.2 invariant 2 — dedupe and claim share one snapshot. What that forbids is a claim
+  // taken on the strength of a search that ran in a different transaction; it does not
+  // forbid committing the search's own conclusion. So the deduped proposal is recorded,
+  // and it takes **no claim**: that is the assertion, and a claim appearing here is the
+  // falsification. `deduped_of` must point at the row the search actually found, or the
+  // record is a count without a referent.
+  it('records the deduped proposal and takes no claim for it', async () => {
     const repo = freshRepo();
     const base = vector(42);
-    await propose({
+    const first = await propose({
       repoId: repo,
       agentId: 'agent-1',
       statement: 'add rate limiting',
       resourceKeys: ['file:src/auth/login.ts'],
       embedding: base,
     });
+    expect(first.decision).toBe('granted');
+    if (first.decision !== 'granted') return;
 
     expect(await intentCount(repo)).toBe(1);
-    await propose({
+    const second = await propose({
       repoId: repo,
       agentId: 'agent-2',
       statement: 'throttle repeated logins',
@@ -285,10 +290,64 @@ describe('propose — arbitration (§4.2)', () => {
       embedding: paraphraseOf(base, 7),
     });
 
-    expect(await intentCount(repo)).toBe(1);
+    expect(second.decision).toBe('deduped');
+    if (second.decision !== 'deduped') return;
+    expect(second.of).toBe(first.intentId);
+
+    expect(await intentCount(repo)).toBe(2);
+    const { rows } = await getPool().query(
+      'SELECT id, status, deduped_of, agent_id FROM intents WHERE repo_id = $1 AND status = $2',
+      [repo, 'deduped'],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.id).toBe(second.intentId);
+    expect(rows[0]!.agent_id).toBe('agent-2');
+    expect(rows[0]!.deduped_of).toBe(first.intentId);
+
+    // The whole point: agent-2 walked away holding nothing.
     expect(await claimsFor(repo)).toEqual([
       { key: 'file:src/auth/login.ts', holder: 'agent-1' },
     ]);
+  });
+
+  // A deduped row must never become a dedupe candidate itself. DEDUPE_CANDIDATE_SQL admits
+  // only in_flight and done, and if that ever widened, one duplicate would start a chain in
+  // which every later proposal dedupes against the previous rejection rather than the work.
+  it('never offers a deduped row as the prior work for a later proposal', async () => {
+    const repo = freshRepo();
+    const base = vector(77);
+    const first = await propose({
+      repoId: repo,
+      agentId: 'agent-1',
+      statement: 'cache the session lookup',
+      resourceKeys: ['file:src/session.ts'],
+      embedding: base,
+    });
+    expect(first.decision).toBe('granted');
+    if (first.decision !== 'granted') return;
+
+    const second = await propose({
+      repoId: repo,
+      agentId: 'agent-2',
+      statement: 'memoise session lookups',
+      resourceKeys: ['file:src/session-b.ts'],
+      embedding: paraphraseOf(base, 3),
+    });
+    expect(second.decision).toBe('deduped');
+
+    const third = await propose({
+      repoId: repo,
+      agentId: 'agent-3',
+      statement: 'memoise the session lookup path',
+      resourceKeys: ['file:src/session-c.ts'],
+      embedding: paraphraseOf(base, 5),
+    });
+
+    expect(third.decision).toBe('deduped');
+    if (third.decision !== 'deduped') return;
+    // Against agent-1's real work, never against agent-2's rejection.
+    expect(third.of).toBe(first.intentId);
+    expect(third.status).toBe('in_flight');
   });
 
   it('does not dedupe against an unrelated intent in the same repo', async () => {
