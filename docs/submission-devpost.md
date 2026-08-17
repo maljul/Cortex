@@ -15,8 +15,10 @@ falsified that — the server executes as SQL user `managed-mcp`, which holds IN
 DELETE on `claims`, and the route was dropped in favour of `cortex_reader` with a SQL
 grant. §C item 3 also describes `cortex init` provisioning a cluster through the ccloud
 CLI; **that command is built as of 2026-08-16 (U2) and it does not provision anything** —
-`ccloud` is installed nowhere in this project, so `init` takes an operator DSN and brings a
-cluster from empty to working, which is a narrower claim than §C's. §D lists Amazon
+`init` takes an operator DSN and brings a cluster from empty to working, which is a narrower
+claim than §C's. (Since 2026-08-18 `init` does invoke `ccloud version`, to detect whether the
+CLI is present and print the onboarding route this machine can take. It still provisions
+nothing, and §2 item 4 explains why that does not raise the tool count.) §D lists Amazon
 EventBridge and AWS Budgets; **Budgets is now deployed and armed, EventBridge is still
 not.** B10 and B11 ask what was actually done, so §2 and §3 below are written from the
 repository as it stands and replace §C and §D for submission purposes. `02` itself is not
@@ -468,11 +470,24 @@ route rather than try to constrain its principal, and the read plane is now a SQ
 can test by attempting writes against it. That is a stronger claim than the one we started
 with, and a judge can run it.
 
-### 4. ccloud CLI (Agent-Ready) — not used
+### 4. ccloud CLI (Agent-Ready) — invoked for onboarding only, and that does not make it a third tool
 
-**`ccloud` is installed nowhere in this project and nothing here has ever run it.** That is
-the whole of the answer, and it did not change when the CLI landed: `cortex init` was built on
-2026-08-16 and it is deliberately **provisioning-optional**. It takes an operator connection
+**Corrected 2026-08-18.** `ccloud` is now invoked by this project, in exactly one place and
+for exactly one question. `src/cli/ccloud.ts` runs `ccloud version` so that `cortex init`,
+on the path where it has no `CORTEX_DSN`, can print the route this machine can actually take
+— the Console for everyone, and `ccloud auth login` + `ccloud quickstart` for someone who
+already has the CLI, with the `brew install` line omitted when they do. `cortex doctor`
+reports the same detection as an `INFO` row that can never make it exit non-zero, because
+ccloud is optional and a machine without it is a supported machine. Verified against the real
+binary (ccloud 0.8.23), whose `version` prints two lines rather than the one an earlier draft
+assumed — which is why the banner is surfaced verbatim rather than parsed.
+
+**The count still stays 2 of 4, and that is the point of this entry.** Detecting a binary to
+print better instructions is not using the ccloud CLI in any sense a judge should credit: it
+provisions nothing, manages nothing, and reads no cluster state. What follows is still true —
+
+`cortex init` was built on 2026-08-16 and it is deliberately **provisioning-optional**. It
+takes an operator connection
 string — the one a person copies out of the Cloud Console — and brings a cluster from empty to
 working: it creates the SQL roles by *parsing the migration* rather than from a hardcoded list,
 writes their connection strings into `.env` without ever rotating one, applies the schema, and
@@ -481,11 +496,11 @@ second run creates nothing, appends nothing and re-verifies everything; that is 
 and it was closed by running it twice against the live cluster, both exits 0, with 45 tests
 behind it and the cluster left exactly as found.
 
-So the count stays **2 of 4**. Provisioning a cluster is the one thing `init` does not do, and
-it is the only thing the ccloud tool is. Claiming a third tool on the strength of a CLI that
-never invokes it would be exactly the inflation this section is written to avoid. The entry
-point is `node bin/cortex.mjs init` — `npx cortex` resolves to an unrelated package on the
-public registry and is not this CLI.
+Provisioning a cluster is the one thing `init` does not do, and it is the substance of what
+the ccloud tool is for. Claiming a third tool on the strength of a `version` probe would be
+exactly the inflation this section is written to avoid — the same inflation the earlier draft
+avoided by claiming nothing at all. The entry point is `node bin/cortex.mjs init` — `npx
+cortex` resolves to an unrelated package on the public registry and is not this CLI.
 
 ### Beyond the tool list, because B10 asks what the agent did
 
@@ -830,9 +845,10 @@ visible rather than silent:**
 
 12. `02` A4 says "4 of 4 [CockroachDB tools] used". **Two of four are used** (Distributed
     Vector Indexing, Agent Skills). The managed MCP server was measured and rejected; the
-    ccloud CLI is not used at all, and `cortex init` being built does not change that —
-    `ccloud` is installed nowhere here and nothing has ever invoked it, so the CLI does
-    everything *after* provisioning and claims nothing about provisioning. Two still satisfies
+    ccloud CLI is invoked only to detect its own presence for onboarding text (2026-08-18),
+    which is not tool use a judge should credit, and `cortex init` being built does not change
+    that — the CLI does everything *after* provisioning and claims nothing about provisioning.
+    Two still satisfies
     the rule's minimum of two.
 13. `02` §C item 4 says "the agent consumes `cockroachlabs/cockroachdb-skills` for schema
     and query decisions". **There is no reference to that repository anywhere in `src/`,

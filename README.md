@@ -256,7 +256,16 @@ npm ci
 npx tsc --noEmit          # should exit clean before you touch anything
 ```
 
-Create the cluster in the CockroachDB Cloud Console and copy its connection string.
+Create the cluster and copy its connection string. Two routes, and `cortex init` prints
+both — telling you which one this machine can take — if you run it without `CORTEX_DSN`:
+
+- **CockroachDB Cloud Console** — <https://cockroachlabs.cloud>, your cluster → Connect →
+  General connection string. Needs nothing installed.
+- **ccloud CLI**, if you would rather stay in the terminal:
+  `brew install cockroachdb/tap/ccloud`, then `ccloud auth login` and `ccloud quickstart`,
+  choosing "General connection string". `ccloud` is **optional** — nothing in this project
+  requires it, and `cortex doctor` reports whether you have it without treating its absence
+  as a fault. `init` does not provision a cluster by either route.
 
 Copy `.env.example` to `.env` and set **`CORTEX_DSN`** to that string — an operator
 credential able to run DDL. That is the only variable you have to fill in by hand;

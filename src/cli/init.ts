@@ -6,11 +6,16 @@
  * planes by attempting statements against them.
  *
  * **It does not provision a cluster, and no line here or in any doc may say it does.**
- * `05` §2's table says "provision a free cluster with ccloud"; `ccloud` is installed
- * nowhere in this project (`grep -rn ccloud src scripts package.json skills infra` finds
- * nothing, V57/U20) and nothing here has ever run it. So `init` is provisioning-optional:
- * it takes an operator DSN in `CORTEX_DSN` — the one a user pastes out of the Cloud
- * Console — and does everything after that. The deviation is `docs/SPEC-DELTA.md`'s.
+ * `05` §2's table says "provision a free cluster with ccloud". `init` is
+ * provisioning-optional instead: it takes an operator DSN in `CORTEX_DSN` — the one a user
+ * pastes out of the Cloud Console or out of `ccloud quickstart` — and does everything after
+ * that. The deviation is `docs/SPEC-DELTA.md`'s.
+ *
+ * **`ccloud` is invoked here since 2026-08-18, and only to ask whether it exists.**
+ * `src/cli/ccloud.ts` runs `ccloud version` so the missing-DSN path can name the step this
+ * machine actually needs next. That is the whole of the integration: nothing in this project
+ * creates a cluster, creates a SQL user, or reads a connection string out of ccloud. The
+ * sentence above about provisioning is therefore still exactly true, and must stay so.
  *
  * Three rules make a second run safe, and they are the done-when:
  *   - a role that exists is reported and left alone. No password is ever rotated, because
@@ -27,6 +32,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Client } from 'pg';
 
+import { detectCcloud, operatorDsnGuidance } from './ccloud.js';
 import { appendMissingKeys, readEnvFile } from './env-file.js';
 import { statement } from './probes.js';
 import { deriveRoles } from './roles.js';
@@ -194,11 +200,11 @@ export async function init(options: InitOptions): Promise<InitReport> {
 
   const operatorDsn = process.env.CORTEX_DSN;
   if (operatorDsn === undefined || operatorDsn.trim() === '') {
-    report.problems.push(
-      'CORTEX_DSN is not set. `cortex init` does not provision a cluster: create one at ' +
-        'cockroachlabs.cloud, copy its connection string, and put it in .env as CORTEX_DSN ' +
-        "(single-quoted — process.loadEnvFile truncates at an unquoted '#').",
-    );
+    // Both routes to a connection string, and which of them this machine can take —
+    // `src/cli/ccloud.ts`. This was one static sentence naming only the Console until
+    // 2026-08-18; the ccloud route is faster for someone already in a terminal, and the
+    // detection is what lets the instructions name the step they actually need next.
+    report.problems.push(operatorDsnGuidance(detectCcloud()));
     return report;
   }
   if (!existsSync(schemaPath)) {

@@ -511,6 +511,14 @@ describe('`cortex init` produces a working cluster twice in a row', () => {
     expect(health.code, health.output).toBe(0);
   });
 
+  it('doctor reports whether ccloud is present, and never fails for its absence', () => {
+    // ccloud is optional here — `init` is provisioning-optional and nothing in this project
+    // invokes ccloud for anything but this row. So the row must appear, and its verdict must
+    // never be what makes doctor exit non-zero; a machine without ccloud is healthy.
+    expect(health.output).toContain('ccloud');
+    expect(health.code, health.output).toBe(0);
+  });
+
   it('the first run exits 0', () => {
     expect(first.code, first.output).toBe(0);
   });

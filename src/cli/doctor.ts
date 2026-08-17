@@ -24,6 +24,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Client } from 'pg';
 
+import { detectCcloud } from './ccloud.js';
 import { readEnvFile } from './env-file.js';
 import { envKeyForRole } from './init.js';
 import { statement } from './probes.js';
@@ -53,6 +54,12 @@ export interface DoctorReport {
   env: Array<{ key: string; chars: number }>;
   planes: CheckReport[];
   schema: CheckReport[];
+  /**
+   * Optional tooling this machine may or may not have. **Never contributes to `problems`**,
+   * which is what keeps `ok` meaning "this cluster is healthy" rather than "this laptop is
+   * fully equipped" — a machine with no ccloud is a supported machine.
+   */
+  tooling: CheckReport[];
   tracked: { filesScanned: number; hits: string[] };
   problems: string[];
 }
@@ -148,6 +155,7 @@ export async function doctor(options: DoctorOptions): Promise<DoctorReport> {
     env: [],
     planes: [],
     schema: [],
+    tooling: [],
     tracked: { filesScanned: 0, hits: [] },
     problems: [],
   };
@@ -219,6 +227,22 @@ export async function doctor(options: DoctorOptions): Promise<DoctorReport> {
       log(`  ${table.check.padEnd(24)} ${table.verdict}  ${table.detail}`);
     }
   }
+
+  // ---- optional tooling -------------------------------------------------------------
+  // INFO, not PASS/FAIL, and deliberately not folded into `problems` below: ccloud is
+  // optional in this project and its absence is not a fault to be fixed. Reported because
+  // "is ccloud on this machine" is the question `cortex init`'s onboarding text answers,
+  // and doctor is where a user checks what their machine has.
+  const ccloud = detectCcloud();
+  report.tooling.push({
+    check: 'ccloud',
+    verdict: 'INFO',
+    detail: ccloud.installed
+      ? `${ccloud.version ?? 'installed, version unknown'} — optional; used for onboarding only`
+      : 'not installed — optional; the Cloud Console route needs nothing installed',
+  });
+  log('tooling    (optional; absence is not a failure)');
+  for (const tool of report.tooling) log(`  ${tool.check.padEnd(24)} ${tool.verdict}  ${tool.detail}`);
 
   // ---- a credential in a tracked file ---------------------------------------------
   report.tracked = scanTrackedFiles(repoRoot);

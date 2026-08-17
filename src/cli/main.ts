@@ -56,8 +56,11 @@ package on the public npm registry.
   node bin/cortex.mjs --help
   node bin/cortex.mjs --version
 
-init does NOT provision a cluster. Create one at cockroachlabs.cloud, put its
-connection string in .env as CORTEX_DSN, then run init.
+init does NOT provision a cluster. Get an operator connection string either from
+the Console at cockroachlabs.cloud, or with "ccloud auth login" then
+"ccloud quickstart" if you have the ccloud CLI. Put it in .env as CORTEX_DSN,
+then run init. Running init without CORTEX_DSN prints both routes and tells you
+which one this machine can take.
 
 No command prints a credential. Key names, character counts and verdicts only.
 
