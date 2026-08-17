@@ -224,8 +224,8 @@ describe('the CLI surface', () => {
   it('--help exits 0 and names the commands that exist', async () => {
     const result = await run(['--help']);
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain('cortex init');
-    expect(result.stdout).toContain('cortex doctor');
+    expect(result.stdout).toContain('bin/cortex.mjs init');
+    expect(result.stdout).toContain('bin/cortex.mjs doctor');
   });
 
   it('--version exits 0 and prints the package version', async () => {
@@ -233,6 +233,23 @@ describe('the CLI surface', () => {
     const expected = (JSON.parse(readFileSync(PACKAGE_PATH, 'utf8')) as { version: string }).version;
     expect(result.code).toBe(0);
     expect(result.stdout.trim()).toBe(expected);
+  });
+
+  /**
+   * **`--help` must not tell anyone to run `npx cortex`.** Measured 2026-08-17: this package is
+   * not published, `node_modules/.bin/cortex` is not created for a package's own bin, and the
+   * public registry carries an unrelated package under that name — so `npx cortex init` fetches
+   * and runs a stranger's code. The help text said `usage: npx cortex` for as long as it existed,
+   * and so did the README in five places. The guard goes here because `src/cli/main.ts`'s own
+   * docblock says it does, and a comment claiming a check that does not exist is the failure this
+   * repository names first.
+   */
+  it('--help offers the invocation that works, not `npx cortex`', async () => {
+    const result = await run(['--help']);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('node bin/cortex.mjs');
+    // The name may appear in a warning; what it may not do is appear as an instruction.
+    expect(result.stdout).not.toMatch(/usage:\s*npx\s+cortex/);
   });
 
   /**
@@ -248,8 +265,8 @@ describe('the CLI surface', () => {
   it('a command that exists nowhere exits 1 and names what does exist', async () => {
     const result = await run(['frobnicate']);
     expect(result.code).toBe(1);
-    expect(result.output).toContain('cortex init');
-    expect(result.output).toContain('cortex doctor');
+    expect(result.output).toContain('bin/cortex.mjs init');
+    expect(result.output).toContain('bin/cortex.mjs doctor');
   });
 });
 

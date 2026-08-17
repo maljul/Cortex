@@ -17,9 +17,11 @@
 **Try it:** <https://d11xbslgdgomdp.cloudfront.net> — no account, no key, no cluster, no
 card, nothing to install.
 
-**Run it on your own repository:** you bring your own free CockroachDB cluster and your
-own credentials. That is the [setup path below](#run-it-on-your-own-cluster), and it is
-deliberately not the same thing as trying it.
+**Run it on your own repository:** that is the CLI, and *there* you bring your own free
+CockroachDB cluster and your own credentials — which is correct for a tool that writes to
+your codebase. It is the [setup path below](#run-it-on-your-own-cluster), and it is
+deliberately not the same thing as trying it. Bring-your-own-credentials applies to the CLI
+only; nothing on the hosted demo ever asks a visitor for one.
 
 > Durable execution gives exactly-once within one workflow. It does not give mutual
 > exclusion between agents that do not know each other exists.
@@ -185,7 +187,9 @@ followed the other are all published in the results directory
 
 ## Run it on your own cluster
 
-`npx cortex init` brings a cluster from empty to working, and is safe to run twice. It
+`node bin/cortex.mjs init` brings a cluster from empty to working, and is safe to run twice.
+It is run directly rather than as `npx cortex`, because this package is not published and the
+name `cortex` on the public npm registry belongs to an unrelated package. It
 does **not** provision a cluster — you create the cluster, it does everything after that:
 creates the SQL roles `sql/001_init.sql` grants to, writes their connection strings into
 `.env`, applies the schema, and then proves the three privilege planes by *attempting*
@@ -240,9 +244,9 @@ problems, and never prints a value.
 Then bring the cluster up:
 
 ```bash
-npx cortex init      # creates the roles, writes their DSNs, applies the schema,
-                     # and proves each plane by attempting statements against it
-npx cortex doctor    # what connects, as whom, and whether a DSN has leaked into a file
+node bin/cortex.mjs init      # creates the roles, writes their DSNs, applies the schema,
+                              # and proves each plane by attempting statements against it
+node bin/cortex.mjs doctor    # what connects, as whom, and whether a DSN has leaked into a file
 ```
 
 `init` is safe to run twice: an existing role is reported and left alone, and no password
@@ -280,19 +284,20 @@ published table are committed; reproducing the numbers needs Bedrock and a clust
 
 | Command                                 | What it does                                                              |
 | --------------------------------------- | ------------------------------------------------------------------------- |
-| `npx cortex init`                       | empty cluster → working one: roles, their DSNs, the schema, and each plane proved by attempting statements. Safe to run twice |
-| `npx cortex doctor`                     | what `.env` carries, which planes connect and as whom, and whether a DSN has leaked into a tracked file |
+| `node bin/cortex.mjs init`              | empty cluster → working one: roles, their DSNs, the schema, and each plane proved by attempting statements. Safe to run twice |
+| `node bin/cortex.mjs doctor`            | what `.env` carries, which planes connect and as whom, and whether a DSN has leaked into a tracked file |
 | `npm test`                              | Vitest, **against the real cluster**. One run takes about ten minutes; do not run two at once, and let the cluster rest between runs. |
 | `npx tsc --noEmit`                      | typecheck; exits clean and must stay that way                             |
 | `npm run db:check`                      | connectivity and DSN shape for both planes                                |
 | `npm run env:doctor`                    | why a key in `.env` is not arriving in `process.env`                      |
 | `npm run sql`                           | apply a `.sql` file statement by statement                                |
-| `npm run serve`                         | the CORTEX MCP server on stdio (`cortex_propose`, `cortex_close`)         |
+| `npm run serve`                         | the CORTEX MCP server on stdio (`cortex_propose`, `cortex_close`), for running it by hand. To **attach** it to an agent use the command in [`docs/integration.md`](docs/integration.md) — npm's lifecycle banner goes to stdout, where MCP admits protocol frames only |
 | `npm run bench` / `npm run bench:results` | one benchmark run / the published three-run table                       |
 | `npm run gate:contend`                  | proves the real race: concurrent agents, one winner                       |
 | `npm run gate:stream`                   | changefeed row → hosted API → WebSocket, end to end                       |
 | `npm run gate:consolidate`              | a closed or abandoned intent becoming a durable finding                   |
-| `npm run gate:degrade`                  | forces the embedding-throttle rung of the degradation ladder              |
+| `npm run gate:ladder`                   | forces every rung of the degradation ladder and every cost brake, by making each limit actually happen |
+| `npm run gate:degrade`                  | an alias for `gate:ladder`; it once forced only the embedding-throttle rung and the name is kept so earlier references still resolve |
 | `npm run gate:workload`                 | the ten-ticket two-arm fleet run against the real cluster, with both meters |
 | `npm run gate:async`                    | the run handed off and streamed, against the deployed stack               |
 | `npm run measure:statements`            | every pairwise Titan distance between demo statements; run after any rewording |
@@ -324,6 +329,7 @@ prompt. The full ladder is in `docs/architecture.md`.
 
 | Where                        | What                                                                 |
 | ---------------------------- | -------------------------------------------------------------------- |
+| `docs/integration.md`        | **how to wire CORTEX into a real agent** — attaching the MCP server, the three write tools, the read path, and what is not built |
 | `docs/architecture.md`       | the diagram, the data flows, privilege planes, the degradation ladder |
 | `docs/third-party.md`        | dependency licences                                                   |
 | `docs/verification-log.md`   | what was checked against a live cluster, and when                     |

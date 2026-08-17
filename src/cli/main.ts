@@ -1,5 +1,10 @@
 /**
- * `npx cortex <command>` — the typed dispatcher behind `bin/cortex.mjs`.
+ * `node bin/cortex.mjs <command>` — the typed dispatcher behind `bin/cortex.mjs`.
+ *
+ * It is **not** `npx cortex`. This package is not published to npm, and the name `cortex`
+ * on the public registry belongs to an unrelated package, so `npx cortex` either fetches
+ * that one or fails naming it. Every invocation printed by this file runs the bin
+ * directly, and `test/cli-init.test.ts` fails if `npx cortex` reappears in the help.
  *
  * `05` §2 lists nine commands. **Two exist: `init` and `doctor`.** Anything else exits 1
  * naming what to run instead, because a bin that silently does nothing for `cortex bench`
@@ -32,18 +37,24 @@ function packageJson(): { version: string; scripts?: Record<string, string> } {
 
 const HELP = `cortex — CORTEX's command line (spec/05-INTERFACES.md §2)
 
-usage: npx cortex <command> [--json]
+usage: node bin/cortex.mjs <command> [--json]
 
-  cortex init      Bring a cluster from empty to working: create the SQL roles
-                   sql/001_init.sql grants to, write their connection strings into
-                   .env, apply the schema, and prove the privilege planes by
-                   attempting statements against them. Safe to run twice — an
-                   existing role is left alone and no password is ever rotated.
-  cortex doctor    Cluster health: what .env carries, which planes connect and as
-                   whom, which tables the cluster has, and whether a connection
-                   string appears in any tracked file. Exits 1 if one does.
-  cortex --help
-  cortex --version
+Run the bin directly, not as "npx cortex" — that name belongs to an unrelated
+package on the public npm registry.
+
+  node bin/cortex.mjs init      Bring a cluster from empty to working: create
+                                the SQL roles sql/001_init.sql grants to, write
+                                their connection strings into .env, apply the
+                                schema, and prove the privilege planes by
+                                attempting statements against them. Safe to run
+                                twice — an existing role is left alone and no
+                                password is ever rotated.
+  node bin/cortex.mjs doctor    Cluster health: what .env carries, which planes
+                                connect and as whom, which tables the cluster
+                                has, and whether a connection string appears in
+                                any tracked file. Exits 1 if one does.
+  node bin/cortex.mjs --help
+  node bin/cortex.mjs --version
 
 init does NOT provision a cluster. Create one at cockroachlabs.cloud, put its
 connection string in .env as CORTEX_DSN, then run init.
@@ -106,12 +117,14 @@ export async function main(argv: string[]): Promise<number> {
   process.stderr.write(
     script === undefined
       ? `cortex ${command} does not exist.\n\n` +
-          'This bin implements two commands: `cortex init` and `cortex doctor`.\n' +
-          `Run \`npx cortex --help\` for what they do, or \`npm run\` for this repository's\n` +
-          'scripts.\n'
+          'This bin implements two commands: `node bin/cortex.mjs init` and\n' +
+          '`node bin/cortex.mjs doctor`.\n' +
+          `Run \`node bin/cortex.mjs --help\` for what they do, or \`npm run\` for this\n` +
+          "repository's scripts.\n"
       : `cortex ${command} is not implemented as a bin command.\n\n` +
           `Run \`npm run ${script}\` instead.\n\n` +
-          'This bin implements two commands: `cortex init` and `cortex doctor`.\n',
+          'This bin implements two commands: `node bin/cortex.mjs init` and\n' +
+          '`node bin/cortex.mjs doctor`.\n',
   );
   return 1;
 }
