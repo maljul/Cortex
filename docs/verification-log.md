@@ -6469,3 +6469,107 @@ credentials            PASS  no credential pattern in all history (placeholders 
 
 The `credentials` row is the one this repository's own history has broken four times in a
 day (V42, V43), and it is green over the whole of `git log -p --all`.
+
+---
+
+## V62 — The claims of V58–V61, re-run rather than read
+
+**2026-08-17.** V58 to V61 were written from commit messages, because the work they record had
+been evidenced nowhere else. That is a weaker form of evidence than this file is for, and this
+entry closes the gap for the three claims that a reader acts on.
+
+### The suite, one rested run
+
+```
+Test Files  42 passed (42)
+Tests      671 passed (671)
+Duration   935.66s
+```
+
+Zero failures. `npm run db:check` answered in 1276ms immediately before, and in 1507ms
+immediately after a *previous* run of the same suite was killed at ten minutes — so the cluster
+was healthy on both sides of ~25 minutes of sustained load.
+
+**935.66s is not the saturation signal `CLAUDE.md` said it was, and that rule is now corrected.**
+Its threshold was written against 423 tests across 34 files. The suite is 671 across 42 — 59%
+larger — so the old rule would have read every future green run as a degrading cluster. What
+still holds from V43: a *multiple* of the expected duration, or individual tests hanging in the
+hundreds of seconds, is saturation. A proportionate increase alongside a proportionate increase
+in tests is not.
+
+**A second finding, and it cost ten minutes of cluster time to learn.** At ~935s `npm test`
+exceeds the 600s ceiling a tooling harness kills a foreground command at, and vitest buffers its
+summary to the very end — so the killed run left a seven-line log containing nothing but the
+banner, having spent the full ten minutes on the cluster regardless. A killed suite is not a
+cheap suite. Launch it detached and poll the log.
+
+### The degradation ladder, forced
+
+```
+$ npm run gate:ladder
+36/36 checks passed.
+```
+
+Every rung driven by making its limit actually happen — the day's LIVE counter set to its cap,
+every embedding call refused with a 429, a scope's row budget filled, the demo plane pointed at
+a socket nothing is listening on — plus rung 1b, which refuses the `bedrock:InvokeModel` grant
+and is the runtime shape of brake 3's action. All three brakes exercised with every judge-facing
+route still answering afterwards (`run 202 · state 200 · log 200 · session 200`), which is rule
+B4's requirement of a cost control.
+
+**This is what `docs/architecture.md`'s rung table now rests on.** Until this run that table was
+corrected from a commit message, which is the thing V58–V61 had to do and this entry exists not
+to repeat.
+
+**What a green run here does not prove, in the gate's own words:** brake 3 is asserted to exist
+in the stack source, not fired against a real bill, because firing it means spending the budget
+it protects. What is checked is that the Budget, its action and the deny policy are present,
+that the filter names the services the spend actually lands on, and that the period bounds the
+event rather than the month. The published description says "armed and never fired" for exactly
+this reason.
+
+### The deployed stack, read back rather than synthesized
+
+`LiveReasoningPolicy`, read from the account with `aws iam get-policy-version`: `Allow` on
+`bedrock:InvokeModel` for Claude Haiku 4.5 — three regional foundation-model ARNs plus the `us.`
+inference profile — attached to `CortexStack-RunnerFnServiceRole…` and to no other principal.
+`LiveReasoningDenyPolicy` mirrors it ARN for ARN with `Effect: Deny` and is attached to nothing,
+which is what an armed brake that has never fired looks like. The Budget action reports
+`APPLY_IAM_POLICY`, `AUTOMATIC`, `STANDBY`.
+
+### Three comments that had stopped being true
+
+Found by reading the code beside them, not the prose. `infra/cdk/lib/cortex-stack.ts` denied the
+existence of a Budget resource about a hundred lines above `LiveReasoningBudget`, and denied that
+the runner reads `LIVE_TOKEN` — it does, through `liveCapabilityGranted`'s default parameter,
+which is why a grep of `runner.ts` finds nothing and the claim survived being checked.
+`scripts/gate-ladder.mts` still called rung 2 "the one that does not hold" and printed
+"Not fixable from this unit's file set" on failure, after `src/demo/workload.ts` had fixed it.
+
+`test/infra-stack.test.ts` refused the first version of the second correction: it forbids any
+`process.env` property access anywhere in the stack source, because that is how a DSN reached
+`cdk.out/` once. The comment was reworded; the assertion was not weakened.
+
+### Two documented commands that did not work
+
+- **`npx cortex` does not run this CLI.** `node_modules/.bin/cortex` is not created for a
+  package's own bin, and the public registry carries an unrelated package under that name —
+  `npx --no-install cortex --version` fails naming `cortex@6.2.3`, described upstream as an
+  npm-like package manager for browsers. `node bin/cortex.mjs --version` prints `1.0.0`, and is
+  the form `test/cli-init.test.ts` has always invoked. The README offered the broken form in five
+  places and the CLI's own `--help` printed it as its usage line, so the documented form and the
+  tested form were never the same one.
+- **`npm run serve` cannot be an MCP client's command.** Measured across six candidates by
+  spawning each, writing an `initialize` frame and reading stdout: `npm run serve` and
+  `npm --prefix <path> run serve` both emit npm's lifecycle banner on stdout, where the stdio
+  contract admits protocol frames only. `node --import tsx <abs>` fails outright from a foreign
+  working directory; `npx tsx <abs>` works but silently downloads `tsx` from the registry. The
+  form `docs/integration.md` publishes — the repository's own `node_modules/.bin/tsx` — is clean,
+  working-directory independent and reaches for nothing over the network.
+
+### The demo surface after the site change
+
+Two links added to the topbar, deployed, and read back from CloudFront with a cache-buster: both
+anchors present, and `<input`/`<form` count **0** on the served HTML. Invariant 8 against the
+bytes a visitor receives, which is stronger than the source scan `test/site.test.ts` performs.
+The links resolve only once the repository is public, which is still Julian's act.
