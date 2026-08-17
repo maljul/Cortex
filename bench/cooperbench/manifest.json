@@ -1,0 +1,5420 @@
+{
+  "$comment": "Pre-registered task list for experiment 1. Built by scripts/cooperbench-manifest.mts from a pinned upstream file. Nothing here was chosen by hand and nothing is ordered by an outcome. See bench/cooperbench/PREREGISTRATION.md.",
+  "dataset": {
+    "repo": "CooperBench/cooperbench-dataset",
+    "revision": "99dfd13988fc32ed90ac3fc41b803dfc3361039e",
+    "file": "gold_conflict_report.json",
+    "sha256": "747b27d0e80d6442d3a7b749da3b82370868ef873c54fe09a557289820c3821e"
+  },
+  "blindSalt": "cortex-20260817",
+  "upstreamSummary": {
+    "total_pairs": 652,
+    "conflicts": 499,
+    "clean_merges": 153,
+    "errors": 0,
+    "conflict_rate": "76.5%",
+    "elapsed_seconds": 240.2
+  },
+  "counts": {
+    "features": 199,
+    "pairs": 652,
+    "pools": 30,
+    "repos": 12
+  },
+  "pools": [
+    "dottxt_ai_outlines_task/task1371",
+    "dottxt_ai_outlines_task/task1655",
+    "dottxt_ai_outlines_task/task1706",
+    "dspy_task/task8394",
+    "dspy_task/task8563",
+    "dspy_task/task8587",
+    "dspy_task/task8635",
+    "go_chi_task/task26",
+    "go_chi_task/task27",
+    "go_chi_task/task56",
+    "huggingface_datasets_task/task3997",
+    "huggingface_datasets_task/task6252",
+    "huggingface_datasets_task/task7309",
+    "llama_index_task/task17070",
+    "llama_index_task/task17244",
+    "llama_index_task/task18813",
+    "openai_tiktoken_task/task0",
+    "pallets_click_task/task2068",
+    "pallets_click_task/task2800",
+    "pallets_click_task/task2956",
+    "pallets_jinja_task/task1465",
+    "pallets_jinja_task/task1559",
+    "pallets_jinja_task/task1621",
+    "pillow_task/task25",
+    "pillow_task/task290",
+    "pillow_task/task68",
+    "react_hook_form_task/task153",
+    "react_hook_form_task/task85",
+    "samuelcolvin_dirty_equals_task/task43",
+    "typst_task/task6554"
+  ],
+  "features": [
+    {
+      "id": "dottxt_ai_outlines_task/task1371/feature1",
+      "pool": "dottxt_ai_outlines_task/task1371"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1371/feature2",
+      "pool": "dottxt_ai_outlines_task/task1371"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1371/feature3",
+      "pool": "dottxt_ai_outlines_task/task1371"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1371/feature4",
+      "pool": "dottxt_ai_outlines_task/task1371"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature1",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature10",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature2",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature3",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature4",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature5",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature6",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature7",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature8",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1655/feature9",
+      "pool": "dottxt_ai_outlines_task/task1655"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature1",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature2",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature3",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature4",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature5",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature6",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature7",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dottxt_ai_outlines_task/task1706/feature8",
+      "pool": "dottxt_ai_outlines_task/task1706"
+    },
+    {
+      "id": "dspy_task/task8394/feature1",
+      "pool": "dspy_task/task8394"
+    },
+    {
+      "id": "dspy_task/task8394/feature2",
+      "pool": "dspy_task/task8394"
+    },
+    {
+      "id": "dspy_task/task8394/feature3",
+      "pool": "dspy_task/task8394"
+    },
+    {
+      "id": "dspy_task/task8394/feature4",
+      "pool": "dspy_task/task8394"
+    },
+    {
+      "id": "dspy_task/task8394/feature5",
+      "pool": "dspy_task/task8394"
+    },
+    {
+      "id": "dspy_task/task8563/feature1",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8563/feature2",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8563/feature3",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8563/feature4",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8563/feature5",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8563/feature6",
+      "pool": "dspy_task/task8563"
+    },
+    {
+      "id": "dspy_task/task8587/feature1",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8587/feature2",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8587/feature3",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8587/feature4",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8587/feature5",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8587/feature6",
+      "pool": "dspy_task/task8587"
+    },
+    {
+      "id": "dspy_task/task8635/feature1",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "dspy_task/task8635/feature2",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "dspy_task/task8635/feature3",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "dspy_task/task8635/feature4",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "dspy_task/task8635/feature5",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "dspy_task/task8635/feature6",
+      "pool": "dspy_task/task8635"
+    },
+    {
+      "id": "go_chi_task/task26/feature1",
+      "pool": "go_chi_task/task26"
+    },
+    {
+      "id": "go_chi_task/task26/feature2",
+      "pool": "go_chi_task/task26"
+    },
+    {
+      "id": "go_chi_task/task26/feature3",
+      "pool": "go_chi_task/task26"
+    },
+    {
+      "id": "go_chi_task/task26/feature4",
+      "pool": "go_chi_task/task26"
+    },
+    {
+      "id": "go_chi_task/task27/feature1",
+      "pool": "go_chi_task/task27"
+    },
+    {
+      "id": "go_chi_task/task27/feature2",
+      "pool": "go_chi_task/task27"
+    },
+    {
+      "id": "go_chi_task/task27/feature3",
+      "pool": "go_chi_task/task27"
+    },
+    {
+      "id": "go_chi_task/task27/feature4",
+      "pool": "go_chi_task/task27"
+    },
+    {
+      "id": "go_chi_task/task56/feature1",
+      "pool": "go_chi_task/task56"
+    },
+    {
+      "id": "go_chi_task/task56/feature2",
+      "pool": "go_chi_task/task56"
+    },
+    {
+      "id": "go_chi_task/task56/feature3",
+      "pool": "go_chi_task/task56"
+    },
+    {
+      "id": "go_chi_task/task56/feature4",
+      "pool": "go_chi_task/task56"
+    },
+    {
+      "id": "go_chi_task/task56/feature5",
+      "pool": "go_chi_task/task56"
+    },
+    {
+      "id": "huggingface_datasets_task/task3997/feature1",
+      "pool": "huggingface_datasets_task/task3997"
+    },
+    {
+      "id": "huggingface_datasets_task/task3997/feature2",
+      "pool": "huggingface_datasets_task/task3997"
+    },
+    {
+      "id": "huggingface_datasets_task/task3997/feature3",
+      "pool": "huggingface_datasets_task/task3997"
+    },
+    {
+      "id": "huggingface_datasets_task/task3997/feature4",
+      "pool": "huggingface_datasets_task/task3997"
+    },
+    {
+      "id": "huggingface_datasets_task/task3997/feature5",
+      "pool": "huggingface_datasets_task/task3997"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature1",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature2",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature3",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature4",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature5",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task6252/feature6",
+      "pool": "huggingface_datasets_task/task6252"
+    },
+    {
+      "id": "huggingface_datasets_task/task7309/feature1",
+      "pool": "huggingface_datasets_task/task7309"
+    },
+    {
+      "id": "huggingface_datasets_task/task7309/feature2",
+      "pool": "huggingface_datasets_task/task7309"
+    },
+    {
+      "id": "llama_index_task/task17070/feature1",
+      "pool": "llama_index_task/task17070"
+    },
+    {
+      "id": "llama_index_task/task17070/feature2",
+      "pool": "llama_index_task/task17070"
+    },
+    {
+      "id": "llama_index_task/task17070/feature3",
+      "pool": "llama_index_task/task17070"
+    },
+    {
+      "id": "llama_index_task/task17244/feature1",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature2",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature3",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature4",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature5",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature6",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task17244/feature7",
+      "pool": "llama_index_task/task17244"
+    },
+    {
+      "id": "llama_index_task/task18813/feature1",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "llama_index_task/task18813/feature2",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "llama_index_task/task18813/feature3",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "llama_index_task/task18813/feature4",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "llama_index_task/task18813/feature5",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "llama_index_task/task18813/feature6",
+      "pool": "llama_index_task/task18813"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature1",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature10",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature2",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature3",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature4",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature5",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature6",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature7",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature8",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "openai_tiktoken_task/task0/feature9",
+      "pool": "openai_tiktoken_task/task0"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature1",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature10",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature11",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature12",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature2",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature3",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature4",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature5",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature6",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature7",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature8",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2068/feature9",
+      "pool": "pallets_click_task/task2068"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature1",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature2",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature3",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature4",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature5",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature6",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2800/feature7",
+      "pool": "pallets_click_task/task2800"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature1",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature2",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature3",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature4",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature5",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature6",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature7",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_click_task/task2956/feature8",
+      "pool": "pallets_click_task/task2956"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature1",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature10",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature2",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature3",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature4",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature5",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature6",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature7",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature8",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1465/feature9",
+      "pool": "pallets_jinja_task/task1465"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature1",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature10",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature2",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature3",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature4",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature5",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature6",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature7",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature8",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1559/feature9",
+      "pool": "pallets_jinja_task/task1559"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature1",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature10",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature2",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature3",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature4",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature5",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature6",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature7",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature8",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pallets_jinja_task/task1621/feature9",
+      "pool": "pallets_jinja_task/task1621"
+    },
+    {
+      "id": "pillow_task/task25/feature1",
+      "pool": "pillow_task/task25"
+    },
+    {
+      "id": "pillow_task/task25/feature2",
+      "pool": "pillow_task/task25"
+    },
+    {
+      "id": "pillow_task/task25/feature3",
+      "pool": "pillow_task/task25"
+    },
+    {
+      "id": "pillow_task/task25/feature4",
+      "pool": "pillow_task/task25"
+    },
+    {
+      "id": "pillow_task/task25/feature5",
+      "pool": "pillow_task/task25"
+    },
+    {
+      "id": "pillow_task/task290/feature1",
+      "pool": "pillow_task/task290"
+    },
+    {
+      "id": "pillow_task/task290/feature2",
+      "pool": "pillow_task/task290"
+    },
+    {
+      "id": "pillow_task/task290/feature3",
+      "pool": "pillow_task/task290"
+    },
+    {
+      "id": "pillow_task/task290/feature4",
+      "pool": "pillow_task/task290"
+    },
+    {
+      "id": "pillow_task/task290/feature5",
+      "pool": "pillow_task/task290"
+    },
+    {
+      "id": "pillow_task/task68/feature1",
+      "pool": "pillow_task/task68"
+    },
+    {
+      "id": "pillow_task/task68/feature2",
+      "pool": "pillow_task/task68"
+    },
+    {
+      "id": "pillow_task/task68/feature3",
+      "pool": "pillow_task/task68"
+    },
+    {
+      "id": "pillow_task/task68/feature4",
+      "pool": "pillow_task/task68"
+    },
+    {
+      "id": "pillow_task/task68/feature5",
+      "pool": "pillow_task/task68"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature1",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature2",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature3",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature4",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature5",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task153/feature6",
+      "pool": "react_hook_form_task/task153"
+    },
+    {
+      "id": "react_hook_form_task/task85/feature1",
+      "pool": "react_hook_form_task/task85"
+    },
+    {
+      "id": "react_hook_form_task/task85/feature2",
+      "pool": "react_hook_form_task/task85"
+    },
+    {
+      "id": "react_hook_form_task/task85/feature3",
+      "pool": "react_hook_form_task/task85"
+    },
+    {
+      "id": "react_hook_form_task/task85/feature4",
+      "pool": "react_hook_form_task/task85"
+    },
+    {
+      "id": "react_hook_form_task/task85/feature5",
+      "pool": "react_hook_form_task/task85"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "pool": "samuelcolvin_dirty_equals_task/task43"
+    },
+    {
+      "id": "typst_task/task6554/feature1",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature10",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature2",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature3",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature4",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature5",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature6",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature7",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature8",
+      "pool": "typst_task/task6554"
+    },
+    {
+      "id": "typst_task/task6554/feature9",
+      "pool": "typst_task/task6554"
+    }
+  ],
+  "pairs": [
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature5",
+      "blindRankKey": "0061f97ea13b82f1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature3",
+      "b": "pillow_task/task68/feature4",
+      "blindRankKey": "0089784c974d3dd1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature3",
+      "b": "pillow_task/task25/feature4",
+      "blindRankKey": "00d5a22b035cc558",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature5",
+      "blindRankKey": "0107b1ff0175fbf6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature3",
+      "b": "dspy_task/task8635/feature5",
+      "blindRankKey": "021bec234505a3e7",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "02790e2e2c5ea64d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature3",
+      "b": "dspy_task/task8563/feature6",
+      "blindRankKey": "0477c52f49b7be42",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature3",
+      "b": "pallets_click_task/task2800/feature4",
+      "blindRankKey": "0516328d9e064b10",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature5",
+      "b": "pallets_click_task/task2956/feature6",
+      "blindRankKey": "05fe35f4f766a3ef",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "071753746d4037e4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "07529f96db815cbc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature2",
+      "b": "dspy_task/task8635/feature5",
+      "blindRankKey": "079e2810a5367e1d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "09384e8bf4dabce9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature5",
+      "blindRankKey": "095a004c1dbf535a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature2",
+      "blindRankKey": "0975e47ed35134eb",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "09bc170786bd6bcb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature1",
+      "b": "pillow_task/task290/feature3",
+      "blindRankKey": "09f916f3f9c09f4a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature4",
+      "b": "pallets_jinja_task/task1621/feature5",
+      "blindRankKey": "0a08cbce77846267",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "0a858b04b062f3b2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "0a9f94ab084f3b7d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "0ac0a56f1d1f319d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature1",
+      "b": "dspy_task/task8563/feature5",
+      "blindRankKey": "0ac499c50d5bd885",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature2",
+      "blindRankKey": "0ad5b9e0a91c0772",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature5",
+      "b": "dspy_task/task8635/feature6",
+      "blindRankKey": "0b37a78db988455e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "blindRankKey": "0c9d8ecc35c323c5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "0ce3e8efe570c8d4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature5",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "0d515832a46e4768",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature1",
+      "b": "dspy_task/task8635/feature6",
+      "blindRankKey": "0d6e879a886f0149",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature1",
+      "b": "go_chi_task/task56/feature5",
+      "blindRankKey": "0d8e3135ed8251d4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature1",
+      "b": "llama_index_task/task18813/feature5",
+      "blindRankKey": "0df4045ba40ecf51",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature4",
+      "b": "dspy_task/task8587/feature6",
+      "blindRankKey": "0ea56d8c57ee22ea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature6",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "1017c4811663c2f8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "blindRankKey": "1096825fe3d402f6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature10",
+      "blindRankKey": "10a9bb51ff3ae070",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature2",
+      "blindRankKey": "10fd907965dda21d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature6",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "113516cc8b8abc96",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "1138f6d43ad9c345",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature2",
+      "b": "pillow_task/task68/feature4",
+      "blindRankKey": "118b58309b9c329d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature2",
+      "b": "dspy_task/task8587/feature6",
+      "blindRankKey": "11dbcc2867530545",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "121e2ab784a4fa18",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "1264a7521871f016",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature2",
+      "b": "pallets_click_task/task2800/feature4",
+      "blindRankKey": "132d37fae61f58ad",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "13559580bc3e80f7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature1",
+      "b": "dspy_task/task8635/feature4",
+      "blindRankKey": "1360e21553693572",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature6",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "1374802f1d88904e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature2",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "13c9b63864d8125b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "1443005f24827eda",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature5",
+      "blindRankKey": "145ef22656bdc80c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature1",
+      "b": "dottxt_ai_outlines_task/task1371/feature3",
+      "blindRankKey": "1468d853bbde3909",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature7",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "1487e2b8fcef8e7b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature4",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "14f40831872fc4c2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature2",
+      "b": "go_chi_task/task26/feature4",
+      "blindRankKey": "15d2cd400b0794cd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature3",
+      "b": "llama_index_task/task18813/feature6",
+      "blindRankKey": "163d1c08d91245f9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature2",
+      "blindRankKey": "16484df943f68969",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "16652ab41f877d43",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature1",
+      "b": "dspy_task/task8635/feature2",
+      "blindRankKey": "1756331514529c4e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature2",
+      "b": "llama_index_task/task17244/feature6",
+      "blindRankKey": "17a07cd46c22352b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature4",
+      "blindRankKey": "17bfb42097dc5d0b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "198f98313f100ed2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature4",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "199cc183f590f25b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature4",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "19be2a204370db5c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature3",
+      "blindRankKey": "19ff8fa4f1d804c3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "1a0f56769af0443c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "1a51abaaab45a2d9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature4",
+      "blindRankKey": "1a73c7dc7d18535d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature3",
+      "blindRankKey": "1acc4524a7ff76e3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "1adf5d0e284925ae",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature5",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "1af29e260b3fca44",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature2",
+      "b": "dspy_task/task8635/feature4",
+      "blindRankKey": "1b6a483018f5da2a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "1b8cc7f0874d92eb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "1cf52035bf699ab2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature2",
+      "b": "dspy_task/task8563/feature6",
+      "blindRankKey": "1d21c3b3bc02ed94",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature4",
+      "b": "pallets_jinja_task/task1465/feature5",
+      "blindRankKey": "1e2f697076e3160e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature5",
+      "blindRankKey": "1e4958432a93994e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature4",
+      "b": "react_hook_form_task/task153/feature5",
+      "blindRankKey": "1e6007b799768ba9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature1",
+      "b": "dspy_task/task8587/feature5",
+      "blindRankKey": "1e89421385186fff",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "1f078c0a655804ed",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature6",
+      "blindRankKey": "1f622af4f2903ffa",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature8",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "1fbfecafd3ac6e9f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "1fc754b98f4a41ba",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature3",
+      "b": "react_hook_form_task/task153/feature4",
+      "blindRankKey": "1fd18cd4be9a0628",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature2",
+      "blindRankKey": "1fd2a5b26c5c84fe",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature2",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "207810703af74291",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature10",
+      "blindRankKey": "20d15c16645f455c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature6",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "21cca3c387781af1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature1",
+      "b": "pillow_task/task25/feature4",
+      "blindRankKey": "21de9af431d54ed0",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature3",
+      "blindRankKey": "22c46e448fd1706b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature1",
+      "b": "go_chi_task/task56/feature3",
+      "blindRankKey": "22e1f55ee40cd1b2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature4",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "22f69a6268c4a78b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature1",
+      "b": "pillow_task/task290/feature2",
+      "blindRankKey": "2382da1cf7556c00",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature5",
+      "blindRankKey": "2387a5a3c8fad1de",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature2",
+      "b": "huggingface_datasets_task/task3997/feature5",
+      "blindRankKey": "23eea3bceebac034",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "240c1ad34793e06a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature2",
+      "blindRankKey": "24a72577d2b3e2ec",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "2578d2e447f9759d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature2",
+      "blindRankKey": "25edd479a154beec",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature7",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "26291cbc9a329432",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature12",
+      "blindRankKey": "26abdcd5b2c68ac7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature2",
+      "blindRankKey": "2773ed3d937dc7f4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature5",
+      "blindRankKey": "27dd4cd85827fbb7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature3",
+      "blindRankKey": "2818bbb69ec8212b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "28bb82722eac1bb5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature2",
+      "b": "go_chi_task/task27/feature4",
+      "blindRankKey": "28de45726058c752",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature3",
+      "blindRankKey": "28fbf68a393cdef8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature2",
+      "b": "react_hook_form_task/task153/feature5",
+      "blindRankKey": "292b039a4e22df4d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature1",
+      "b": "huggingface_datasets_task/task3997/feature3",
+      "blindRankKey": "29bd19f32a66615b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature5",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "2a0f204d9a6f2cc9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature6",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "2af3ba0b80503b96",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "2bbf8e20a1da37a1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature3",
+      "blindRankKey": "2bd96eed535ab920",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature4",
+      "blindRankKey": "2c2359195bb0c632",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task17070",
+      "a": "llama_index_task/task17070/feature1",
+      "b": "llama_index_task/task17070/feature3",
+      "blindRankKey": "2c3a1d6beb274bb0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature3",
+      "b": "huggingface_datasets_task/task3997/feature5",
+      "blindRankKey": "2c4e0f1856125529",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature4",
+      "b": "dspy_task/task8563/feature5",
+      "blindRankKey": "2ca43d1b8551aa66",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature3",
+      "b": "pillow_task/task25/feature5",
+      "blindRankKey": "2ca4691a4d6a3ce2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature1",
+      "b": "llama_index_task/task18813/feature6",
+      "blindRankKey": "2cb2e6203867d411",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature5",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "2d279940985b30f7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature1",
+      "b": "pillow_task/task25/feature3",
+      "blindRankKey": "2d423366e690903f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature4",
+      "blindRankKey": "2e602429b9e6f2a9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature2",
+      "b": "huggingface_datasets_task/task6252/feature3",
+      "blindRankKey": "2e72372aa66f8c05",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature6",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "2e82f5a73064407d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature5",
+      "b": "huggingface_datasets_task/task6252/feature6",
+      "blindRankKey": "2e8b281ca7b7c58d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature3",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "2f4114ebcade69e6",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "2f595da16baf31d2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature2",
+      "blindRankKey": "2f9089437b1be14e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "30882b8c0aa1e129",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature4",
+      "blindRankKey": "30abee5af2604977",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature4",
+      "b": "openai_tiktoken_task/task0/feature5",
+      "blindRankKey": "30bb94fcc66875e2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "31684a579b9ca16f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "31b69de72884270d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature4",
+      "blindRankKey": "31d60e483fca39d8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature3",
+      "blindRankKey": "326f46597b4a5bd9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature4",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "3322159e6b841173",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "33a1cfbd16adf929",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "33a7c21182d4ea6f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "33cc96fc4609d11f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature4",
+      "b": "pallets_click_task/task2800/feature5",
+      "blindRankKey": "33e813facf669cc6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "3454c85729a1dcf0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "blindRankKey": "34e08d228853d4cd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature4",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "35200eb9e4cde0d6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "3545d4b6966fcf0c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature5",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "359e3935734e744d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature6",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "36a312ecdad0aa0c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature3",
+      "blindRankKey": "36f7e4d9b4622c3d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "37123a71c249035f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature1",
+      "b": "llama_index_task/task18813/feature2",
+      "blindRankKey": "373042fcd642dfe1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature5",
+      "blindRankKey": "382c247e33bd82c4",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature4",
+      "blindRankKey": "383294da58ffb9d4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "38435739d8302fcb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature5",
+      "blindRankKey": "38c4ac49a2f46d72",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature1",
+      "b": "huggingface_datasets_task/task6252/feature3",
+      "blindRankKey": "38d0f763f0fa98f0",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature2",
+      "b": "react_hook_form_task/task153/feature4",
+      "blindRankKey": "397538a399021fb2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature4",
+      "blindRankKey": "3a5a882a0ece1ace",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature2",
+      "b": "dspy_task/task8563/feature5",
+      "blindRankKey": "3a73771def49d6b3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "3ca72ea8a39869f9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "3d080e052aa3c4d4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature7",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "3db3271cb5219075",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature2",
+      "b": "react_hook_form_task/task85/feature3",
+      "blindRankKey": "3dc4e1a88f9f602b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature4",
+      "b": "dspy_task/task8394/feature5",
+      "blindRankKey": "3e38fd1978445118",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "3eb5027ed315f4e6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "3ec9d888ac20acaf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature1",
+      "b": "go_chi_task/task56/feature2",
+      "blindRankKey": "3f7b17bfa8218ca2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "409c53a3b665a47a",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "4106370318cfba31",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature2",
+      "blindRankKey": "41516a82d0ad2f75",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "4165bab6460d42d2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "blindRankKey": "4185b40880ddecc8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature2",
+      "b": "go_chi_task/task56/feature4",
+      "blindRankKey": "41eeb9c981fdf085",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature1",
+      "b": "dspy_task/task8394/feature5",
+      "blindRankKey": "41f65190136984fe",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "42a0baebf5a4bbea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "43e744fccf7432fd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "43f23e8e0652951a",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature4",
+      "b": "pillow_task/task290/feature5",
+      "blindRankKey": "44db8b6b4b11ce66",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature1",
+      "b": "react_hook_form_task/task85/feature2",
+      "blindRankKey": "44e42c6fd758eda6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature4",
+      "b": "pallets_click_task/task2956/feature5",
+      "blindRankKey": "4546ee603e127724",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature1",
+      "b": "huggingface_datasets_task/task3997/feature4",
+      "blindRankKey": "4577a56560bf9e5a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature4",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "46214a120235f002",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature4",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "46a40cd2c6c2bf3a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "47197e459d4b13b3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature3",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "47bde171237c8d78",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature2",
+      "b": "dspy_task/task8394/feature5",
+      "blindRankKey": "47c519c94bf4c49d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "4856c0da3279a67e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature4",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "486c0cea65d457b4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature1",
+      "b": "dottxt_ai_outlines_task/task1371/feature2",
+      "blindRankKey": "48765aaf26fee004",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "496b75b34e75b467",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "4977020648a089a0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature3",
+      "b": "dspy_task/task8635/feature4",
+      "blindRankKey": "49b04c32f41fc04c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature3",
+      "b": "dspy_task/task8635/feature6",
+      "blindRankKey": "4a263b06887ea4c2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature5",
+      "blindRankKey": "4a5bbb0a04ffbebc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature5",
+      "blindRankKey": "4a95f80c4a0f747f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature5",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "4aa80bdb2e6d6db0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature4",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "4ae8b47c13e5ba3c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature5",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "4b84ea6824527be8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature5",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "4c35f79f5c018a31",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature8",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "4ceda72cf80d0211",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "4d9282139c88f35e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature4",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "4da6332cd67c9c43",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature4",
+      "b": "dottxt_ai_outlines_task/task1655/feature5",
+      "blindRankKey": "4dc9a3c9d428b1b4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature3",
+      "b": "dspy_task/task8587/feature4",
+      "blindRankKey": "4e1c9f7cf8928903",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature2",
+      "blindRankKey": "4e3be68e937477bb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature4",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "4e5b23494be4ceab",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature5",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "4edbd88c151a497f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature4",
+      "blindRankKey": "4edcd03de4072009",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "4f15a476a899b7de",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature1",
+      "b": "react_hook_form_task/task85/feature3",
+      "blindRankKey": "4f5b5580d3c5c929",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature6",
+      "blindRankKey": "4f7275521fc43348",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "blindRankKey": "4f77d91545204468",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature2",
+      "b": "go_chi_task/task27/feature3",
+      "blindRankKey": "4fb09607a5b55183",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "4fb2c382d5ef6d7e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature3",
+      "blindRankKey": "4fb4c82bf02e1376",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature5",
+      "blindRankKey": "4fc17d68cb4836d2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "4feadd3a375e91e4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "50aa439f6ea3c3f2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature2",
+      "b": "llama_index_task/task17244/feature4",
+      "blindRankKey": "512fe9a09ebd995b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature5",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "518d460449f38d5b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature3",
+      "blindRankKey": "51f9a3ba23df3374",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature3",
+      "b": "dspy_task/task8587/feature6",
+      "blindRankKey": "52387771c6be98a5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "52526d26751f67d9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "52b26cf6991403ac",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature2",
+      "b": "dottxt_ai_outlines_task/task1371/feature4",
+      "blindRankKey": "52b899dba7dc7641",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature4",
+      "blindRankKey": "541601b732f7f5fd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature4",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "54d817f0d66d2948",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature6",
+      "blindRankKey": "54e7b8f857c7058f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature2",
+      "b": "llama_index_task/task18813/feature4",
+      "blindRankKey": "5531917b0f5e6c28",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "555bef044de3c0ff",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "558ef19894a9c843",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "55bb5256508c786e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "5609d0d4a31ede0c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature5",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "56cca05b6833fc33",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature1",
+      "b": "dspy_task/task8563/feature2",
+      "blindRankKey": "57911c09b63816f1",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "57d4012160645dbc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature4",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "57d84eeca433b625",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "5844aefc48ff93a9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature4",
+      "b": "llama_index_task/task18813/feature5",
+      "blindRankKey": "58b9d329f4d0a5ae",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature4",
+      "b": "llama_index_task/task17244/feature5",
+      "blindRankKey": "58c1e9a4c033b325",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature5",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "590d854eabcd8b5a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature3",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "5948f7ff59d0b870",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature5",
+      "blindRankKey": "59541540db8e1931",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature4",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "59867b9573119543",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "59cf1bbfadef8350",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature3",
+      "b": "react_hook_form_task/task85/feature4",
+      "blindRankKey": "5a027f1ce70e92e4",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature5",
+      "blindRankKey": "5a20dfc472fe70d4",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature4",
+      "blindRankKey": "5ad2fe56f40fa44b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature3",
+      "blindRankKey": "5bb5082b268ed060",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "5c8a637e0b0972fb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature7",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "5e143a5b7ffdad1d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature1",
+      "b": "huggingface_datasets_task/task6252/feature6",
+      "blindRankKey": "5fb629d1a9c171ec",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "blindRankKey": "6038b92a5e295d56",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature2",
+      "b": "dspy_task/task8563/feature4",
+      "blindRankKey": "60893a70a5ffbf43",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature4",
+      "b": "dspy_task/task8635/feature5",
+      "blindRankKey": "6122bf3f19a0570d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "61ba10b00126a268",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature2",
+      "b": "pallets_click_task/task2800/feature5",
+      "blindRankKey": "62395b2785bb5c3b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature3",
+      "b": "llama_index_task/task17244/feature6",
+      "blindRankKey": "62c9a93137f99418",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "blindRankKey": "62cd723140792228",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature3",
+      "b": "llama_index_task/task18813/feature4",
+      "blindRankKey": "632c7f1f7f5c7823",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "6370e2dbcfd526bd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "63dd4feffa3eab8e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature7",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "63e7784111db2b29",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature5",
+      "blindRankKey": "64040e2ac266c0bc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "64b3a0495bfa3370",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature5",
+      "blindRankKey": "64b8bd0fdb42cbbf",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature3",
+      "b": "react_hook_form_task/task85/feature5",
+      "blindRankKey": "6551e95e33f7954d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature4",
+      "b": "dottxt_ai_outlines_task/task1706/feature6",
+      "blindRankKey": "656beabba46df9d3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature5",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "65cbb30f330b763f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "66073003f6fe5a2f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature2",
+      "blindRankKey": "663e1bc5f2ad20a6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature1",
+      "b": "llama_index_task/task18813/feature3",
+      "blindRankKey": "665f065656b735eb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "6681f2430c0220f2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature2",
+      "blindRankKey": "66896a668a2831b4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature4",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "6762fa06f7262ce6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature4",
+      "blindRankKey": "67679b4083167631",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "687b07df4f37cf8d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature8",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "68b77dfd354bc3b2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature2",
+      "b": "dspy_task/task8394/feature3",
+      "blindRankKey": "690757a01a080b16",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature1",
+      "b": "huggingface_datasets_task/task6252/feature4",
+      "blindRankKey": "69e99232660049c3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task7309",
+      "a": "huggingface_datasets_task/task7309/feature1",
+      "b": "huggingface_datasets_task/task7309/feature2",
+      "blindRankKey": "6a2fc4a6fe6d3efc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature3",
+      "blindRankKey": "6a98a1834bd27caf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "6aa0b0d041c68049",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature5",
+      "blindRankKey": "6add1d3ae83dbc57",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "6b4875ac076c55dd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature5",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "6bd362b9127c951f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature1",
+      "b": "dspy_task/task8587/feature3",
+      "blindRankKey": "6c757f72664f5bb5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature4",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "6d61f05b24e85559",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "6e097bf36c3dc9a7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature1",
+      "b": "dspy_task/task8394/feature4",
+      "blindRankKey": "6e1ff115e80d89a1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature4",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "6f68b6bd983c6b85",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature1",
+      "b": "go_chi_task/task27/feature4",
+      "blindRankKey": "6f6fa6a92adf72ce",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature4",
+      "b": "pallets_click_task/task2800/feature6",
+      "blindRankKey": "6fece4f428ebfaf9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "7012b6847799945a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature4",
+      "b": "pallets_click_task/task2956/feature6",
+      "blindRankKey": "70623d8ce9a21c6d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature1",
+      "b": "dspy_task/task8587/feature4",
+      "blindRankKey": "70dbdb0884041da6",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature8",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "71620909157160f7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature1",
+      "b": "pillow_task/task68/feature2",
+      "blindRankKey": "718868185879fe27",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature4",
+      "b": "pallets_jinja_task/task1559/feature5",
+      "blindRankKey": "720a5dd4d78f77a2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature5",
+      "blindRankKey": "724aced09d94bea8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature7",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "726de64f3aa256bb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature6",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "7297ae8725b96f7e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "72f21be4c6e9528d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature2",
+      "blindRankKey": "7344a860c401da69",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "741751b079e58c7a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature7",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "749ad67fa44b901e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature3",
+      "b": "pillow_task/task68/feature5",
+      "blindRankKey": "74d22d0b4e7ccb49",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature3",
+      "blindRankKey": "74e49f7eea7aca83",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17070",
+      "a": "llama_index_task/task17070/feature1",
+      "b": "llama_index_task/task17070/feature2",
+      "blindRankKey": "763721f7f1fe0e98",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature4",
+      "b": "pillow_task/task68/feature5",
+      "blindRankKey": "7690ee24b44ea16d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature6",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "76c717cf973411b3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "76e2956749cf40e3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature2",
+      "blindRankKey": "77ae0893914fb73a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature3",
+      "b": "dottxt_ai_outlines_task/task1371/feature4",
+      "blindRankKey": "77b60a147878fe7a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "7832ae34e774f965",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "7846be3b270db7bd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature7",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "784c2cc0d584cec5",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature4",
+      "blindRankKey": "79380d3b6c8b52bd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature2",
+      "blindRankKey": "794532d65bb906ea",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature5",
+      "blindRankKey": "7a2e29c6f8397c89",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "7b3f8713784cd9c8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature5",
+      "blindRankKey": "7b5e35e417f1cd47",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature4",
+      "b": "pillow_task/task25/feature5",
+      "blindRankKey": "7c510f100c921e8b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "7ca987daa73e719d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature4",
+      "b": "dspy_task/task8563/feature6",
+      "blindRankKey": "7cc6d20ca8f6736b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature11",
+      "blindRankKey": "7d62b4865b8cef6b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "7df98e3dc5a54b2b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature5",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "7e7f142166cf8aef",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature7",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "7ea599706146c4da",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature2",
+      "b": "pillow_task/task290/feature5",
+      "blindRankKey": "7f3405e4845253ff",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature6",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "7f68c482f77546df",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature3",
+      "b": "pillow_task/task290/feature5",
+      "blindRankKey": "801922d71d023aa1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature2",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "808446568011e9b9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature4",
+      "b": "llama_index_task/task18813/feature6",
+      "blindRankKey": "8086b2a70d29fa68",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "8087d8ced0ac3873",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature5",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "80e0dcb04d5c8e6d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature7",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "810aca8cb055b3e6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature2",
+      "b": "dspy_task/task8635/feature6",
+      "blindRankKey": "813b47ff11bda01f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature6",
+      "blindRankKey": "81d67401ef204b65",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature5",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "8233b3ed087c42ef",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature2",
+      "b": "pillow_task/task68/feature3",
+      "blindRankKey": "8295bd4fccafa568",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "83020cb622415377",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature3",
+      "b": "llama_index_task/task17244/feature4",
+      "blindRankKey": "83707a859f6092ea",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature2",
+      "blindRankKey": "837442448d44717d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature4",
+      "blindRankKey": "83a7073d57b24a8d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "83ceb25219d2d09c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature1",
+      "b": "huggingface_datasets_task/task6252/feature5",
+      "blindRankKey": "84ba9c239ea50a5e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature3",
+      "b": "dottxt_ai_outlines_task/task1706/feature5",
+      "blindRankKey": "85eacd0bbe6f85b6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "blindRankKey": "864e93aa5fd3e40e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature2",
+      "b": "pillow_task/task68/feature5",
+      "blindRankKey": "86a292ad4f3c5561",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature4",
+      "b": "react_hook_form_task/task153/feature6",
+      "blindRankKey": "86cc8fbfc98d9d63",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature4",
+      "b": "go_chi_task/task56/feature5",
+      "blindRankKey": "874a8aa794def828",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "887fb9471e344b21",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature4",
+      "b": "dspy_task/task8587/feature5",
+      "blindRankKey": "88a1123d27a92941",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "89587d1552b2a088",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature2",
+      "b": "pallets_click_task/task2956/feature3",
+      "blindRankKey": "89f33bad94f6b85e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "89fde968ddd0546d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "8a28a99151c1f99b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature1",
+      "b": "huggingface_datasets_task/task3997/feature5",
+      "blindRankKey": "8a388a77485a9c34",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature3",
+      "blindRankKey": "8a69d500005f34d6",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature6",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "8ac4b3459fdce917",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature6",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "8acc5bd74d246212",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature6",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "8ae41110ce4c4b4f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "8b0d02b50b47bb69",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature1",
+      "b": "dottxt_ai_outlines_task/task1371/feature4",
+      "blindRankKey": "8b8028dfa63bde43",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature1",
+      "b": "go_chi_task/task26/feature4",
+      "blindRankKey": "8b8538d4a65f4552",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "8bf606e54343adb8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature8",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "8c5bbed5c75d1a19",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "8c711ccff05b9dd1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature2",
+      "b": "react_hook_form_task/task85/feature4",
+      "blindRankKey": "8c936f180c5fe040",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1371",
+      "a": "dottxt_ai_outlines_task/task1371/feature2",
+      "b": "dottxt_ai_outlines_task/task1371/feature3",
+      "blindRankKey": "8d1b9f03f1c0f29f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature6",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "8d1f9e241ea728e1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature5",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "8d5d22de214d7f58",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "8e51adca0d5b823f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature5",
+      "blindRankKey": "8e6db307cb47711d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature4",
+      "blindRankKey": "8e6df0bcb0b286fe",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature4",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "8eafbc95f838d6ea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature4",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "8fc0da96460919a5",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature4",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "8fc62108d0395291",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "blindRankKey": "8fd224e78841650e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature4",
+      "blindRankKey": "9038e22a3c7e1764",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature4",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "9082943486e33782",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "9086b47e19282a90",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "909f938110a3f79f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature1",
+      "b": "pillow_task/task25/feature5",
+      "blindRankKey": "90b0d719db0d24d0",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "90df333e245821fb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "91f09132875d06fc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "9201b33de4ead5db",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature5",
+      "blindRankKey": "921b2d184aa5402d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature4",
+      "blindRankKey": "9256ca7af9b88eea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature4",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "927d746fdce4aa6f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "blindRankKey": "929a5c0a1d89486d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature12",
+      "blindRankKey": "92c00d7fd35cdf35",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature4",
+      "b": "llama_index_task/task17244/feature6",
+      "blindRankKey": "9304b82d4a1d5ee7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "93a82c26073dfd1f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature4",
+      "blindRankKey": "94e4889cdd45117d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "950fcff4249d387d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "9694e57974057899",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature3",
+      "blindRankKey": "97116307d9fcb177",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature6",
+      "blindRankKey": "9725f9561a8bac26",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature4",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "973ba30b3161f784",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature5",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "9883cab954e886ea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature5",
+      "blindRankKey": "98d27122e11caf0f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature2",
+      "b": "pallets_click_task/task2800/feature3",
+      "blindRankKey": "991d5afdcf516a0e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature5",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "9927d8c41165ecbb",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "996f0133d82d4e9b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature5",
+      "blindRankKey": "997121a8023c5448",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature1",
+      "b": "pillow_task/task25/feature2",
+      "blindRankKey": "99c1706485b1db3f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature5",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "9a612618e88e6828",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "9a76dad5fc3b8bd4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "blindRankKey": "9b462c79e6412fcf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature4",
+      "blindRankKey": "9bfd5a9a0b2d9101",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "9c14e8c01f174270",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature5",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "9c4e8d792b2bfeed",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature1",
+      "b": "pillow_task/task290/feature4",
+      "blindRankKey": "9c6740eacb0169d9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "9c69efcf6445c02c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature4",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "9ca8dcd3fec90de3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature3",
+      "b": "huggingface_datasets_task/task3997/feature4",
+      "blindRankKey": "9cb1fbb16932f950",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature1",
+      "b": "llama_index_task/task17244/feature4",
+      "blindRankKey": "9d0a8a0c6740b504",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature1",
+      "b": "dspy_task/task8635/feature3",
+      "blindRankKey": "9d0cd89a3f76058c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature1",
+      "b": "dspy_task/task8587/feature6",
+      "blindRankKey": "9d2c9f2f4a1ace89",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature5",
+      "blindRankKey": "9d5558e075ba656e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature6",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "9da8eb8e1b4270c4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "9e1f2c6ab7e9b2f9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature2",
+      "blindRankKey": "9ec3de1811d7057a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature3",
+      "b": "go_chi_task/task27/feature4",
+      "blindRankKey": "9fc21d54764ba897",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "a0cb21f438067c69",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature2",
+      "b": "huggingface_datasets_task/task3997/feature3",
+      "blindRankKey": "a1546ca4350b96ef",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature6",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "a15ff516317012d6",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature4",
+      "blindRankKey": "a183f3a0a9116b99",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "a22191efae022759",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature1",
+      "b": "react_hook_form_task/task153/feature2",
+      "blindRankKey": "a2baaaae87dda246",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature3",
+      "b": "pallets_click_task/task2956/feature4",
+      "blindRankKey": "a2f8876e6f05c2d6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature3",
+      "blindRankKey": "a3003fb666b9a6ee",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature8",
+      "blindRankKey": "a3bf254e39d12b0f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature3",
+      "b": "pillow_task/task290/feature4",
+      "blindRankKey": "a3d5d88df5e111e2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature2",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "a41777535a16aa57",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "a46f87426135261d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature3",
+      "blindRankKey": "a4df8fcd8b14d65d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "a5656c4c315b4e51",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature10",
+      "blindRankKey": "a5994d18e16ea16f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature4",
+      "b": "huggingface_datasets_task/task3997/feature5",
+      "blindRankKey": "a5c2d2412e5ce491",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature5",
+      "b": "dspy_task/task8587/feature6",
+      "blindRankKey": "a5e3f172bf24b0b9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "a628375e034fa778",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature5",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "a64a0b2a2c6cf7ce",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature11",
+      "blindRankKey": "a66cb2bf8241aced",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature2",
+      "b": "huggingface_datasets_task/task6252/feature5",
+      "blindRankKey": "a6abc9abbcc18b0b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature2",
+      "b": "dspy_task/task8635/feature3",
+      "blindRankKey": "a76d36f471c2a3cc",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature3",
+      "b": "dottxt_ai_outlines_task/task1706/feature6",
+      "blindRankKey": "a7edbec0e83185ac",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature4",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "a88433ff3bd59683",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature4",
+      "b": "dspy_task/task8635/feature6",
+      "blindRankKey": "a88d5df9613dff00",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature4",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "a9276864ee373cda",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature2",
+      "b": "llama_index_task/task17244/feature3",
+      "blindRankKey": "a97d0989522a066b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "aa3234ec53e2f1c0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature5",
+      "b": "pallets_jinja_task/task1559/feature7",
+      "blindRankKey": "aaf3ed77dfcec9e3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "ab3b886909ab5ee2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature4",
+      "b": "openai_tiktoken_task/task0/feature8",
+      "blindRankKey": "abccc290f4728932",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature6",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "ac4637df12ee7782",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature6",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "acaee5630e32ad35",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature6",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "ad15660c8239ca86",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature5",
+      "blindRankKey": "ad80a07fca50ec6e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature4",
+      "b": "huggingface_datasets_task/task6252/feature5",
+      "blindRankKey": "adc4ef7b1548324e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature6",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "ae6e7a6559fa392b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature3",
+      "b": "react_hook_form_task/task153/feature6",
+      "blindRankKey": "ae926792ea279a30",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature5",
+      "b": "dottxt_ai_outlines_task/task1706/feature6",
+      "blindRankKey": "aeda946446f43c4e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature6",
+      "blindRankKey": "aefcc7b9b4811c55",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature2",
+      "b": "pillow_task/task25/feature4",
+      "blindRankKey": "af2556fc5061fda9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature5",
+      "b": "react_hook_form_task/task153/feature6",
+      "blindRankKey": "af25db22e6c0e419",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature5",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "b07e39797f92b7cf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "b27d0f62a966c757",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature3",
+      "b": "dottxt_ai_outlines_task/task1706/feature8",
+      "blindRankKey": "b27ee13b24a852ca",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature3",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "b2fdbd4139f2880c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature1",
+      "b": "react_hook_form_task/task85/feature4",
+      "blindRankKey": "b3b6582e8e0e4ced",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature5",
+      "blindRankKey": "b3c4850fae4e02df",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature7",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "b3c827a27ddd315a",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature7",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "b3f50a05354c3950",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature2",
+      "b": "dspy_task/task8587/feature3",
+      "blindRankKey": "b3f9b7c061c20b2e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "b46ff52ea2b91edf",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature2",
+      "blindRankKey": "b4abe558d313910b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature5",
+      "b": "pallets_click_task/task2800/feature6",
+      "blindRankKey": "b4b6afa9fa48e550",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature3",
+      "b": "dspy_task/task8563/feature5",
+      "blindRankKey": "b518c96e287cea0a",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature1",
+      "b": "go_chi_task/task27/feature2",
+      "blindRankKey": "b57284681d3d4c34",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature6",
+      "blindRankKey": "b5791b7b21f2a53b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature1",
+      "b": "pillow_task/task290/feature5",
+      "blindRankKey": "b59e16111eed3de0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature12",
+      "blindRankKey": "b5b9479d153a733b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature3",
+      "b": "llama_index_task/task17244/feature5",
+      "blindRankKey": "b698cf3d32a6a7c1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "b72b6d2788f177cf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature1",
+      "b": "go_chi_task/task56/feature4",
+      "blindRankKey": "b7750ea5706973c0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature2",
+      "b": "dspy_task/task8587/feature4",
+      "blindRankKey": "b789dc783a1af240",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature4",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "b8de5045cb5310f5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature3",
+      "blindRankKey": "b9531f79e5e7b5aa",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature4",
+      "b": "dottxt_ai_outlines_task/task1706/feature5",
+      "blindRankKey": "b985606a02cf15a6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature5",
+      "b": "llama_index_task/task17244/feature6",
+      "blindRankKey": "b9c545aaa5c9576d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "ba28291da9a01e0a",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature9",
+      "blindRankKey": "ba341ecc0821c2ac",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "ba74444bcb9c4fae",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature5",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "ba871e174445247d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature3",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "badb59e257dd2be6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "bb0e69b8827e0127",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature1",
+      "b": "huggingface_datasets_task/task6252/feature2",
+      "blindRankKey": "bb34c973e0bd6428",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature2",
+      "blindRankKey": "bbfed19a5a72e125",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature7",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "bc9eccc9a879b2b6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature3",
+      "b": "dottxt_ai_outlines_task/task1706/feature4",
+      "blindRankKey": "bd18e1b8f21b2fec",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature3",
+      "blindRankKey": "bd7b9a224763d4cd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature1",
+      "b": "dspy_task/task8587/feature2",
+      "blindRankKey": "bda2d57965f4fd3c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "bdb64736894c5c41",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature2",
+      "b": "llama_index_task/task18813/feature5",
+      "blindRankKey": "bdd1f4b2e4d0baab",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature3",
+      "b": "dspy_task/task8587/feature5",
+      "blindRankKey": "be2de5a957461d70",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature3",
+      "b": "dspy_task/task8563/feature4",
+      "blindRankKey": "bec65a54b79bef68",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "bee84f0a0d76dcc0",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature7",
+      "blindRankKey": "bf89161b1606ba42",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature1",
+      "b": "llama_index_task/task18813/feature4",
+      "blindRankKey": "c01d017b0c42dd6e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature3",
+      "b": "huggingface_datasets_task/task6252/feature4",
+      "blindRankKey": "c01f403dbe9f137c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature4",
+      "blindRankKey": "c053889ad4ae7ba4",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature2",
+      "b": "react_hook_form_task/task85/feature5",
+      "blindRankKey": "c0dba0ef76deeeb9",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature1",
+      "b": "go_chi_task/task26/feature3",
+      "blindRankKey": "c1107033762c7d96",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature2",
+      "b": "pallets_click_task/task2800/feature6",
+      "blindRankKey": "c168675756f3b539",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature4",
+      "blindRankKey": "c1a622cae2099f4b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "c21d229348a9c9d8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature3",
+      "b": "pallets_jinja_task/task1465/feature6",
+      "blindRankKey": "c221fdffce3e2169",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature3",
+      "blindRankKey": "c237a89bf5998b99",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "c29a54f195c1d22d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature4",
+      "blindRankKey": "c39b8e00a62eaebc",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature4",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "c417ba1e4ef09952",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature2",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "c554811315610cb5",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature3",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "c557d6ddf5bb2ea5",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature1",
+      "b": "pillow_task/task68/feature4",
+      "blindRankKey": "c5cc3f7d7dc42a9b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature4",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "c6084214c3f5c9aa",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature1",
+      "b": "dspy_task/task8394/feature3",
+      "blindRankKey": "c699005f3defd4f2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature4",
+      "blindRankKey": "c6cc9b18582f4f61",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature1",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature9",
+      "blindRankKey": "c6d0ce526063536e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature3",
+      "b": "react_hook_form_task/task153/feature5",
+      "blindRankKey": "c6d8858030342f22",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature2",
+      "b": "pillow_task/task25/feature3",
+      "blindRankKey": "c6ec5d1f9571ec20",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "c703263fda240035",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature10",
+      "b": "pallets_jinja_task/task1621/feature4",
+      "blindRankKey": "c7284dfa51ca7c7b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature5",
+      "b": "pallets_jinja_task/task1465/feature7",
+      "blindRankKey": "c77459e1b69f103a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature2",
+      "b": "openai_tiktoken_task/task0/feature3",
+      "blindRankKey": "c82a4fc923bf1a7f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature3",
+      "b": "pallets_click_task/task2800/feature6",
+      "blindRankKey": "cad6682a0884742f",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature1",
+      "b": "pallets_click_task/task2956/feature6",
+      "blindRankKey": "caf77f88564912ce",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "cb591ea8f27b543a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature7",
+      "blindRankKey": "cb632314d1c80493",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature3",
+      "b": "go_chi_task/task56/feature5",
+      "blindRankKey": "cbb301ad00c6915e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "cc896fd1e996e357",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature1",
+      "b": "huggingface_datasets_task/task3997/feature2",
+      "blindRankKey": "ccfd2fb6046d1473",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature3",
+      "b": "dspy_task/task8394/feature4",
+      "blindRankKey": "ce1c6a1761f56360",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature7",
+      "b": "openai_tiktoken_task/task0/feature9",
+      "blindRankKey": "ceb92a59e85d2e3b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature10",
+      "b": "typst_task/task6554/feature6",
+      "blindRankKey": "cf31689573f16cb0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature3",
+      "b": "huggingface_datasets_task/task6252/feature5",
+      "blindRankKey": "cf3d9ed78d13ddbe",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature1",
+      "b": "pallets_click_task/task2800/feature7",
+      "blindRankKey": "cf9a0d3a186051c7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature12",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "d028cbf1302e6910",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature4",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "d0520fc78c90ce7b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature5",
+      "blindRankKey": "d067e6f671b133ac",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature10",
+      "blindRankKey": "d06d65bb241a621a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature5",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "blindRankKey": "d088c9ae6de01da5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task25",
+      "a": "pillow_task/task25/feature2",
+      "b": "pillow_task/task25/feature5",
+      "blindRankKey": "d134b134245391f7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature1",
+      "b": "react_hook_form_task/task85/feature5",
+      "blindRankKey": "d2174835c408511a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature1",
+      "b": "dspy_task/task8563/feature4",
+      "blindRankKey": "d2424d1368fa5e28",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature1",
+      "b": "dottxt_ai_outlines_task/task1706/feature5",
+      "blindRankKey": "d2b351b73f8e0d17",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature6",
+      "b": "pallets_jinja_task/task1621/feature8",
+      "blindRankKey": "d31e3769640b6ea3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature5",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "d31fc56c5d0ea72d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature6",
+      "blindRankKey": "d3b7ddaaddaea7e5",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature6",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "d49d35b0dec3331c",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature3",
+      "b": "pallets_click_task/task2956/feature5",
+      "blindRankKey": "d584999705c86f00",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature2",
+      "b": "huggingface_datasets_task/task6252/feature6",
+      "blindRankKey": "d667aa1045a33b00",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature1",
+      "b": "go_chi_task/task26/feature2",
+      "blindRankKey": "d70b30c882876ba1",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "d71c0684cd78075c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature6",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "d77cb8a1a4e56aa7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature5",
+      "blindRankKey": "d7c8f04b5f010b73",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "d7e8cd0ff6295cbf",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature6",
+      "blindRankKey": "d851e0a8da333b92",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature3",
+      "blindRankKey": "d8d12e0fc452f32f",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature3",
+      "b": "dspy_task/task8394/feature5",
+      "blindRankKey": "d8faa5d5df781886",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature10",
+      "b": "pallets_jinja_task/task1465/feature8",
+      "blindRankKey": "d988505d9036e421",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature10",
+      "b": "openai_tiktoken_task/task0/feature5",
+      "blindRankKey": "d9f4dcae5647127a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "da3037db831aec92",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature3",
+      "blindRankKey": "daafea4a5e4aa948",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature5",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "db07e2c956117fa8",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature4",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "db7ee9d346940425",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature3",
+      "b": "huggingface_datasets_task/task6252/feature6",
+      "blindRankKey": "dcc00c655115b3b8",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature5",
+      "b": "pallets_click_task/task2068/feature6",
+      "blindRankKey": "dcdcb5bad35a653e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature4",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "dd2df60616edbf0a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature4",
+      "blindRankKey": "dd2fcf77c2856a3c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature3",
+      "b": "llama_index_task/task18813/feature5",
+      "blindRankKey": "dd638ca8f80fc8be",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature10",
+      "b": "pallets_jinja_task/task1559/feature2",
+      "blindRankKey": "ddba49efd430d8a2",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature5",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "df61c643cc167e63",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature6",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "dfcd48721099aa11",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "samuelcolvin_dirty_equals_task/task43",
+      "a": "samuelcolvin_dirty_equals_task/task43/feature3",
+      "b": "samuelcolvin_dirty_equals_task/task43/feature4",
+      "blindRankKey": "e0f47f102c605317",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature2",
+      "b": "react_hook_form_task/task153/feature3",
+      "blindRankKey": "e2d8aa0e8d5882df",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature2",
+      "b": "go_chi_task/task26/feature3",
+      "blindRankKey": "e318d342bd40091b",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature4",
+      "b": "huggingface_datasets_task/task6252/feature6",
+      "blindRankKey": "e39dedcbe52b4356",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature2",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "e3e47ec3fe40508c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature1",
+      "b": "react_hook_form_task/task153/feature4",
+      "blindRankKey": "e4bf3ea231be10b4",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature1",
+      "b": "react_hook_form_task/task153/feature5",
+      "blindRankKey": "e5509bbb5c4b4068",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature4",
+      "b": "typst_task/task6554/feature5",
+      "blindRankKey": "e5e242a3282132a2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature4",
+      "blindRankKey": "e5fb03b85998149e",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature1",
+      "b": "typst_task/task6554/feature7",
+      "blindRankKey": "e641a78919734fe6",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature3",
+      "b": "pallets_jinja_task/task1621/feature7",
+      "blindRankKey": "e748a55bafb33718",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature2",
+      "b": "go_chi_task/task56/feature3",
+      "blindRankKey": "e75c559b0ed34a03",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature2",
+      "b": "pallets_jinja_task/task1559/feature4",
+      "blindRankKey": "e79a17628dfe2324",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature6",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "e7ff0469a9323af8",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature2",
+      "b": "react_hook_form_task/task153/feature6",
+      "blindRankKey": "e8090d440338262a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature11",
+      "b": "pallets_click_task/task2068/feature3",
+      "blindRankKey": "e81a330e4db559b7",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature2",
+      "b": "llama_index_task/task17244/feature5",
+      "blindRankKey": "e998c0427b6f19ed",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature6",
+      "b": "pallets_click_task/task2068/feature9",
+      "blindRankKey": "e999c8eb70458ae5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature8",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "ea0b60462818f7e0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature7",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "eb4c05431095a6af",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task26",
+      "a": "go_chi_task/task26/feature3",
+      "b": "go_chi_task/task26/feature4",
+      "blindRankKey": "eb9afff78cefdab0",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature3",
+      "b": "go_chi_task/task56/feature4",
+      "blindRankKey": "ebcfb2cb4e3a0048",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature5",
+      "b": "llama_index_task/task18813/feature6",
+      "blindRankKey": "ecade9ebaeab5ae2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8635",
+      "a": "dspy_task/task8635/feature1",
+      "b": "dspy_task/task8635/feature5",
+      "blindRankKey": "ed24c7f05a5d5fee",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature3",
+      "b": "typst_task/task6554/feature8",
+      "blindRankKey": "ed4e94d9ba3d450d",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task56",
+      "a": "go_chi_task/task56/feature2",
+      "b": "go_chi_task/task56/feature5",
+      "blindRankKey": "ed62603f34cc77e3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task85",
+      "a": "react_hook_form_task/task85/feature4",
+      "b": "react_hook_form_task/task85/feature5",
+      "blindRankKey": "ed8c6ea4d5782e1d",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature7",
+      "b": "pallets_jinja_task/task1621/feature9",
+      "blindRankKey": "ede43b3c93473bec",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature1",
+      "b": "dspy_task/task8563/feature3",
+      "blindRankKey": "eeee23eb03939bf8",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature3",
+      "b": "dottxt_ai_outlines_task/task1655/feature9",
+      "blindRankKey": "efd738dbd777e54c",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature6",
+      "b": "pallets_jinja_task/task1559/feature9",
+      "blindRankKey": "effbc976d6e09ba3",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "llama_index_task/task17070",
+      "a": "llama_index_task/task17070/feature2",
+      "b": "llama_index_task/task17070/feature3",
+      "blindRankKey": "f0b0a05304ea7659",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature1",
+      "b": "dspy_task/task8394/feature2",
+      "blindRankKey": "f0e02d8b349f4711",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature2",
+      "b": "pillow_task/task290/feature3",
+      "blindRankKey": "f178336a6dd6cf98",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature5",
+      "b": "pallets_jinja_task/task1559/feature8",
+      "blindRankKey": "f1942891441f8b12",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature3",
+      "b": "pallets_click_task/task2956/feature6",
+      "blindRankKey": "f2255445461a6b61",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature1",
+      "b": "dspy_task/task8563/feature6",
+      "blindRankKey": "f26fb8b0b7e6a175",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2956",
+      "a": "pallets_click_task/task2956/feature3",
+      "b": "pallets_click_task/task2956/feature8",
+      "blindRankKey": "f2a167cabab3f821",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dspy_task/task8394",
+      "a": "dspy_task/task8394/feature2",
+      "b": "dspy_task/task8394/feature4",
+      "blindRankKey": "f2d5bbb05eed43b3",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task17244",
+      "a": "llama_index_task/task17244/feature5",
+      "b": "llama_index_task/task17244/feature7",
+      "blindRankKey": "f2ed887598fbf2cd",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature10",
+      "blindRankKey": "f34e4952c3462bc4",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_jinja_task/task1621",
+      "a": "pallets_jinja_task/task1621/feature1",
+      "b": "pallets_jinja_task/task1621/feature3",
+      "blindRankKey": "f5d4eea01ef83285",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature5",
+      "b": "dottxt_ai_outlines_task/task1655/feature6",
+      "blindRankKey": "f650d0fd7a5387f2",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature1",
+      "b": "pillow_task/task68/feature5",
+      "blindRankKey": "f68f5b5ff468aecd",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature1",
+      "b": "react_hook_form_task/task153/feature6",
+      "blindRankKey": "f69eeaa93ad1c5a9",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature1",
+      "b": "openai_tiktoken_task/task0/feature3",
+      "blindRankKey": "f6a6ab6b1f7dd48e",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature2",
+      "b": "dspy_task/task8563/feature3",
+      "blindRankKey": "f6ff9c0e0122f6cf",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature3",
+      "blindRankKey": "f7ea6514b40443f5",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature2",
+      "b": "llama_index_task/task18813/feature6",
+      "blindRankKey": "f80bd5365b3f6a40",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature7",
+      "blindRankKey": "f8287f717d1d5b79",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature2",
+      "b": "dottxt_ai_outlines_task/task1706/feature3",
+      "blindRankKey": "f85ad40812dfa029",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8563",
+      "a": "dspy_task/task8563/feature5",
+      "b": "dspy_task/task8563/feature6",
+      "blindRankKey": "f87b21385b162995",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "openai_tiktoken_task/task0",
+      "a": "openai_tiktoken_task/task0/feature3",
+      "b": "openai_tiktoken_task/task0/feature7",
+      "blindRankKey": "f92a7416d019d648",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "llama_index_task/task18813",
+      "a": "llama_index_task/task18813/feature2",
+      "b": "llama_index_task/task18813/feature3",
+      "blindRankKey": "f9494c0121aaeb74",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature1",
+      "b": "pallets_click_task/task2068/feature7",
+      "blindRankKey": "f98248b3c5438cea",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature1",
+      "b": "dottxt_ai_outlines_task/task1655/feature10",
+      "blindRankKey": "f9aecb17d2b8544b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task3997",
+      "a": "huggingface_datasets_task/task3997/feature2",
+      "b": "huggingface_datasets_task/task3997/feature4",
+      "blindRankKey": "f9c720cdeae31d9b",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "react_hook_form_task/task153",
+      "a": "react_hook_form_task/task153/feature1",
+      "b": "react_hook_form_task/task153/feature3",
+      "blindRankKey": "fa2f382ebc8ee739",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "typst_task/task6554",
+      "a": "typst_task/task6554/feature8",
+      "b": "typst_task/task6554/feature9",
+      "blindRankKey": "fa40903514fa0050",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2800",
+      "a": "pallets_click_task/task2800/feature3",
+      "b": "pallets_click_task/task2800/feature5",
+      "blindRankKey": "fa769fe2bbde8fca",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature10",
+      "b": "pallets_click_task/task2068/feature8",
+      "blindRankKey": "fae310b95e09778c",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1465",
+      "a": "pallets_jinja_task/task1465/feature1",
+      "b": "pallets_jinja_task/task1465/feature10",
+      "blindRankKey": "fb1f5112df6da5aa",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_click_task/task2068",
+      "a": "pallets_click_task/task2068/feature2",
+      "b": "pallets_click_task/task2068/feature4",
+      "blindRankKey": "fc1dadcae129f23a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task290",
+      "a": "pillow_task/task290/feature2",
+      "b": "pillow_task/task290/feature4",
+      "blindRankKey": "fc212b235e09cf31",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dspy_task/task8587",
+      "a": "dspy_task/task8587/feature2",
+      "b": "dspy_task/task8587/feature5",
+      "blindRankKey": "fd2b8635a8006117",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pallets_jinja_task/task1559",
+      "a": "pallets_jinja_task/task1559/feature1",
+      "b": "pallets_jinja_task/task1559/feature4",
+      "blindRankKey": "fd75ade2cbc08349",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "huggingface_datasets_task/task6252",
+      "a": "huggingface_datasets_task/task6252/feature2",
+      "b": "huggingface_datasets_task/task6252/feature4",
+      "blindRankKey": "fdb70961dcc52a26",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1706",
+      "a": "dottxt_ai_outlines_task/task1706/feature4",
+      "b": "dottxt_ai_outlines_task/task1706/feature7",
+      "blindRankKey": "fe1a75fff62f7559",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "pillow_task/task68",
+      "a": "pillow_task/task68/feature1",
+      "b": "pillow_task/task68/feature3",
+      "blindRankKey": "ff311c93045aca74",
+      "upstreamGoldPatchesConflict": false
+    },
+    {
+      "pool": "dottxt_ai_outlines_task/task1655",
+      "a": "dottxt_ai_outlines_task/task1655/feature10",
+      "b": "dottxt_ai_outlines_task/task1655/feature8",
+      "blindRankKey": "ff394c8b90e61e0a",
+      "upstreamGoldPatchesConflict": true
+    },
+    {
+      "pool": "go_chi_task/task27",
+      "a": "go_chi_task/task27/feature1",
+      "b": "go_chi_task/task27/feature3",
+      "blindRankKey": "ff6aa3b1f2d94e30",
+      "upstreamGoldPatchesConflict": true
+    }
+  ]
+}

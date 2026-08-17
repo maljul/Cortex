@@ -45,6 +45,25 @@ last generated 2026-08-13.
 | `aws-cdk`      | 2.1135.1   | Apache-2.0 | the `cdk` CLI (dev)                   |
 | `typescript`, `tsx`, `jest`, `@swc/*`, `@types/*` | various | MIT / Apache-2.0 | build and test of the CDK app (dev) |
 
+### Vendored data, not code
+
+One upstream **dataset** file is committed into this repository. It is data rather than a
+dependency, so it is listed separately — `npm ls` will never show it.
+
+| File | Upstream | Revision | Licence | Why it is here |
+| ---- | -------- | -------- | ------- | -------------- |
+| `bench/cooperbench/gold_conflict_report.json` | [CooperBench](https://huggingface.co/datasets/CooperBench/cooperbench-dataset) (Khatua et al., [arXiv:2601.13295](https://arxiv.org/abs/2601.13295)) | `99dfd139` | MIT | the pinned source the experiment-1 manifest is derived from, committed so the pre-registration reproduces without a network fetch |
+
+**One caveat on that licence, disclosed rather than assumed.** MIT is declared in three
+places — the Hugging Face dataset card, the GitHub README and the PyPI package metadata —
+but the upstream GitHub repository ships **no `LICENSE` file**, and the GitHub API reports
+`license: null`. The declarations are consistent and unambiguous; the missing file is a
+paperwork gap on their side. Nothing derived from it is redistributed as code, and only the
+one report file is vendored.
+
+Nothing from CooperBench has been run, scored, or published. The manifest built from it is a
+pre-registration (`bench/cooperbench/PREREGISTRATION.md`) and carries no result.
+
 ## 2. The transitive tree
 
 Counted over every installed package, licence taken from its declared `license` field.
