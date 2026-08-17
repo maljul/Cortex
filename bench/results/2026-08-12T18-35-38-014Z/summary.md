@@ -163,6 +163,20 @@ file publishes its false positives rather than only its catches.
   merging cleanly into a broken tree: nothing in this harness integrates branches at
   all. That failure mode is real and is measured elsewhere, by executing the composed
   application rather than by diffing it.
+- **The NAIVE arm has no write-time concurrency check, and a real agent toolchain does —
+  so this row's baseline is weaker than a real uncoordinated fleet's.** Measured on
+  2026-08-17 (V63) by running a two-arm workload with **real** model agents rather than
+  replayed ones. The uncoordinated arm lost **nothing**, because the agents' editing tool
+  refuses a write to a file that changed since it was last read: one agent did its whole
+  task and was rejected at write time, another hit the same guard and re-read before
+  writing. `06` §2's arm rewrites a JSON file whole from a pre-work snapshot and has no
+  such guard, so the `lost_writes` figures above are measured against a baseline with no
+  optimistic concurrency at all. What survives that comparison is a difference in **kind**
+  rather than in magnitude: arbitration is explicit and holds whatever does the writing,
+  where the toolchain's guard is per-file, per-tool, and would not survive a shell
+  redirect. **Do not read this row as predicting the loss rate of a real uncoordinated
+  fleet.** Nor does the live run contradict it — the two measure different baselines, and
+  no number above moved.
 - **Small synthetic corpus.** 40 fixture files, 30 tasks, one workload shape.
   Overlap was chosen so the failure modes appear at all (`06` §4); a repository
   with less overlap would show less difference, and that is a real caveat rather
