@@ -2,13 +2,6 @@
 
 **Shared, arbitrated memory for fleets of coding agents.**
 
-<!--
-  TODO before publishing: an ≤8s GIF above this line, showing two agents reaching for
-  one file, one standing down, the counter incrementing. 09-DISTRIBUTION.md §2 ranks it
-  the single highest-converting element on this page. It does not exist yet, so it is
-  not linked yet — a broken image is worse than no image.
--->
-
 | metric              | naive | cortex |
 | ------------------- | ----: | -----: |
 | duplicate_work_rate |  0.21 |   0.00 |
@@ -22,6 +15,23 @@ CockroachDB cluster and your own credentials — which is correct for a tool tha
 your codebase. It is the [setup path below](#run-it-on-your-own-cluster), and it is
 deliberately not the same thing as trying it. Bring-your-own-credentials applies to the CLI
 only; nothing on the hosted demo ever asks a visitor for one.
+
+## What's in this repository
+
+| Path | What it is |
+| --- | --- |
+| `src/memory/` | the mechanism: `propose.ts` is dedupe + claim in one SERIALIZABLE transaction, `recall.ts` is the read path, `consolidate.ts` turns a closed intent into a finding |
+| `sql/001_init.sql` | the whole schema: six memory tables, both `VECTOR INDEX`es, the grants, and `FORCE ROW LEVEL SECURITY` |
+| `skills/cortex-memory/` | the published Agent Skill — recall SQL pinned byte-for-byte to the implementation |
+| `bench/` | the benchmark: tasks, committed cassettes, and the published results table |
+| `infra/` | the CDK stack behind the hosted demo — five Lambdas, two APIs, S3 + CloudFront |
+| `test/` | 671 tests, run against a **real** CockroachDB Cloud cluster |
+| `docs/` | evidence: what was verified and when, what was decided and why |
+| `spec/` | the specification the build was executed against; source comments cite it by section |
+
+**Start here:** [`src/memory/propose.ts`](src/memory/propose.ts) — the transaction the whole
+project argues for — and [`docs/architecture.md`](docs/architecture.md) for how it fits
+together.
 
 > Durable execution gives exactly-once within one workflow. It does not give mutual
 > exclusion between agents that do not know each other exists.
